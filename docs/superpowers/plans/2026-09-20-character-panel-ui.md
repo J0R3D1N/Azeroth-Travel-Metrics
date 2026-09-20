@@ -151,7 +151,7 @@ Theme.CreateIconButton(parent, icon, tooltip)
 }
 ```
 
-Use yellow `(1, 0.82, 0)` labels, white `(1, 1, 1)` values, 22-pixel rows, and a 30-pixel section header.
+Use yellow `(1, 0.82, 0)` labels, white `(1, 1, 1)` values, 18-pixel rows, and a 24-pixel section header.
 
 - [ ] **Step 5: Load the module before `UI.lua`**
 
@@ -254,7 +254,7 @@ local templates = {
 }
 ```
 
-then fall back to a bare frame. Set the frame to approximately `470 x 480`, preserve drag scripts and strata order, and set the portrait through:
+then fall back to a bare frame. Set the frame to approximately `420 x 430`, preserve drag scripts and strata order, and set the portrait through:
 
 ```lua
 if type(SetPortraitToTexture) == "function" then
@@ -292,7 +292,7 @@ Change `setPanelVisibility()` to call `ATT.UITheme.SetSideTabSelected`.
 
 - [ ] **Step 6: Move utility controls into the footer**
 
-Create a 28-by-28 gear button with `ATT.UITheme.CreateIconButton`, anchor it at the bottom-right inside the frame, and preserve the settings-panel toggle behavior.
+Create a 24-by-24 gear button with `ATT.UITheme.CreateIconButton`, anchor it at the bottom-right inside the frame, and preserve the settings-panel toggle behavior.
 
 Keep Reset Session as a small `UIPanelButtonTemplate` anchored bottom-left. Do not color it red.
 
@@ -386,7 +386,7 @@ local SUMMARY_ROWS = {
 }
 ```
 
-Create `UI.summarySections` through `ATT.UITheme.CreateSection`. Stack Lifetime, This Session, and Current Level with 8-pixel gaps. Keep diagnostics below the third section and only show text when diagnostics are enabled.
+Create `UI.summarySections` through `ATT.UITheme.CreateSection`. Stack Lifetime, This Session, and Current Level with gaps no larger than 6 pixels. Keep diagnostics in a compact footer line that consumes no height when diagnostics are disabled.
 
 In `UI.Refresh()`, bind each model field to its individual right-aligned value:
 
@@ -403,7 +403,7 @@ end
 
 - [ ] **Step 5: Build character-style level cards**
 
-Change `ensureLevelRows` so each model row owns a compact four-row section titled `Level <n>`. Reuse existing frames when refreshing. Set each card height to 118 pixels and update `UI.levelScrollChild` height from the card count.
+Change `ensureLevelRows` so each model row owns a compact four-row section titled `Level <n>`. Reuse existing frames when refreshing. Set each card height to 100 pixels and update `UI.levelScrollChild` height from the card count.
 
 Bind steps, on-foot, swimming, and taxi values separately. Keep highest-level-first ordering supplied by `UIModel`.
 

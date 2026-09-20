@@ -38,7 +38,9 @@ Every template or atlas use requires a protected fallback. A missing native asse
 
 - Keep the window movable by left-button drag.
 - Keep `FULLSCREEN_DIALOG` as the preferred strata, followed by `FULLSCREEN`, `DIALOG`, and `HIGH`.
-- Target a compact footprint near the current size, expanding only enough to support the side tabs without clipping.
+- Target a very compact footprint of approximately **420 x 430 pixels**. The right-side tabs sit outside that footprint and must not force a wider content area.
+- Use 24-pixel section headers, 18-pixel statistic rows, and no more than 6 pixels between stacked sections.
+- Do not reserve permanent blank space for settings, diagnostics, or controls that are currently hidden.
 - Use the built-in map icon `Interface\Icons\INV_Misc_Map_01` as the portrait.
 - Keep the title centered in the native title bar.
 - Keep the settings panel collapsed by default.
@@ -64,7 +66,7 @@ Replace the three sparse columns with three stacked character-stat sections:
 2. This Session
 3. Current Level
 
-Each section contains one beveled header and four compact rows:
+Each section contains one 24-pixel beveled header and four 18-pixel rows:
 
 - Estimated Steps
 - On Foot
@@ -78,8 +80,8 @@ Labels use WoW yellow; values use white and align right. Rows use the character 
 Use the same character-stat visual language:
 
 - one section heading labeled `Travel by Level`;
-- a compact scrollable list;
-- each level begins with a beveled level header;
+- a compact scrollable list that fills the inset;
+- each level begins with a 24-pixel beveled level header;
 - rows show Estimated Steps, On Foot, Swimming, and Flight Path;
 - newest/highest level appears first;
 - all levels remain reachable through scrolling.
@@ -135,6 +137,6 @@ Automated tests must verify:
 - The addon frame immediately reads as part of the default Forever character-panel family.
 - Overview and By Level use right-side icon tabs, not top text tabs.
 - Coloring, shading, borders, labels, values, and row treatment mirror the supplied character panel.
-- The layout is compact and contains no large unused black area.
+- The approximately 420 x 430 layout is dense, readable, and contains no large unused black area.
 - The minimap button uses a built-in movement icon.
 - Opening, moving, tabbing, settings, reset, and tracking produce no Lua errors.
