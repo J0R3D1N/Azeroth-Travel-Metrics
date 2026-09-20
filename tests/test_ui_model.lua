@@ -91,14 +91,28 @@ testlib.case("ui overview derives only on-foot steps using the character race", 
     local humanOverview = addon.UIModel.BuildOverview(newCharacter("Human"), 20, "metric")
     local taurenOverview = addon.UIModel.BuildOverview(newCharacter("Tauren"), 20, "metric")
 
-    testlib.equal(humanOverview.lifetime.steps, 114)
-    testlib.equal(taurenOverview.lifetime.steps, 87)
+    testlib.equal(humanOverview.lifetime.rawSteps, 114)
+    testlib.equal(humanOverview.lifetime.steps, "114")
+    testlib.equal(taurenOverview.lifetime.rawSteps, 87)
+    testlib.equal(taurenOverview.lifetime.steps, "87")
     testlib.equal(humanOverview.lifetime.swimmingSteps, nil)
     testlib.equal(humanOverview.lifetime.taxiSteps, nil)
     testlib.equal(humanOverview.session.swimmingSteps, nil)
     testlib.equal(humanOverview.session.taxiSteps, nil)
     testlib.equal(humanOverview.currentLevel.swimmingSteps, nil)
     testlib.equal(humanOverview.currentLevel.taxiSteps, nil)
+end)
+
+testlib.case("ui overview compacts large step totals and preserves raw steps", function()
+    local addon = loadUIModel()
+    local character = newCharacter()
+    character.lifetime.onFoot = 12500 * addon.Stride.GetMeters("Human")
+        / addon.Distance.YARDS_TO_METERS
+
+    local overview = addon.UIModel.BuildOverview(character, 20, "metric")
+
+    testlib.equal(overview.lifetime.rawSteps, 12500)
+    testlib.equal(overview.lifetime.steps, "12.5K")
 end)
 
 testlib.case("ui overview includes raw and metric formatted category values", function()
@@ -140,6 +154,7 @@ testlib.case("changing overview units changes strings only", function()
         local metricGroup = metric[groupName]
         local imperialGroup = imperial[groupName]
 
+        testlib.equal(metricGroup.rawSteps, imperialGroup.rawSteps)
         testlib.equal(metricGroup.steps, imperialGroup.steps)
         testlib.equal(metricGroup.onFootYards, imperialGroup.onFootYards)
         testlib.equal(metricGroup.swimmingYards, imperialGroup.swimmingYards)
@@ -183,7 +198,8 @@ testlib.case("ui level rows preserve timestamps and represent every category", f
     local row = rows[1]
 
     testlib.equal(row.reachedAt, 2000)
-    testlib.equal(row.steps, 229)
+    testlib.equal(row.rawSteps, 229)
+    testlib.equal(row.steps, "229")
     testlib.equal(row.onFootYards, 200)
     testlib.equal(row.swimmingYards, 201)
     testlib.equal(row.taxiYards, 202)
@@ -325,6 +341,8 @@ testlib.case("ui model uses the stride fallback for unknown races", function()
     local overview = addon.UIModel.BuildOverview(newCharacter("UnknownFutureRace"), 20, "metric")
     local rows = addon.UIModel.BuildLevelRows(newCharacter("UnknownFutureRace"), "metric")
 
-    testlib.equal(overview.lifetime.steps, 114)
-    testlib.equal(rows[1].steps, 229)
+    testlib.equal(overview.lifetime.rawSteps, 114)
+    testlib.equal(overview.lifetime.steps, "114")
+    testlib.equal(rows[1].rawSteps, 229)
+    testlib.equal(rows[1].steps, "229")
 end)

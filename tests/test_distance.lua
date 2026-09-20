@@ -15,6 +15,32 @@ testlib.case("distance converts yards to meters", function()
     testlib.near(addon.Distance.YardsToMeters(100), 91.44, 0.001)
 end)
 
+testlib.case("distance formats large numbers with compact WoW suffixes", function()
+    local addon = loadDistance()
+
+    testlib.equal(addon.Distance.FormatNumber(9999), "9999")
+    testlib.equal(addon.Distance.FormatNumber(10000), "10.0K")
+    testlib.equal(addon.Distance.FormatNumber(12500), "12.5K")
+    testlib.equal(addon.Distance.FormatNumber(125000), "125K")
+    testlib.equal(addon.Distance.FormatNumber(1250000), "1.25M")
+    testlib.equal(addon.Distance.FormatNumber(1250000000), "1.25B")
+end)
+
+testlib.case("distance rejects invalid compact formatting values", function()
+    local addon = loadDistance()
+    local invalidValues = {
+        -1,
+        0 / 0,
+        math.huge,
+        "10000",
+    }
+
+    for _, value in ipairs(invalidValues) do
+        testlib.equal(addon.Distance.FormatNumber(value), nil)
+        testlib.equal(addon.Distance.Format(value, "metric"), nil)
+    end
+end)
+
 testlib.case("distance formats metric yards as meters", function()
     local addon = loadDistance()
 
@@ -33,6 +59,13 @@ testlib.case("distance switches metric units at 1000 meters", function()
 
     testlib.equal(addon.Distance.Format(metricThresholdYards - 0.001, "metric"), "1000.0 m")
     testlib.equal(addon.Distance.Format(metricThresholdYards, "metric"), "1.00 km")
+    testlib.equal(addon.Distance.Format(1093.6133, "metric"), "1.00 km")
+end)
+
+testlib.case("distance compacts large metric kilometer values", function()
+    local addon = loadDistance()
+
+    testlib.equal(addon.Distance.Format(10936133, "metric"), "10.0K km")
 end)
 
 testlib.case("distance formats imperial yards as yards", function()
@@ -46,6 +79,7 @@ testlib.case("distance switches imperial units at one mile", function()
 
     testlib.equal(addon.Distance.Format(1759.999, "imperial"), "1760 yd")
     testlib.equal(addon.Distance.Format(1760, "imperial"), "1.00 mi")
+    testlib.equal(addon.Distance.Format(17600000, "imperial"), "10.0K mi")
 end)
 
 testlib.case("distance defaults unknown units to metric", function()

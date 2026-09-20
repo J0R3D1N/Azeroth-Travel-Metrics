@@ -52,8 +52,11 @@ local function normalizedUnits(units)
 end
 
 local function buildSummary(totals, raceFile, units)
+    local rawSteps = ATT.Stride.EstimateSteps(totals.onFoot, raceFile)
+
     return {
-        steps = ATT.Stride.EstimateSteps(totals.onFoot, raceFile),
+        rawSteps = rawSteps,
+        steps = ATT.Distance.FormatNumber(rawSteps),
         onFootYards = totals.onFoot,
         swimmingYards = totals.swimming,
         taxiYards = totals.taxi,
