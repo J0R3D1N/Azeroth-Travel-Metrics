@@ -4,11 +4,26 @@ ATT.UI = {}
 
 local UI = ATT.UI
 local RESET_DIALOG_KEY = "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
-local LEVEL_ROW_HEIGHT = 20
-local LEVEL_VIEW_HEIGHT = 260
+local SECTION_HEIGHT = 96
+local SECTION_GAP = 4
+local SUMMARY_CONTENT_HEIGHT = (SECTION_HEIGHT * 3) + (SECTION_GAP * 2)
+local DIAGNOSTICS_FOOTER_HEIGHT = 16
+local LEVEL_CARD_HEIGHT = 100
+local LEVEL_VIEW_HEIGHT = 282
 local LEVEL_CONTENT_WIDTH = 348
 local HUD_REST_ALPHA = 0.45
 local HUD_HOVER_ALPHA = 0.92
+local SUMMARY_ROWS = {
+    { key = "steps", label = "Estimated Steps" },
+    { key = "onFoot", label = "On Foot" },
+    { key = "swimming", label = "Swimming" },
+    { key = "taxi", label = "Flight Path" },
+}
+local SUMMARY_DEFINITIONS = {
+    { key = "lifetime", title = "Lifetime" },
+    { key = "session", title = "This Session" },
+    { key = "currentLevel", title = "Current Level" },
+}
 local VALID_FRAME_POINTS = {
     TOPLEFT = true,
     TOP = true,
@@ -139,17 +154,20 @@ local function setPanelVisibility()
     end
 end
 
-local function summaryText(summary)
-    return table.concat({
-        "Estimated steps: " .. tostring(summary.steps),
-        "On foot: " .. tostring(summary.onFoot),
-        "Swimming: " .. tostring(summary.swimming),
-        "Flight path: " .. tostring(summary.taxi),
-    }, "\n")
-end
-
 local function showModelError(reason)
     UI.ShowError("Statistics unavailable: " .. tostring(reason or "unknownError"))
+end
+
+local function sectionValues(summary)
+    local values = {}
+    for index, definition in ipairs(SUMMARY_ROWS) do
+        local value = summary[definition.key]
+        values[index] = {
+            label = definition.label,
+            value = value == nil and "" or tostring(value),
+        }
+    end
+    return values
 end
 
 local function isFiniteNumber(value)
@@ -456,21 +474,23 @@ end
 local function ensureLevelRows(count)
     while #UI.levelRows < count do
         local index = #UI.levelRows + 1
-        local row = createLabel(
+        local card = ATT.UITheme.CreateSection(
             UI.levelScrollChild,
             "",
-            "GameFontHighlightSmall"
+            #SUMMARY_ROWS
         )
-        row:SetPoint(
+        card.frame:SetHeight(LEVEL_CARD_HEIGHT)
+        card.frame:SetPoint(
             "TOPLEFT",
             UI.levelScrollChild,
             "TOPLEFT",
             0,
-            -((index - 1) * LEVEL_ROW_HEIGHT)
+            -((index - 1) * LEVEL_CARD_HEIGHT)
         )
-        row:SetWidth(LEVEL_CONTENT_WIDTH)
-        row:Hide()
-        table.insert(UI.levelRows, row)
+        card.frame:SetWidth(LEVEL_CONTENT_WIDTH)
+        ATT.UITheme.SetSectionValues(card, sectionValues({}))
+        card.frame:Hide()
+        table.insert(UI.levelRows, card)
     end
 end
 
@@ -724,46 +744,37 @@ function UI.Create()
     UI.errorText:Hide()
 
     UI.overviewPanel = CreateFrame("Frame", nil, frame)
-    UI.overviewPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -84)
-    UI.overviewPanel:SetSize(376, 282)
+    UI.overviewPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -54)
+    UI.overviewPanel:SetSize(376, SUMMARY_CONTENT_HEIGHT)
 
-    UI.summaryGroups = {}
-    local groupDefinitions = {
-        {
-            key = "lifetime",
-            title = "Lifetime",
-        },
-        {
-            key = "session",
-            title = "This Session",
-        },
-        {
-            key = "currentLevel",
-            title = "Current Level",
-        },
-    }
-
-    for index, definition in ipairs(groupDefinitions) do
-        local group = CreateFrame("Frame", nil, UI.overviewPanel)
-        group:SetSize(116, 210)
+    UI.summarySections = {}
+    for index, definition in ipairs(SUMMARY_DEFINITIONS) do
+        local section = ATT.UITheme.CreateSection(
+            UI.overviewPanel,
+            definition.title,
+            #SUMMARY_ROWS
+        )
+        section.key = definition.key
+        section.frame:SetWidth(376)
         if index == 1 then
-            group:SetPoint("TOPLEFT", UI.overviewPanel, "TOPLEFT", 0, 0)
-        else
-            group:SetPoint(
-                "LEFT",
-                UI.summaryGroups[index - 1],
-                "RIGHT",
-                14,
+            section.frame:SetPoint(
+                "TOPLEFT",
+                UI.overviewPanel,
+                "TOPLEFT",
+                0,
                 0
             )
+        else
+            section.frame:SetPoint(
+                "TOPLEFT",
+                UI.summarySections[index - 1].frame,
+                "BOTTOMLEFT",
+                0,
+                -SECTION_GAP
+            )
         end
-        group.key = definition.key
-        group.heading = createLabel(group, definition.title, "GameFontNormalLarge")
-        group.heading:SetPoint("TOPLEFT", group, "TOPLEFT", 0, 0)
-        group.value = createLabel(group, "", "GameFontHighlight")
-        group.value:SetPoint("TOPLEFT", group, "TOPLEFT", 0, -32)
-        group.value:SetWidth(116)
-        table.insert(UI.summaryGroups, group)
+        ATT.UITheme.SetSectionValues(section, sectionValues({}))
+        table.insert(UI.summarySections, section)
     end
 
     UI.diagnosticsText = createLabel(
@@ -772,23 +783,33 @@ function UI.Create()
         "GameFontDisableSmall"
     )
     UI.diagnosticsText:SetPoint(
-        "TOPLEFT",
+        "BOTTOMLEFT",
         UI.overviewPanel,
-        "TOPLEFT",
+        "BOTTOMLEFT",
         0,
-        -224
+        0
     )
     UI.diagnosticsText:SetWidth(376)
+    UI.diagnosticsText:SetHeight(DIAGNOSTICS_FOOTER_HEIGHT)
+    UI.diagnosticsText:Hide()
 
     UI.levelPanel = CreateFrame("Frame", nil, frame)
-    UI.levelPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -84)
-    UI.levelPanel:SetSize(376, 282)
-    UI.levelHeader = createLabel(
+    UI.levelPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -54)
+    UI.levelPanel:SetSize(376, 310)
+    UI.levelHeadingSection = ATT.UITheme.CreateSection(
         UI.levelPanel,
-        "Level  |  Estimated steps  |  On foot  |  Swimming  |  Flight path",
-        "GameFontNormal"
+        "Travel by Level",
+        0
     )
-    UI.levelHeader:SetPoint("TOPLEFT", UI.levelPanel, "TOPLEFT", 0, 0)
+    UI.levelHeadingSection.frame:SetPoint(
+        "TOPLEFT",
+        UI.levelPanel,
+        "TOPLEFT",
+        0,
+        0
+    )
+    UI.levelHeadingSection.frame:SetWidth(376)
+    UI.levelHeader = UI.levelHeadingSection.title
 
     local scrollSucceeded, levelScrollFrame = pcall(
         CreateFrame,
@@ -806,7 +827,7 @@ function UI.Create()
         UI.levelPanel,
         "TOPLEFT",
         0,
-        -24
+        -28
     )
     levelScrollFrame:SetSize(376, LEVEL_VIEW_HEIGHT)
     levelScrollFrame:EnableMouseWheel(true)
@@ -827,7 +848,7 @@ function UI.Create()
             0,
             math.min(
                 scrollRange,
-                current - (delta * LEVEL_ROW_HEIGHT)
+                current - (delta * 36)
             )
         ))
     end)
@@ -884,32 +905,30 @@ function UI.Refresh()
         return false
     end
 
-    for _, group in ipairs(UI.summaryGroups) do
-        group.value:SetText(summaryText(overview[group.key]))
+    for index, definition in ipairs(SUMMARY_DEFINITIONS) do
+        ATT.UITheme.SetSectionValues(
+            UI.summarySections[index],
+            sectionValues(overview[definition.key])
+        )
     end
     refreshHUD(overview.session)
 
     ensureLevelRows(#levelRows)
     UI.levelScrollChild:SetHeight(math.max(
         LEVEL_VIEW_HEIGHT,
-        #levelRows * LEVEL_ROW_HEIGHT
+        #levelRows * LEVEL_CARD_HEIGHT
     ))
 
-    for index, rowLabel in ipairs(UI.levelRows) do
+    for index, card in ipairs(UI.levelRows) do
         local row = levelRows[index]
         if row then
-            rowLabel:SetText(string.format(
-                "Level %d  |  %s est.  |  %s  |  %s  |  %s",
-                row.level,
-                row.steps,
-                row.onFoot,
-                row.swimming,
-                row.taxi
-            ))
-            rowLabel:Show()
+            card.title:SetText("Level " .. tostring(row.level))
+            ATT.UITheme.SetSectionValues(card, sectionValues(row))
+            card.frame:Show()
         else
-            rowLabel:SetText("")
-            rowLabel:Hide()
+            card.title:SetText("")
+            ATT.UITheme.SetSectionValues(card, sectionValues({}))
+            card.frame:Hide()
         end
     end
 
@@ -920,7 +939,20 @@ function UI.Refresh()
             diagnostic.reason .. ": " .. tostring(diagnostic.count)
         )
     end
-    UI.diagnosticsText:SetText(table.concat(diagnosticLines, "  |  "))
+    local diagnosticsEnabled = context.db
+        and context.db.settings
+        and context.db.settings.showDiagnostics == true
+    if diagnosticsEnabled and #diagnosticLines > 0 then
+        UI.diagnosticsText:SetText(table.concat(diagnosticLines, "  |  "))
+        UI.diagnosticsText:Show()
+        UI.overviewPanel:SetHeight(
+            SUMMARY_CONTENT_HEIGHT + DIAGNOSTICS_FOOTER_HEIGHT
+        )
+    else
+        UI.diagnosticsText:SetText("")
+        UI.diagnosticsText:Hide()
+        UI.overviewPanel:SetHeight(SUMMARY_CONTENT_HEIGHT)
+    end
 
     pendingError = nil
     UI.errorText:SetText("")

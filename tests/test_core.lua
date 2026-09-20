@@ -1102,6 +1102,11 @@ local function newUIHarness(options)
         end,
         BuildLevelRows = function()
             calls.rows = calls.rows + 1
+            if options.levelRowsSequence then
+                return options.levelRowsSequence[
+                    math.min(calls.rows, #options.levelRowsSequence)
+                ]
+            end
             return options.levelRows or {
                 {
                     level = 42,
@@ -1224,7 +1229,43 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
     testlib.equal(type(first.scripts.OnDragStop), "function")
     testlib.equal(first.portraitTexture, harness.addon.UITheme.Icons.PORTRAIT)
     testlib.equal(harness.addon.UI.title, first.TitleText)
-    testlib.equal(#harness.addon.UI.summaryGroups, 3)
+    testlib.equal(harness.addon.UI.summaryGroups, nil)
+    testlib.equal(#harness.addon.UI.summarySections, 3)
+    local expectedLabels = {
+        "Estimated Steps",
+        "On Foot",
+        "Swimming",
+        "Flight Path",
+    }
+    local expectedTitles = {
+        "Lifetime",
+        "This Session",
+        "Current Level",
+    }
+    for sectionIndex, section in ipairs(harness.addon.UI.summarySections) do
+        testlib.equal(section.title:GetText(), expectedTitles[sectionIndex])
+        testlib.equal(#section.rows, 4)
+        testlib.equal(section.frame.height, 96)
+        for index, label in ipairs(expectedLabels) do
+            testlib.equal(section.rows[index].label:GetText(), label)
+            testlib.equal(section.rows[index].value.justifyH, "RIGHT")
+        end
+    end
+    testlib.equal(
+        harness.addon.UI.summarySections[2].frame.point[1],
+        "TOPLEFT"
+    )
+    testlib.equal(
+        harness.addon.UI.summarySections[2].frame.point[2],
+        harness.addon.UI.summarySections[1].frame
+    )
+    testlib.equal(
+        harness.addon.UI.summarySections[2].frame.point[3],
+        "BOTTOMLEFT"
+    )
+    testlib.truthy(
+        math.abs(harness.addon.UI.summarySections[2].frame.point[5]) <= 6
+    )
     testlib.equal(harness.addon.UI.resetButton.template, "UIPanelButtonTemplate")
     testlib.equal(harness.addon.UI.settingsButton.width, 24)
     testlib.equal(harness.addon.UI.settingsButton.height, 24)
@@ -1362,7 +1403,11 @@ testlib.case("ui remains visible when all shell side-tab and atlas assets fail",
     testlib.truthy(noTemplate.addon.UI.contentInset.color ~= nil)
     testlib.truthy(noTemplate.addon.UI.settingsButton.Icon.texture ~= nil)
     testlib.equal(noTemplate.addon.UI.resetButton:GetText(), "Reset Session")
-    testlib.equal(noTemplate.addon.UI.summaryGroups[1].heading:GetText(), "Lifetime")
+    testlib.equal(noTemplate.addon.UI.summarySections[1].title:GetText(), "Lifetime")
+    testlib.equal(
+        noTemplate.addon.UI.summarySections[1].rows[1].label:GetText(),
+        "Estimated Steps"
+    )
     testlib.equal(noTemplate.addon.UI.title:GetText(), "Azeroth Travel Tracker")
 end)
 
@@ -1617,28 +1662,40 @@ testlib.case("ui refresh consumes overview levels and diagnostics models", funct
     testlib.equal(harness.calls.overview, 1)
     testlib.equal(harness.calls.rows, 1)
     testlib.equal(harness.calls.diagnostics, 1)
-    testlib.truthy(
-        contains(harness.addon.UI.summaryGroups[1].value:GetText(), "Estimated steps: 12.5K")
-    )
-    testlib.truthy(
-        contains(harness.addon.UI.summaryGroups[2].value:GetText(), "On foot: 100 m")
-    )
-    testlib.truthy(
-        contains(harness.addon.UI.summaryGroups[3].value:GetText(), "Flight path: 70 m")
-    )
-    testlib.truthy(
-        contains(
-            harness.addon.UI.levelRows[1]:GetText(),
-            "Level 42  |  12.5K est."
-        )
-    )
+    local UI = harness.addon.UI
+    testlib.equal(UI.summarySections[1].rows[1].value:GetText(), "12.5K")
+    testlib.equal(UI.summarySections[1].rows[2].value:GetText(), "1.00 km")
+    testlib.equal(UI.summarySections[1].rows[3].value:GetText(), "2.00 km")
+    testlib.equal(UI.summarySections[1].rows[4].value:GetText(), "3.00 km")
+    testlib.equal(UI.summarySections[2].rows[1].value:GetText(), "10")
+    testlib.equal(UI.summarySections[2].rows[2].value:GetText(), "100 m")
+    testlib.equal(UI.summarySections[3].rows[4].value:GetText(), "70 m")
+    testlib.equal(UI.levelRows[1].title:GetText(), "Level 42")
+    testlib.equal(UI.levelRows[1].rows[1].value:GetText(), "12.5K")
+    testlib.equal(UI.levelRows[1].rows[2].value:GetText(), "50 m")
+    testlib.equal(UI.levelRows[1].rows[3].value:GetText(), "60 m")
+    testlib.equal(UI.levelRows[1].rows[4].value:GetText(), "70 m")
+    testlib.equal(UI.levelRows[2].title:GetText(), "Level 41")
+    local expectedLabels = {
+        "Estimated Steps",
+        "On Foot",
+        "Swimming",
+        "Flight Path",
+    }
+    for index, label in ipairs(expectedLabels) do
+        testlib.equal(UI.levelRows[1].rows[index].label:GetText(), label)
+    end
+    testlib.equal(UI.levelHeader:GetText(), "Travel by Level")
+    testlib.equal(contains(UI.levelRows[1].title:GetText(), "|"), false)
+    testlib.equal(contains(UI.levelHeader:GetText(), "|"), false)
     testlib.truthy(contains(harness.addon.UI.diagnosticsText:GetText(), "alpha: 2"))
+    testlib.equal(harness.addon.UI.diagnosticsText:IsShown(), true)
     testlib.equal(harness.addon.UI.errorText:IsShown(), false)
 end)
 
 testlib.case("ui level list exposes every row through scrollable content", function()
     local rows = {}
-    for level = 15, 1, -1 do
+    for level = 16, 1, -1 do
         table.insert(rows, {
             level = level,
             steps = level * 10,
@@ -1653,19 +1710,106 @@ testlib.case("ui level list exposes every row through scrollable content", funct
     harness.addon.UI.Create()
     harness.addon.UI.Refresh()
 
-    testlib.equal(#harness.addon.UI.levelRows, 15)
-    testlib.truthy(contains(
-        harness.addon.UI.levelRows[15]:GetText(),
-        "Level 1"
-    ))
+    testlib.equal(#harness.addon.UI.levelRows, 16)
+    testlib.equal(harness.addon.UI.levelRows[16].title:GetText(), "Level 1")
+    testlib.equal(harness.addon.UI.levelRows[16].rows[4].value:GetText(), "1 m")
+    testlib.equal(harness.addon.UI.levelRows[16].frame:IsShown(), true)
     testlib.equal(
-        harness.addon.UI.levelRows[15].parent,
+        harness.addon.UI.levelRows[16].frame.parent,
         harness.addon.UI.levelScrollChild
     )
-    testlib.equal(harness.addon.UI.levelScrollChild.height, 300)
+    testlib.truthy(
+        harness.addon.UI.levelScrollChild.height
+            >= (#rows * 100)
+    )
+    testlib.truthy(
+        harness.addon.UI.levelScrollChild.height
+            > harness.addon.UI.levelScrollFrame.height
+    )
     testlib.truthy(
         harness.addon.UI.levelScrollFrame:GetVerticalScrollRange() > 0
     )
+end)
+
+testlib.case("ui level cards reuse frames and hide stale data after shrinking", function()
+    local harness = newUIHarness({
+        levelRowsSequence = {
+            {
+                {
+                    level = 42,
+                    steps = "420",
+                    onFoot = "42 m",
+                    swimming = "4 m",
+                    taxi = "2 m",
+                },
+                {
+                    level = 41,
+                    steps = "410",
+                    onFoot = "41 m",
+                    swimming = "3 m",
+                    taxi = "1 m",
+                },
+            },
+            {
+                {
+                    level = 42,
+                    steps = "421",
+                    onFoot = "43 m",
+                    swimming = "5 m",
+                    taxi = "3 m",
+                },
+            },
+        },
+    })
+    local UI = harness.addon.UI
+    UI.Create()
+    UI.Refresh()
+    local firstCard = UI.levelRows[1]
+    local staleCard = UI.levelRows[2]
+
+    UI.Refresh()
+
+    testlib.equal(UI.levelRows[1], firstCard)
+    testlib.equal(UI.levelRows[2], staleCard)
+    testlib.equal(firstCard.rows[1].value:GetText(), "421")
+    testlib.equal(staleCard.frame:IsShown(), false)
+    testlib.equal(staleCard.title:GetText(), "")
+    for _, row in ipairs(staleCard.rows) do
+        testlib.equal(row.value:GetText(), "")
+    end
+    testlib.equal(UI.levelScrollChild.height, UI.levelScrollFrame.height)
+end)
+
+testlib.case("ui diagnostics use only a visible compact footer when enabled", function()
+    local disabled = newUIHarness({
+        db = {
+            settings = {
+                units = "metric",
+                showMinimap = true,
+                showDiagnostics = false,
+                hudPoint = "CENTER",
+                hudX = 0,
+                hudY = 0,
+            },
+        },
+    })
+    disabled.addon.UI.Create()
+    disabled.addon.UI.Refresh()
+    testlib.equal(disabled.addon.UI.diagnosticsText:IsShown(), false)
+    testlib.equal(disabled.addon.UI.diagnosticsText:GetText(), "")
+    testlib.equal(disabled.addon.UI.overviewPanel.height, 296)
+
+    local enabled = newUIHarness()
+    enabled.addon.UI.Create()
+    enabled.addon.UI.Refresh()
+    testlib.equal(enabled.addon.UI.diagnosticsText:IsShown(), true)
+    testlib.equal(enabled.addon.UI.diagnosticsText.point[1], "BOTTOMLEFT")
+    testlib.equal(
+        enabled.addon.UI.diagnosticsText.point[2],
+        enabled.addon.UI.overviewPanel
+    )
+    testlib.truthy(enabled.addon.UI.diagnosticsText.point[5] >= 0)
+    testlib.truthy(enabled.addon.UI.overviewPanel.height > 296)
 end)
 
 testlib.case("ui errors are visible before and after creation", function()
