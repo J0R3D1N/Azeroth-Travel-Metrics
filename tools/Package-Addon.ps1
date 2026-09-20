@@ -93,11 +93,34 @@ function Assert-ZipLayout {
 
         foreach ($entry in $archive.Entries) {
             $name = $entry.FullName -replace '\\', '/'
-            $parts = $name.Split(
-                '/',
-                [System.StringSplitOptions]::RemoveEmptyEntries
-            )
-            if ($parts.Count -lt 2 -or $parts[0] -cne $ExpectedTopLevelDirectory) {
+            if (
+                $name.StartsWith('/') -or
+                $name -match '^[A-Za-z]:'
+            ) {
+                throw "Zip entry has an invalid path: $name"
+            }
+
+            $parts = @($name.Split(
+                [char]'/', [System.StringSplitOptions]::None
+            ))
+            $isDirectoryMarker = $name.EndsWith('/')
+            if ($isDirectoryMarker) {
+                $parts = @($parts[0..($parts.Count - 2)])
+            }
+
+            if (
+                $parts.Count -eq 0 -or
+                $parts -contains '' -or
+                $parts -contains '.' -or
+                $parts -contains '..'
+            ) {
+                throw "Zip entry has an invalid path: $name"
+            }
+
+            if (
+                $parts[0] -cne $ExpectedTopLevelDirectory -or
+                ($parts.Count -lt 2 -and -not $isDirectoryMarker)
+            ) {
                 throw "Every zip entry must be under exactly one top-level directory named '$ExpectedTopLevelDirectory': $name"
             }
         }

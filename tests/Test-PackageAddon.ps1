@@ -40,6 +40,53 @@ function Test-Throws {
     }
 }
 
+function Test-DoesNotThrow {
+    param(
+        [string]$Name,
+        [scriptblock]$Action
+    )
+
+    try {
+        & $Action
+        Write-Output "PASS $Name"
+        $script:passed++
+    }
+    catch {
+        Write-Output "FAIL $Name"
+        Write-Output "  Unexpected error: $($_.Exception.Message)"
+        $script:failed++
+    }
+}
+
+function New-ZipFixture {
+    param(
+        [string]$Path,
+        [string[]]$EntryNames
+    )
+
+    $archive = [System.IO.Compression.ZipFile]::Open(
+        $Path,
+        [System.IO.Compression.ZipArchiveMode]::Create
+    )
+    try {
+        foreach ($entryName in $EntryNames) {
+            $entry = $archive.CreateEntry($entryName)
+            if (-not $entryName.EndsWith('/') -and -not $entryName.EndsWith('\')) {
+                $writer = [System.IO.StreamWriter]::new($entry.Open())
+                try {
+                    $writer.Write('-- fixture')
+                }
+                finally {
+                    $writer.Dispose()
+                }
+            }
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
 $fixtureRoot = Join-Path ([System.IO.Path]::GetTempPath()) (
     'AzerothTravelTracker-package-tests-' + [guid]::NewGuid().ToString('N')
 )
@@ -106,6 +153,45 @@ Present.lua
         -Name 'zip validation rejects files at archive root' `
         -MessagePattern 'top-level directory' `
         -Action { Assert-ZipLayout -ZipPath $badZip -ExpectedTopLevelDirectory 'AzerothTravelTracker' }
+
+    $validZip = Join-Path $fixtureRoot 'valid-layout.zip'
+    New-ZipFixture -Path $validZip -EntryNames @(
+        'AzerothTravelTracker/',
+        'AzerothTravelTracker/Present.lua',
+        'AzerothTravelTracker\Nested\Present.lua'
+    )
+    Test-DoesNotThrow `
+        -Name 'zip validation accepts normal entries and directory markers' `
+        -Action { Assert-ZipLayout -ZipPath $validZip -ExpectedTopLevelDirectory 'AzerothTravelTracker' }
+
+    $invalidZipEntries = @(
+        'AzerothTravelTracker/../escaped.lua',
+        'AzerothTravelTracker/./Present.lua',
+        'AzerothTravelTracker//Present.lua',
+        'AzerothTravelTracker\..\escaped.lua',
+        'AzerothTravelTracker\.\Present.lua',
+        'AzerothTravelTracker\\Present.lua',
+        '/AzerothTravelTracker/Present.lua',
+        '\AzerothTravelTracker\Present.lua',
+        'C:/AzerothTravelTracker/Present.lua',
+        'C:\AzerothTravelTracker\Present.lua',
+        'OtherAddon/Present.lua'
+    )
+    foreach ($invalidEntryName in $invalidZipEntries) {
+        $invalidZip = Join-Path $fixtureRoot (
+            'invalid-layout-' + [guid]::NewGuid().ToString('N') + '.zip'
+        )
+        New-ZipFixture -Path $invalidZip -EntryNames @($invalidEntryName)
+
+        Test-Throws `
+            -Name "zip validation rejects '$invalidEntryName'" `
+            -MessagePattern 'top-level directory|invalid path' `
+            -Action {
+                Assert-ZipLayout `
+                    -ZipPath $invalidZip `
+                    -ExpectedTopLevelDirectory 'AzerothTravelTracker'
+            }
+    }
 
     $fixtureRepo = Join-Path $fixtureRoot 'repo'
     $redirectedArtifacts = Join-Path $fixtureRoot 'redirected-artifacts'
