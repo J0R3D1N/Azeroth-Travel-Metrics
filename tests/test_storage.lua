@@ -203,24 +203,46 @@ testlib.case("storage fills a missing level reachedAt only once", function()
     assertTotals(level, 5, 6, 7)
 end)
 
-testlib.case("storage preserves unsupported future schemas without mutation", function()
+testlib.case("storage rejects unsupported schema versions without mutation", function()
     local addon = loadStorage()
-    local existing = {
-        schemaVersion = addon.SCHEMA_VERSION + 1,
-        sentinel = {
-            value = "future-data",
-        },
+    local unsupportedVersions = {
+        { name = "string", value = "1" },
+        { name = "boolean", value = true },
+        { name = "NaN", value = 0 / 0 },
+        { name = "positive infinity", value = math.huge },
+        { name = "negative infinity", value = -math.huge },
+        { name = "fractional", value = 0.5 },
+        { name = "zero", value = 0 },
+        { name = "negative", value = -1 },
+        { name = "future", value = addon.SCHEMA_VERSION + 1 },
+        { name = "table", value = {} },
     }
-    local sentinel = existing.sentinel
 
-    local db, initializationError = addon.Storage.Initialize(existing)
+    for _, unsupported in ipairs(unsupportedVersions) do
+        local sentinel = {
+            value = "preserved",
+        }
+        local existing = {
+            schemaVersion = unsupported.value,
+            sentinel = sentinel,
+        }
+        local succeeded, db, initializationError = pcall(addon.Storage.Initialize, existing)
 
-    testlib.equal(db, existing)
-    testlib.equal(initializationError, "unsupportedSchema")
-    testlib.equal(existing.schemaVersion, addon.SCHEMA_VERSION + 1)
-    testlib.equal(existing.sentinel, sentinel)
-    testlib.equal(existing.settings, nil)
-    testlib.equal(existing.characters, nil)
+        testlib.truthy(succeeded, unsupported.name .. " schema version raised an error")
+        testlib.equal(db, existing, unsupported.name .. " schema did not return the original table")
+        testlib.equal(initializationError, "unsupportedSchema", unsupported.name .. " schema returned the wrong error")
+        if unsupported.value ~= unsupported.value then
+            testlib.truthy(
+                existing.schemaVersion ~= existing.schemaVersion,
+                unsupported.name .. " schema version mutated"
+            )
+        else
+            testlib.equal(existing.schemaVersion, unsupported.value, unsupported.name .. " schema version mutated")
+        end
+        testlib.equal(existing.sentinel, sentinel, unsupported.name .. " sentinel mutated")
+        testlib.equal(existing.settings, nil, unsupported.name .. " settings mutated")
+        testlib.equal(existing.characters, nil, unsupported.name .. " characters mutated")
+    end
 end)
 
 testlib.case("storage rejects invalid categories without mutation", function()
@@ -246,6 +268,8 @@ testlib.case("storage rejects invalid distances without mutation", function()
         -1,
         "10",
         0 / 0,
+        math.huge,
+        -math.huge,
     }
 
     for _, yards in ipairs(invalidDistances) do
@@ -258,6 +282,71 @@ testlib.case("storage rejects invalid distances without mutation", function()
     assertTotals(character.session, 0, 0, 0)
     assertTotals(character.lifetime, 0, 0, 0)
     assertTotals(character.levels[12], 0, 0, 0)
+end)
+
+testlib.case("storage rejects a corrupt session total without mutation", function()
+    local addon = loadStorage()
+    local character = newCharacter(addon.Storage)
+    character.session.onFoot = "10"
+    character.lifetime.onFoot = 20
+    character.levels[12].onFoot = 30
+
+    local updated, addError = addon.Storage.AddDistance(character, 12, "onFoot", 5)
+
+    testlib.equal(updated, nil)
+    testlib.equal(addError, "invalidStoredTotal")
+    testlib.equal(character.session.onFoot, "10")
+    testlib.equal(character.lifetime.onFoot, 20)
+    testlib.equal(character.levels[12].onFoot, 30)
+end)
+
+testlib.case("storage rejects a corrupt lifetime total without partial mutation", function()
+    local addon = loadStorage()
+    local character = newCharacter(addon.Storage)
+    character.session.onFoot = 10
+    character.lifetime.onFoot = math.huge
+    character.levels[12].onFoot = 30
+
+    local updated, addError = addon.Storage.AddDistance(character, 12, "onFoot", 5)
+
+    testlib.equal(updated, nil)
+    testlib.equal(addError, "invalidStoredTotal")
+    testlib.equal(character.session.onFoot, 10)
+    testlib.equal(character.lifetime.onFoot, math.huge)
+    testlib.equal(character.levels[12].onFoot, 30)
+end)
+
+testlib.case("storage rejects a corrupt level total without partial mutation", function()
+    local addon = loadStorage()
+    local character = newCharacter(addon.Storage)
+    local corruptTotal = 0 / 0
+    character.session.onFoot = 10
+    character.lifetime.onFoot = 20
+    character.levels[12].onFoot = corruptTotal
+
+    local updated, addError = addon.Storage.AddDistance(character, 12, "onFoot", 5)
+
+    testlib.equal(updated, nil)
+    testlib.equal(addError, "invalidStoredTotal")
+    testlib.equal(character.session.onFoot, 10)
+    testlib.equal(character.lifetime.onFoot, 20)
+    testlib.truthy(character.levels[12].onFoot ~= character.levels[12].onFoot)
+end)
+
+testlib.case("storage rejects overflowing additions without mutation", function()
+    local addon = loadStorage()
+    local character = newCharacter(addon.Storage)
+    character.session.onFoot = 1e308
+    character.lifetime.onFoot = 1e308
+    character.levels[12].onFoot = 1e308
+
+    local updated, addError = addon.Storage.AddDistance(character, 12, "onFoot", 1e308)
+
+    testlib.equal(updated, nil)
+    testlib.equal(addError, "invalidDistance")
+    testlib.equal(character.session.onFoot, 1e308)
+    testlib.equal(character.lifetime.onFoot, 1e308)
+    testlib.equal(character.levels[12].onFoot, 1e308)
 end)
 
 testlib.case("storage treats zero distance as a successful no-op", function()

@@ -12,6 +12,17 @@ local validCategories = {
 
 local migrations = {}
 
+local function isFiniteNumber(value)
+    return type(value) == "number"
+        and value == value
+        and value > -math.huge
+        and value < math.huge
+end
+
+local function isFiniteNonnegativeNumber(value)
+    return isFiniteNumber(value) and value >= 0
+end
+
 local function newTotals()
     return {
         onFoot = 0,
@@ -65,6 +76,13 @@ function Storage.Initialize(existing)
         end
 
         return initializeVersionOne(db)
+    end
+
+    if not isFiniteNumber(schemaVersion)
+        or schemaVersion % 1 ~= 0
+        or schemaVersion < 1
+    then
+        return db, "unsupportedSchema"
     end
 
     if schemaVersion > ATT.SCHEMA_VERSION then
@@ -156,7 +174,7 @@ function Storage.AddDistance(character, level, category, yards)
         return nil, "invalidCategory"
     end
 
-    if type(yards) ~= "number" or yards < 0 or yards ~= yards then
+    if not isFiniteNonnegativeNumber(yards) then
         return nil, "invalidDistance"
     end
 
@@ -165,13 +183,31 @@ function Storage.AddDistance(character, level, category, yards)
         return nil, "missingLevel"
     end
 
+    if not isFiniteNonnegativeNumber(character.session[category])
+        or not isFiniteNonnegativeNumber(character.lifetime[category])
+        or not isFiniteNonnegativeNumber(levelTotals[category])
+    then
+        return nil, "invalidStoredTotal"
+    end
+
     if yards == 0 then
         return true
     end
 
-    character.session[category] = character.session[category] + yards
-    character.lifetime[category] = character.lifetime[category] + yards
-    levelTotals[category] = levelTotals[category] + yards
+    local sessionTotal = character.session[category] + yards
+    local lifetimeTotal = character.lifetime[category] + yards
+    local levelTotal = levelTotals[category] + yards
+
+    if not isFiniteNonnegativeNumber(sessionTotal)
+        or not isFiniteNonnegativeNumber(lifetimeTotal)
+        or not isFiniteNonnegativeNumber(levelTotal)
+    then
+        return nil, "invalidDistance"
+    end
+
+    character.session[category] = sessionTotal
+    character.lifetime[category] = lifetimeTotal
+    levelTotals[category] = levelTotal
 
     return true
 end
