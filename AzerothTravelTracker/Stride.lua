@@ -31,7 +31,7 @@ local raceMeters = {
     MagharOrc = 0.86,
     Mechagnome = 0.52,
     Dracthyr = 0.92,
-    Earthen = 0.68,
+    EarthenDwarf = 0.68,
 }
 
 function Stride.GetMeters(raceFile)

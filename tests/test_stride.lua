@@ -35,7 +35,7 @@ testlib.case("stride uses race-specific estimates", function()
         MagharOrc = 0.86,
         Mechagnome = 0.52,
         Dracthyr = 0.92,
-        Earthen = 0.68,
+        EarthenDwarf = 0.68,
     }
 
     for raceFile, meters in pairs(expectedMeters) do
@@ -70,4 +70,12 @@ testlib.case("stride estimates steps using a non-human race stride", function()
     local yardsForOneKilometer = 1000 / addon.Distance.YARDS_TO_METERS
 
     testlib.equal(addon.Stride.EstimateSteps(yardsForOneKilometer, "Tauren"), 952)
+end)
+
+testlib.case("stride rounds fractional step estimates upward", function()
+    local addon = loadStride()
+    local rawSteps = 1.6
+    local yards = rawSteps * addon.Stride.GetMeters("Human") / addon.Distance.YARDS_TO_METERS
+
+    testlib.equal(addon.Stride.EstimateSteps(yards, "Human"), 2)
 end)
