@@ -178,7 +178,7 @@ function MinimapLauncher.Create()
     MinimapLauncher.background = background
 
     local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetTexture("Interface\\Icons\\Ability_Mount_RidingHorse")
+    icon:SetTexture("Interface\\Icons\\Ability_Rogue_Sprint")
     icon:SetSize(20, 20)
     icon:SetPoint("CENTER", button, "CENTER", 0, 0)
     MinimapLauncher.icon = icon
@@ -214,9 +214,9 @@ function MinimapLauncher.Create()
         end
         if mouseButton == "LeftButton"
             and ATT.UI
-            and type(ATT.UI.Toggle) == "function"
+            and type(ATT.UI.ShowMain) == "function"
         then
-            ATT.UI.Toggle()
+            ATT.UI.ShowMain()
         end
     end)
     button:SetScript("OnDragStart", function(_, mouseButton)

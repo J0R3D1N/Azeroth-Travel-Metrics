@@ -118,6 +118,7 @@ end
 local function newHarness(options)
     options = options or {}
     local calls = {
+        showMain = 0,
         toggles = 0,
         tooltipLines = {},
     }
@@ -173,6 +174,9 @@ local function newHarness(options)
 
     local addon, environment = testlib.loadAddon(MINIMAP_FILES, globals)
     addon.UI = {
+        ShowMain = function()
+            calls.showMain = calls.showMain + 1
+        end,
         Toggle = function()
             calls.toggles = calls.toggles + 1
         end,
@@ -248,7 +252,10 @@ testlib.case("minimap create is idempotent native and interactive", function()
     testlib.equal(first.height, 32)
     testlib.truthy(#first.textures >= 3)
     testlib.truthy(contains(first.textures[1].texture, "Minimap"))
-    testlib.truthy(contains(first.textures[2].texture, "Icons"))
+    testlib.equal(
+        first.textures[2].texture,
+        "Interface\\Icons\\Ability_Rogue_Sprint"
+    )
     testlib.truthy(type(first.scripts.OnEnter) == "function")
     testlib.truthy(type(first.scripts.OnLeave) == "function")
     testlib.truthy(type(first.scripts.OnClick) == "function")
@@ -270,7 +277,8 @@ testlib.case("minimap create is idempotent native and interactive", function()
     testlib.equal(#harness.calls.tooltipLines, 3)
 
     first.scripts.OnClick(first, "LeftButton")
-    testlib.equal(harness.calls.toggles, 1)
+    testlib.equal(harness.calls.showMain, 1)
+    testlib.equal(harness.calls.toggles, 0)
 end)
 
 testlib.case("minimap drag uses UI parent scale when minimap scale differs", function()
@@ -307,11 +315,11 @@ testlib.case("minimap drag release suppresses only its generated click", functio
     button.scripts.OnDragStop(button)
     button.scripts.OnClick(button, "LeftButton")
 
-    testlib.equal(harness.calls.toggles, 0)
+    testlib.equal(harness.calls.showMain, 0)
     testlib.near(harness.db.settings.minimapAngle, 90, 0.0001)
 
     button.scripts.OnClick(button, "LeftButton")
-    testlib.equal(harness.calls.toggles, 1)
+    testlib.equal(harness.calls.showMain, 1)
 end)
 
 testlib.case("minimap invalid drag data does not corrupt settings", function()
@@ -363,5 +371,5 @@ testlib.case("minimap operations remain nonprotected during combat lockdown", fu
     end)
 
     testlib.equal(succeeded, true, failure)
-    testlib.equal(harness.calls.toggles, 1)
+    testlib.equal(harness.calls.showMain, 1)
 end)
