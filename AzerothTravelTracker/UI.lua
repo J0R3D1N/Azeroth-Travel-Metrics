@@ -4,7 +4,9 @@ ATT.UI = {}
 
 local UI = ATT.UI
 local RESET_DIALOG_KEY = "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
-local MAX_LEVEL_ROWS = 12
+local LEVEL_ROW_HEIGHT = 20
+local LEVEL_VIEW_HEIGHT = 252
+local LEVEL_CONTENT_WIDTH = 456
 
 local context
 local pendingError
@@ -47,7 +49,7 @@ local function createMainFrame()
     )
 end
 
-local function createTab(name, parent)
+local function createTab(name, parent, text)
     local templates = {
         "CharacterFrameTabButtonTemplate",
         "OptionsFrameTabButtonTemplate",
@@ -66,7 +68,13 @@ local function createTab(name, parent)
         end
     end
 
-    return CreateFrame("Button", name, parent)
+    local tab = CreateFrame("Button", name, parent)
+    local label = tab:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    label:SetPoint("CENTER", tab, "CENTER", 0, 0)
+    label:SetText(text)
+    label:Show()
+    tab.fallbackLabel = label
+    return tab
 end
 
 local function createLabel(parent, text, font)
@@ -75,6 +83,18 @@ local function createLabel(parent, text, font)
     label:SetJustifyH("LEFT")
     label:SetJustifyV("TOP")
     return label
+end
+
+local function setFallbackTabColor(tab, selected)
+    if not tab.fallbackLabel then
+        return
+    end
+
+    if selected then
+        tab.fallbackLabel:SetTextColor(1, 0.82, 0)
+    else
+        tab.fallbackLabel:SetTextColor(0.6, 0.6, 0.6)
+    end
 end
 
 local function setTabSelected(tab, selected)
@@ -87,6 +107,7 @@ local function setTabSelected(tab, selected)
     if type(helper) == "function" then
         local succeeded = pcall(helper, tab)
         if succeeded then
+            setFallbackTabColor(tab, selected)
             return
         end
     end
@@ -104,6 +125,8 @@ local function setTabSelected(tab, selected)
     if type(highlightMethod) == "function" then
         pcall(highlightMethod, tab)
     end
+
+    setFallbackTabColor(tab, selected)
 end
 
 local function setPanelVisibility()
@@ -135,6 +158,27 @@ end
 
 local function showModelError(reason)
     UI.ShowError("Statistics unavailable: " .. tostring(reason or "unknownError"))
+end
+
+local function ensureLevelRows(count)
+    while #UI.levelRows < count do
+        local index = #UI.levelRows + 1
+        local row = createLabel(
+            UI.levelScrollChild,
+            "",
+            "GameFontHighlightSmall"
+        )
+        row:SetPoint(
+            "TOPLEFT",
+            UI.levelScrollChild,
+            "TOPLEFT",
+            0,
+            -((index - 1) * LEVEL_ROW_HEIGHT)
+        )
+        row:SetWidth(LEVEL_CONTENT_WIDTH)
+        row:Hide()
+        table.insert(UI.levelRows, row)
+    end
 end
 
 function UI.Initialize(initialContext)
@@ -178,7 +222,11 @@ function UI.Create()
     UI.title = createLabel(frame, "Azeroth Travel Tracker", "GameFontNormalLarge")
     UI.title:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -16)
 
-    UI.overviewTab = createTab("AzerothTravelTrackerFrameTab1", frame)
+    UI.overviewTab = createTab(
+        "AzerothTravelTrackerFrameTab1",
+        frame,
+        "Overview"
+    )
     UI.overviewTab:SetID(1)
     UI.overviewTab:SetSize(110, 24)
     UI.overviewTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -46)
@@ -188,7 +236,11 @@ function UI.Create()
         setPanelVisibility()
     end)
 
-    UI.levelTab = createTab("AzerothTravelTrackerFrameTab2", frame)
+    UI.levelTab = createTab(
+        "AzerothTravelTrackerFrameTab2",
+        frame,
+        "By Level"
+    )
     UI.levelTab:SetID(2)
     UI.levelTab:SetSize(110, 24)
     UI.levelTab:SetPoint("LEFT", UI.overviewTab, "RIGHT", 8, 0)
@@ -283,20 +335,49 @@ function UI.Create()
     )
     UI.levelHeader:SetPoint("TOPLEFT", UI.levelPanel, "TOPLEFT", 0, 0)
 
-    UI.levelRows = {}
-    for index = 1, MAX_LEVEL_ROWS do
-        local row = createLabel(UI.levelPanel, "", "GameFontHighlightSmall")
-        row:SetPoint(
-            "TOPLEFT",
-            UI.levelPanel,
-            "TOPLEFT",
-            0,
-            -24 - ((index - 1) * 20)
-        )
-        row:SetWidth(484)
-        row:Hide()
-        table.insert(UI.levelRows, row)
+    local scrollSucceeded, levelScrollFrame = pcall(
+        CreateFrame,
+        "ScrollFrame",
+        nil,
+        UI.levelPanel,
+        "UIPanelScrollFrameTemplate"
+    )
+    if not scrollSucceeded then
+        levelScrollFrame = CreateFrame("ScrollFrame", nil, UI.levelPanel)
     end
+    UI.levelScrollFrame = levelScrollFrame
+    levelScrollFrame:SetPoint(
+        "TOPLEFT",
+        UI.levelPanel,
+        "TOPLEFT",
+        0,
+        -24
+    )
+    levelScrollFrame:SetSize(484, LEVEL_VIEW_HEIGHT)
+    levelScrollFrame:EnableMouseWheel(true)
+
+    UI.levelScrollChild = CreateFrame("Frame", nil, levelScrollFrame)
+    UI.levelScrollChild:SetSize(
+        LEVEL_CONTENT_WIDTH,
+        LEVEL_VIEW_HEIGHT
+    )
+    levelScrollFrame:SetScrollChild(UI.levelScrollChild)
+    levelScrollFrame:SetScript("OnMouseWheel", function(self, delta)
+        local current = 0
+        if type(self.GetVerticalScroll) == "function" then
+            current = self:GetVerticalScroll()
+        end
+        local scrollRange = self:GetVerticalScrollRange()
+        self:SetVerticalScroll(math.max(
+            0,
+            math.min(
+                scrollRange,
+                current - (delta * LEVEL_ROW_HEIGHT)
+            )
+        ))
+    end)
+
+    UI.levelRows = {}
 
     if pendingError then
         UI.errorText:SetText(pendingError)
@@ -350,6 +431,12 @@ function UI.Refresh()
     for _, group in ipairs(UI.summaryGroups) do
         group.value:SetText(summaryText(overview[group.key]))
     end
+
+    ensureLevelRows(#levelRows)
+    UI.levelScrollChild:SetHeight(math.max(
+        LEVEL_VIEW_HEIGHT,
+        #levelRows * LEVEL_ROW_HEIGHT
+    ))
 
     for index, rowLabel in ipairs(UI.levelRows) do
         local row = levelRows[index]
@@ -444,7 +531,26 @@ local function acceptReset()
         return
     end
 
+    local baselineResetSucceeded, baselineResetError
+    if context.tracker
+        and type(context.tracker.ResetBaseline) == "function"
+    then
+        baselineResetSucceeded, baselineResetError = pcall(
+            context.tracker.ResetBaseline,
+            context.tracker
+        )
+    else
+        baselineResetSucceeded = false
+        baselineResetError = "baselineUnavailable"
+    end
+
     UI.Refresh()
+    if not baselineResetSucceeded then
+        UI.ShowError(
+            "Session reset succeeded, but tracking baseline reset failed: "
+                .. tostring(baselineResetError)
+        )
+    end
 end
 
 function UI.ConfirmResetSession()

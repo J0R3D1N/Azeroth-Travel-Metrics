@@ -74,6 +74,21 @@ local function showError(message)
     end
 end
 
+local function getTickerCancel(ticker)
+    if ticker == nil then
+        return nil
+    end
+
+    local succeeded, cancel = pcall(function()
+        return ticker.Cancel
+    end)
+    if succeeded and type(cancel) == "function" then
+        return cancel
+    end
+
+    return nil
+end
+
 function Core.ReportOnce(reason, message, displayInWindow)
     reason = reason or "unknownError"
     if state.reportedReasons[reason] then
@@ -93,8 +108,9 @@ end
 
 function Core.StopTicker()
     if state.ticker ~= nil then
-        if type(state.ticker.Cancel) == "function" then
-            pcall(state.ticker.Cancel, state.ticker)
+        local cancel = getTickerCancel(state.ticker)
+        if cancel then
+            pcall(cancel, state.ticker)
         end
         state.ticker = nil
     end
@@ -291,7 +307,7 @@ function Core.StartTicker()
         ATT.SAMPLE_INTERVAL_SECONDS,
         sample
     )
-    if not succeeded or type(ticker) ~= "table" then
+    if not succeeded or getTickerCancel(ticker) == nil then
         Core.ReportOnce("tickerUnavailable", nil, true)
         return false
     end

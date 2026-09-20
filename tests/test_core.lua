@@ -225,6 +225,29 @@ local function newCoreHarness(options)
 
     environment.C_Timer = {
         NewTicker = function(interval, callback)
+            if options.nativeTickerHandles then
+                local ticker = {
+                    interval = interval,
+                    callback = callback,
+                    cancelled = false,
+                }
+                local handle = coroutine.create(function()
+                end)
+                debug.setmetatable(handle, {
+                    __index = function(_, key)
+                        if key == "Cancel" then
+                            return function(receivedHandle)
+                                testlib.equal(receivedHandle, handle)
+                                ticker.cancelled = true
+                            end
+                        end
+                    end,
+                })
+                ticker.handle = handle
+                table.insert(calls.tickers, ticker)
+                return handle
+            end
+
             local ticker = {
                 interval = interval,
                 callback = callback,
@@ -418,6 +441,29 @@ testlib.case("entering world resets baseline and maintains one half-second ticke
     testlib.equal(#harness.calls.tickers, 2)
     testlib.equal(harness.calls.tickers[1].cancelled, true)
     testlib.equal(harness.calls.tickers[2].cancelled, false)
+end)
+
+testlib.case("native-like ticker handles are retained and cancelled before restart", function()
+    local harness = newCoreHarness({
+        nativeTickerHandles = true,
+    })
+    initialize(harness)
+
+    harness.fire("PLAYER_ENTERING_WORLD")
+    testlib.equal(#harness.calls.tickers, 1)
+    testlib.equal(
+        harness.addon.Core.GetState().ticker,
+        harness.calls.tickers[1].handle
+    )
+
+    harness.fire("PLAYER_ENTERING_WORLD")
+    testlib.equal(#harness.calls.tickers, 2)
+    testlib.equal(harness.calls.tickers[1].cancelled, true)
+    testlib.equal(harness.calls.tickers[2].cancelled, false)
+
+    harness.fire("PLAYER_LOGOUT")
+    testlib.equal(harness.calls.tickers[2].cancelled, true)
+    testlib.equal(harness.addon.Core.GetState().ticker, nil)
 end)
 
 testlib.case("ticker refreshes only accepted segments while the window is shown", function()
@@ -697,6 +743,25 @@ local function newFrame(frameType, name, parent, template)
         self.height = height
     end
 
+    function frame:EnableMouseWheel(value)
+        self.mouseWheelEnabled = value
+    end
+
+    function frame:SetScrollChild(child)
+        self.scrollChild = child
+    end
+
+    function frame:SetVerticalScroll(offset)
+        self.verticalScroll = offset
+    end
+
+    function frame:GetVerticalScrollRange()
+        if not self.scrollChild then
+            return 0
+        end
+        return math.max(0, (self.scrollChild.height or 0) - (self.height or 0))
+    end
+
     function frame:SetJustifyH(value)
         self.justifyH = value
     end
@@ -744,13 +809,16 @@ local function newUIHarness(options)
 
     local created = {}
     local strataAttempts = {}
+    local order = options.order or {}
     local calls = {
         overview = 0,
         rows = 0,
         diagnostics = 0,
         reset = 0,
+        baselineReset = 0,
         now = 0,
         protected = 0,
+        order = order,
     }
     local globals = {
         UIParent = {
@@ -843,6 +911,7 @@ local function newUIHarness(options)
     addon.UIModel = {
         BuildOverview = function()
             calls.overview = calls.overview + 1
+            table.insert(order, "refresh")
             if options.overviewError then
                 return nil, options.overviewError
             end
@@ -900,6 +969,7 @@ local function newUIHarness(options)
     addon.Storage = {
         ResetSession = function(receivedCharacter, now)
             calls.reset = calls.reset + 1
+            table.insert(order, "storageReset")
             calls.resetCharacter = receivedCharacter
             calls.resetNow = now
             if options.resetThrows then
@@ -928,10 +998,22 @@ local function newUIHarness(options)
         end
     end
 
+    local tracker = options.tracker or {}
+    if type(tracker.ResetBaseline) ~= "function" then
+        function tracker:ResetBaseline()
+            calls.baselineReset = calls.baselineReset + 1
+            table.insert(order, "baselineReset")
+            if options.baselineResetThrows then
+                error("baseline exploded")
+            end
+            self.previous = nil
+        end
+    end
+
     addon.UI.Initialize({
         db = db,
         character = character,
-        tracker = {},
+        tracker = tracker,
         capabilities = {
             position = true,
         },
@@ -947,6 +1029,7 @@ local function newUIHarness(options)
         calls = calls,
         character = character,
         db = db,
+        tracker = tracker,
         strataAttempts = strataAttempts,
     }
 end
@@ -1100,6 +1183,31 @@ testlib.case("ui native tab selection tolerates a missing select helper", functi
     testlib.equal(harness.addon.UI.levelTab.buttonState, "NORMAL")
 end)
 
+testlib.case("ui bare fallback tabs expose visible labels and selection colors", function()
+    local harness = newUIHarness({
+        rejectTemplates = {
+            CharacterFrameTabButtonTemplate = true,
+            OptionsFrameTabButtonTemplate = true,
+        },
+    })
+    harness.addon.UI.Create()
+
+    local overviewLabel = harness.addon.UI.overviewTab.fallbackLabel
+    local levelLabel = harness.addon.UI.levelTab.fallbackLabel
+    testlib.truthy(overviewLabel ~= nil)
+    testlib.truthy(levelLabel ~= nil)
+    testlib.equal(overviewLabel:GetText(), "Overview")
+    testlib.equal(levelLabel:GetText(), "By Level")
+    testlib.equal(overviewLabel:IsShown(), true)
+    testlib.equal(levelLabel:IsShown(), true)
+    testlib.equal(overviewLabel.textColor[1], 1)
+    testlib.equal(levelLabel.textColor[1], 0.6)
+
+    harness.addon.UI.levelTab.scripts.OnClick()
+    testlib.equal(overviewLabel.textColor[1], 0.6)
+    testlib.equal(levelLabel.textColor[1], 1)
+end)
+
 testlib.case("ui refresh consumes overview levels and diagnostics models", function()
     local harness = newUIHarness()
     harness.addon.UI.Create()
@@ -1121,6 +1229,38 @@ testlib.case("ui refresh consumes overview levels and diagnostics models", funct
     testlib.truthy(contains(harness.addon.UI.levelRows[1]:GetText(), "Level 42"))
     testlib.truthy(contains(harness.addon.UI.diagnosticsText:GetText(), "alpha: 2"))
     testlib.equal(harness.addon.UI.errorText:IsShown(), false)
+end)
+
+testlib.case("ui level list exposes every row through scrollable content", function()
+    local rows = {}
+    for level = 15, 1, -1 do
+        table.insert(rows, {
+            level = level,
+            steps = level * 10,
+            onFoot = level .. " m",
+            swimming = level .. " m",
+            taxi = level .. " m",
+        })
+    end
+    local harness = newUIHarness({
+        levelRows = rows,
+    })
+    harness.addon.UI.Create()
+    harness.addon.UI.Refresh()
+
+    testlib.equal(#harness.addon.UI.levelRows, 15)
+    testlib.truthy(contains(
+        harness.addon.UI.levelRows[15]:GetText(),
+        "Level 1"
+    ))
+    testlib.equal(
+        harness.addon.UI.levelRows[15].parent,
+        harness.addon.UI.levelScrollChild
+    )
+    testlib.equal(harness.addon.UI.levelScrollChild.height, 300)
+    testlib.truthy(
+        harness.addon.UI.levelScrollFrame:GetVerticalScrollRange() > 0
+    )
 end)
 
 testlib.case("ui errors are visible before and after creation", function()
@@ -1166,7 +1306,83 @@ testlib.case("ui confirmation resets only the session after acceptance", functio
     testlib.equal(harness.calls.reset, 1)
     testlib.equal(harness.calls.resetCharacter, harness.character)
     testlib.equal(harness.calls.resetNow, 3000)
+    testlib.equal(harness.calls.baselineReset, 1)
+    testlib.equal(harness.calls.order[1], "storageReset")
+    testlib.equal(harness.calls.order[2], "baselineReset")
+    testlib.equal(harness.calls.order[3], "refresh")
     testlib.equal(harness.calls.overview, 1)
+end)
+
+testlib.case("ui reset clears the prior baseline before the next sample", function()
+    local order = {}
+    local tracker = {
+        previous = {
+            x = 1,
+        },
+    }
+    function tracker:ResetBaseline()
+        table.insert(order, "baselineReset")
+        self.previous = nil
+    end
+    function tracker:Sample()
+        if self.previous ~= nil then
+            return {
+                bridged = true,
+            }
+        end
+        self.previous = {
+            x = 2,
+        }
+        return nil, "baseline"
+    end
+
+    local harness = newUIHarness({
+        order = order,
+        tracker = tracker,
+    })
+    harness.addon.UI.Create()
+    harness.addon.UI.ConfirmResetSession()
+    local dialog = harness.environment.StaticPopupDialogs[
+        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+    ]
+    dialog.OnAccept()
+
+    testlib.equal(order[1], "storageReset")
+    testlib.equal(order[2], "baselineReset")
+    testlib.equal(order[3], "refresh")
+    local segment, reason = tracker:Sample()
+    testlib.equal(segment, nil)
+    testlib.equal(reason, "baseline")
+end)
+
+testlib.case("ui preserves a successful reset when baseline reset errors", function()
+    local harness = newUIHarness({
+        baselineResetThrows = true,
+    })
+    harness.addon.UI.Create()
+    local previousSession = harness.character.session
+
+    harness.addon.UI.ConfirmResetSession()
+    local dialog = harness.environment.StaticPopupDialogs[
+        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+    ]
+    local succeeded = pcall(dialog.OnAccept)
+
+    testlib.equal(succeeded, true)
+    testlib.equal(harness.calls.reset, 1)
+    testlib.equal(harness.calls.baselineReset, 1)
+    testlib.truthy(harness.character.session ~= previousSession)
+    testlib.equal(harness.character.session.startedAt, 3000)
+    testlib.equal(harness.calls.overview, 1)
+    testlib.equal(harness.addon.UI.errorText:IsShown(), true)
+    testlib.truthy(contains(
+        harness.addon.UI.errorText:GetText(),
+        "reset succeeded"
+    ))
+    testlib.truthy(contains(
+        harness.addon.UI.errorText:GetText(),
+        "baseline exploded"
+    ))
 end)
 
 testlib.case("ui reset preserves session and reports unavailable time", function()
