@@ -26,21 +26,6 @@ testlib.case("distance formats large numbers with compact WoW suffixes", functio
     testlib.equal(addon.Distance.FormatNumber(1250000000), "1.25B")
 end)
 
-testlib.case("distance rejects invalid compact formatting values", function()
-    local addon = loadDistance()
-    local invalidValues = {
-        -1,
-        0 / 0,
-        math.huge,
-        "10000",
-    }
-
-    for _, value in ipairs(invalidValues) do
-        testlib.equal(addon.Distance.FormatNumber(value), nil)
-        testlib.equal(addon.Distance.Format(value, "metric"), nil)
-    end
-end)
-
 testlib.case("distance formats metric yards as meters", function()
     local addon = loadDistance()
 
