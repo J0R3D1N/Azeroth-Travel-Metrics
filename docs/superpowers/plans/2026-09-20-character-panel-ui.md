@@ -17,16 +17,85 @@
 | File | Responsibility |
 |---|---|
 | `AzerothTravelTracker\UITheme.lua` | Native icon/atlas constants, safe asset fallbacks, character-stat sections and rows, and side-tab construction/selection. |
+| `AzerothTravelTracker\Distance.lua` | Metric/imperial unit transitions and deterministic WoW-style compact number formatting. |
+| `AzerothTravelTracker\UIModel.lua` | Supplies display-ready compact step and distance strings to both regular and minimized views. |
 | `AzerothTravelTracker\UI.lua` | Main portrait-frame shell, right-side navigation, stacked Overview and By Level views, settings footer, reset action, and model binding. |
 | `AzerothTravelTracker\Minimap.lua` | Minimap launcher's built-in sprint icon. |
 | `AzerothTravelTracker\AzerothTravelTracker.toc` | Loads `UITheme.lua` before `UI.lua`. |
 | `tests\test_ui_theme.lua` | Isolated tests for native assets, side-tab fallbacks, section construction, and selected state. |
+| `tests\test_distance.lua` | Meter/kilometer transitions and K/M/B boundary tests. |
+| `tests\test_ui_model.lua` | Compact step formatting in overview and level models. |
 | `tests\test_core.lua` | End-to-end frame layout, native/fallback shell, overview rows, level rows, settings, movability, and strata tests. |
 | `tests\test_minimap.lua` | Exact minimap icon regression. |
 | `tests\run.lua` | Registers the new theme tests. |
 | `docs\BETA-SMOKE-TESTS.md` | Adds concrete in-client checks for the redesigned shell and login warning. |
 
-### Task 1: Add the Character-Panel Theme Boundary
+### Task 1: Add Compact WoW-Style Number Formatting
+
+**Files:**
+- Modify: `AzerothTravelTracker\Distance.lua`
+- Modify: `AzerothTravelTracker\UIModel.lua`
+- Modify: `tests\test_distance.lua`
+- Modify: `tests\test_ui_model.lua`
+
+- [ ] **Step 1: Write failing formatting tests**
+
+Add these boundary cases:
+
+```lua
+testlib.equal(addon.Distance.FormatNumber(9999), "9999")
+testlib.equal(addon.Distance.FormatNumber(10000), "10.0K")
+testlib.equal(addon.Distance.FormatNumber(12500), "12.5K")
+testlib.equal(addon.Distance.FormatNumber(1250000), "1.25M")
+testlib.equal(addon.Distance.FormatNumber(1250000000), "1.25B")
+testlib.equal(addon.Distance.Format(1093.6133, "metric"), "1.00 km")
+testlib.equal(addon.Distance.Format(10936133, "metric"), "10.0K km")
+```
+
+Update UI-model expectations so `steps` is display-ready text and raw steps remain available:
+
+```lua
+testlib.equal(model.lifetime.steps, "12.5K")
+testlib.equal(model.lifetime.rawSteps, 12500)
+```
+
+- [ ] **Step 2: Run tests and verify failure**
+
+Run `lua tests\run.lua`.
+
+Expected: failures because `FormatNumber` and `rawSteps` do not exist.
+
+- [ ] **Step 3: Implement compact formatting**
+
+Add `Distance.FormatNumber(value)` with deterministic K/M/B suffixes. Use two decimals for abbreviated values below 10, one decimal below 100, and zero decimals otherwise. Strip trailing zeroes only from non-abbreviated values; do not change stored numbers.
+
+Update `Distance.Format` so metric values convert to kilometers at 1,000 meters and large kilometer/mile values pass through `FormatNumber` before the unit suffix.
+
+Update `UIModel.buildSummary` to return:
+
+```lua
+local rawSteps = ATT.Stride.EstimateSteps(totals.onFoot, raceFile)
+return {
+    rawSteps = rawSteps,
+    steps = ATT.Distance.FormatNumber(rawSteps),
+    -- existing raw yard and formatted distance fields
+}
+```
+
+- [ ] **Step 4: Run tests**
+
+Run `lua tests\run.lua`.
+
+Expected: all distance and UI-model tests pass.
+
+- [ ] **Step 5: Commit**
+
+```powershell
+git add AzerothTravelTracker\Distance.lua AzerothTravelTracker\UIModel.lua tests\test_distance.lua tests\test_ui_model.lua
+git commit -m "feat: compact large travel values" -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>" -m "Copilot-Session: e5378634-a8ef-4326-aadd-7221ab814010"
+```
+
+### Task 2: Add the Character-Panel Theme Boundary
 
 **Files:**
 - Create: `AzerothTravelTracker\UITheme.lua`
@@ -181,7 +250,7 @@ git add AzerothTravelTracker\UITheme.lua AzerothTravelTracker\AzerothTravelTrack
 git commit -m "feat: add character panel UI theme" -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>" -m "Copilot-Session: e5378634-a8ef-4326-aadd-7221ab814010"
 ```
 
-### Task 2: Rebuild the Window Shell and Navigation
+### Task 3: Rebuild the Window Shell, Navigation, and Live HUD
 
 **Files:**
 - Modify: `AzerothTravelTracker\UI.lua`
@@ -232,6 +301,24 @@ testlib.equal(harness.addon.UI.settingsPanel:IsShown(), false)
 Assert the requested templates do not include `CharacterFrameTabButtonTemplate` or `PanelTabButtonTemplate`.
 
 Add a fallback test rejecting `PortraitFrameBaseTemplate`, `LargeSideTabButtonTemplate`, and all character atlases. Assert the frame, two visible icon tabs, inset, settings icon, reset action, and stat labels are still created without throwing.
+
+Add HUD tests asserting:
+
+```lua
+UI.Minimize()
+testlib.equal(UI.frame:IsShown(), false)
+testlib.equal(UI.hud.frame:IsShown(), true)
+testlib.equal(UI.hud.frame.width, 220)
+testlib.equal(UI.hud.frame.height, 74)
+testlib.equal(#UI.hud.cells, 4)
+testlib.equal(UI.IsShown(), true)
+
+UI.ShowMain()
+testlib.equal(UI.hud.frame:IsShown(), false)
+testlib.equal(UI.frame:IsShown(), true)
+```
+
+Assert the HUD stores its point through the existing database settings, becomes more opaque on `OnEnter`, returns to resting opacity on `OnLeave`, and exposes Restore and Close controls on hover.
 
 - [ ] **Step 3: Run the focused tests and verify failure**
 
@@ -298,7 +385,25 @@ Keep Reset Session as a small `UIPanelButtonTemplate` anchored bottom-left. Do n
 
 Anchor the settings inset above the footer, keep it hidden by default, and preserve all existing setting mutations.
 
-- [ ] **Step 7: Run tests**
+- [ ] **Step 7: Add the live-session HUD**
+
+Add these public methods:
+
+```lua
+UI.Minimize()
+UI.ShowMain()
+UI.CloseHUD()
+```
+
+Create the HUD lazily as a 220-by-74 movable frame with a translucent brown background and bronze border. Build a 2 x 2 grid for Steps, On Foot, Swimming, and Flight Path using the session model. Store its anchor point and offsets in `db.settings.hudPoint`, `hudX`, and `hudY`.
+
+At rest use approximately `0.45` alpha. On mouse enter, increase alpha and show Restore/Close controls; on mouse leave, restore resting alpha and hide controls.
+
+Change `UI.Refresh()` to refresh both visible surfaces. Change `UI.IsShown()` to return true when either the regular frame or HUD is shown so tracker updates refresh the HUD.
+
+`UI.ShowMain()` hides the HUD, refreshes, and shows the regular frame. `UI.Minimize()` hides the regular frame and shows the HUD. Closing either surface never stops tracking.
+
+- [ ] **Step 8: Run tests**
 
 Run:
 
@@ -308,14 +413,14 @@ lua tests\run.lua
 
 Expected: native and fallback shell/navigation tests pass; tracking and settings tests remain green.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```powershell
 git add AzerothTravelTracker\UI.lua tests\test_core.lua
 git commit -m "feat: use character panel shell and side tabs" -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>" -m "Copilot-Session: e5378634-a8ef-4326-aadd-7221ab814010"
 ```
 
-### Task 3: Restyle Overview and By Level Statistics
+### Task 4: Restyle Overview and By Level Statistics
 
 **Files:**
 - Modify: `AzerothTravelTracker\UI.lua`
@@ -424,7 +529,7 @@ git add AzerothTravelTracker\UI.lua tests\test_core.lua
 git commit -m "feat: restyle travel statistics panels" -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>" -m "Copilot-Session: e5378634-a8ef-4326-aadd-7221ab814010"
 ```
 
-### Task 4: Update the Minimap Icon and Beta Validation
+### Task 5: Update the Minimap Icon and Beta Validation
 
 **Files:**
 - Modify: `AzerothTravelTracker\Minimap.lua`
@@ -441,6 +546,8 @@ testlib.equal(
     "Interface\\Icons\\Ability_Rogue_Sprint"
 )
 ```
+
+Also change the click test to assert the minimap launcher calls `UI.ShowMain()` rather than `UI.Toggle()`.
 
 - [ ] **Step 2: Run the minimap tests and verify failure**
 
@@ -460,6 +567,8 @@ In `Minimap.lua`, set:
 icon:SetTexture("Interface\\Icons\\Ability_Rogue_Sprint")
 ```
 
+Change the minimap click handler to call `ATT.UI.ShowMain()` so clicking it always opens the regular panel and closes the HUD.
+
 - [ ] **Step 4: Update manual beta checks**
 
 Add or update rows in `docs\BETA-SMOKE-TESTS.md` for:
@@ -470,6 +579,10 @@ Add or update rows in `docs\BETA-SMOKE-TESTS.md` for:
 - all three Overview sections and all four rows are readable at 80%, 100%, and 120% UI scale;
 - By Level scrolling exposes every level;
 - settings starts collapsed and the footer controls do not overlap content;
+- minimize opens a translucent 220 x 74 live HUD with a 2 x 2 current-session grid;
+- HUD values update while walking, swimming, and taking a flight path;
+- HUD drag position persists, hover controls restore/close correctly, and minimap click restores the regular panel;
+- meters switch to kilometers at 1,000 m and large steps/distances abbreviate with K/M/B suffixes;
 - sprint minimap icon renders and retains click/drag behavior;
 - no Lua errors occur when opening, moving, tabbing, changing settings, or resetting.
 
@@ -516,9 +629,11 @@ git commit -m "feat: finish character panel visual refresh" -m "Co-authored-by: 
 2. Overview and By Level are right-side `LargeSideTabButtonTemplate` icon tabs.
 3. Overview contains three stacked sections with four independently aligned stat rows each.
 4. By Level uses scrollable level sections and exposes every model row.
-5. Settings remains collapsed and Reset Session remains confirmed.
-6. The minimap icon is `Ability_Rogue_Sprint`.
-7. Movability and strata fallback behavior are unchanged.
-8. Login does not report unsupported state solely because false WoW predicates returned nil.
-9. All Lua and packaging tests pass.
-10. The packaged snapshot is installed in the Forever beta AddOns folder and is ready for `/reload`.
+5. Minimize opens a draggable translucent 2 x 2 HUD showing four current-session values, with hover Restore and Close controls.
+6. The minimap icon always opens the regular panel and uses `Ability_Rogue_Sprint`.
+7. Meter values switch to kilometers at 1,000 meters and oversized values use deterministic K/M/B formatting.
+8. Settings remains collapsed and Reset Session remains confirmed.
+9. Movability and strata fallback behavior are unchanged.
+10. Login does not report unsupported state solely because false WoW predicates returned nil.
+11. All Lua and packaging tests pass.
+12. The packaged snapshot is installed in the Forever beta AddOns folder and is ready for `/reload`.

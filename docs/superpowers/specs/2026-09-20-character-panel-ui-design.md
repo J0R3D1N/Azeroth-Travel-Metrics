@@ -88,11 +88,43 @@ Use the same character-stat visual language:
 
 ## Utility Controls
 
+- Add a native 24-pixel minimize control in the top-right title area, beside the close control.
+- Minimize hides the regular panel and opens the Live Session HUD described below.
 - Replace the prominent red Settings button with a small native gear-icon button in the lower footer or title-adjacent utility area.
 - Use `Interface\Icons\INV_Misc_Gear_01` for settings.
 - Keep the settings panel hidden until requested.
 - Replace the large red Reset Session button with a restrained native text button in the footer.
 - Reset Session retains confirmation and baseline-reset behavior.
+
+## Live Session HUD
+
+The minimized state is a separate, movable, translucent **220 x 74 pixel** frame:
+
+- arranged as a dense 2 x 2 grid;
+- shows current-session Estimated Steps, On Foot, Swimming, and Flight Path;
+- updates whenever live tracking updates the regular UI;
+- uses short labels, built-in icons, yellow labels, and white values;
+- uses approximately 45% opacity at rest and increases opacity on mouseover;
+- reveals Restore and Close controls on mouseover;
+- Restore closes the HUD and opens the regular panel;
+- Close hides the HUD without stopping tracking;
+- clicking the minimap icon always closes the HUD and opens the regular panel;
+- remembers its position between sessions;
+- does not change tracking, storage, or session semantics.
+
+The regular frame must not reserve space for the HUD. The HUD is created lazily when first minimized.
+
+## Number Formatting
+
+Stored distances remain exact WoW yards. Presentation formatting follows these rules:
+
+- metric distance displays meters below 1,000 meters and kilometers at or above 1,000 meters;
+- imperial distance displays yards below 1 mile and miles at or above 1 mile;
+- values below 10,000 use their normal unit precision;
+- values at or above 10,000 abbreviate with WoW-style `K`, `M`, and `B` suffixes;
+- abbreviated values use up to two decimals below 10 units, one decimal below 100 units, and no decimals at 100 units or above;
+- estimated steps use the same `K`, `M`, and `B` strategy;
+- formatting never changes stored totals or step calculations.
 
 ## Minimap Button
 
@@ -139,4 +171,6 @@ Automated tests must verify:
 - Coloring, shading, borders, labels, values, and row treatment mirror the supplied character panel.
 - The approximately 420 x 430 layout is dense, readable, and contains no large unused black area.
 - The minimap button uses a built-in movement icon.
+- The regular frame can minimize to a draggable 2 x 2 live current-session HUD and be restored without losing state.
+- Meter values become kilometers at 1,000 meters and oversized values abbreviate without clipping.
 - Opening, moving, tabbing, settings, reset, and tracking produce no Lua errors.
