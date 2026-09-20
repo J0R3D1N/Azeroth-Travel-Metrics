@@ -20,8 +20,37 @@ testlib.case("namespace defines schema version and travel categories", function(
     addon.Subscribe("distanceChanged", function(payload)
         received = payload
     end)
-    addon.Emit("distanceChanged", 42)
+    local emitted, reason, failures = addon.Emit("distanceChanged", 42)
+    testlib.equal(emitted, true)
+    testlib.equal(reason, nil)
+    testlib.equal(failures, nil)
     testlib.truthy(received == 42)
+end)
+
+testlib.case("namespace isolates throwing subscribers and reports failures", function()
+    local addon = testlib.loadAddon("AzerothTravelTracker\\Namespace.lua")
+    local callbacks = {}
+
+    addon.Subscribe("movementSegment", function()
+        table.insert(callbacks, "first")
+        error("subscriber failed")
+    end)
+    addon.Subscribe("movementSegment", function(payload)
+        table.insert(callbacks, payload)
+    end)
+
+    local succeeded, emitted, reason, failures = pcall(
+        addon.Emit,
+        "movementSegment",
+        "later subscriber"
+    )
+
+    testlib.equal(succeeded, true)
+    testlib.equal(emitted, false)
+    testlib.equal(reason, "subscriberFailed")
+    testlib.equal(failures, 1)
+    testlib.equal(callbacks[1], "first")
+    testlib.equal(callbacks[2], "later subscriber")
 end)
 
 testlib.case("near rejects NaN values", function()

@@ -19,7 +19,18 @@ function ATT.Subscribe(eventName, callback)
 end
 
 function ATT.Emit(eventName, payload)
+    local failures = 0
+
     for _, callback in ipairs(callbacks[eventName] or {}) do
-        callback(payload)
+        local succeeded = pcall(callback, payload)
+        if not succeeded then
+            failures = failures + 1
+        end
     end
+
+    if failures > 0 then
+        return false, "subscriberFailed", failures
+    end
+
+    return true
 end

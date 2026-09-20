@@ -6,6 +6,21 @@ local Tracker = ATT.Tracker
 local TrackerPrototype = {}
 TrackerPrototype.__index = TrackerPrototype
 
+local function copySample(sample)
+    return {
+        x = sample.x,
+        y = sample.y,
+        z = sample.z,
+        mapID = sample.mapID,
+        instanceID = sample.instanceID,
+        time = sample.time,
+        onTaxi = sample.onTaxi,
+        swimming = sample.swimming,
+        mounted = sample.mounted,
+        grounded = sample.grounded,
+    }
+end
+
 local function isFinitePositiveInteger(value)
     return type(value) == "number"
         and value == value
@@ -57,7 +72,17 @@ function Tracker.New(deps)
 end
 
 local function incrementDiagnostic(character, reason)
-    character.diagnostics[reason] = (character.diagnostics[reason] or 0) + 1
+    local current = character.diagnostics[reason]
+    if type(current) ~= "number"
+        or current ~= current
+        or current < 0
+        or current >= math.huge
+        or current % 1 ~= 0
+    then
+        current = 0
+    end
+
+    character.diagnostics[reason] = current + 1
 end
 
 function TrackerPrototype:ResetBaseline()
@@ -93,7 +118,7 @@ function TrackerPrototype:Sample()
     end
 
     local previous = self.previous
-    self.previous = current
+    self.previous = copySample(current)
 
     if previous == nil then
         return nil, "baseline"
@@ -122,6 +147,15 @@ function TrackerPrototype:Sample()
         return nil, reason
     end
 
-    self.emit("movementSegment", segment)
+    local emitCallSucceeded, emitSucceeded = pcall(
+        self.emit,
+        "movementSegment",
+        segment
+    )
+    if not emitCallSucceeded or emitSucceeded == false then
+        incrementDiagnostic(self.character, "emitFailed")
+        return segment, "emitFailed"
+    end
+
     return segment
 end

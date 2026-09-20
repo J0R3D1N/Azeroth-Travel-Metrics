@@ -66,6 +66,21 @@ local function sequenceReader(entries)
     end
 end
 
+local function assertSampleSnapshot(actual, expected)
+    testlib.truthy(actual ~= expected)
+    testlib.equal(actual.x, expected.x)
+    testlib.equal(actual.y, expected.y)
+    testlib.equal(actual.z, expected.z)
+    testlib.equal(actual.mapID, expected.mapID)
+    testlib.equal(actual.instanceID, expected.instanceID)
+    testlib.equal(actual.time, expected.time)
+    testlib.equal(actual.onTaxi, expected.onTaxi)
+    testlib.equal(actual.swimming, expected.swimming)
+    testlib.equal(actual.mounted, expected.mounted)
+    testlib.equal(actual.grounded, expected.grounded)
+    testlib.equal(actual.capabilities, nil)
+end
+
 testlib.case("tracker validates constructor dependencies", function()
     local addon = loadTracker()
     local valid = validDependencies()
@@ -154,7 +169,7 @@ testlib.case("tracker validates constructor dependencies", function()
     testlib.equal(tracker.previous, nil)
 end)
 
-testlib.case("tracker stores the first valid sample as its exact baseline", function()
+testlib.case("tracker stores a private scalar snapshot as its first baseline", function()
     local addon = loadTracker()
     local first = sample()
     local storageCalls = 0
@@ -181,7 +196,7 @@ testlib.case("tracker stores the first valid sample as its exact baseline", func
 
     testlib.equal(segment, nil)
     testlib.equal(reason, "baseline")
-    testlib.equal(tracker.previous, first)
+    assertSampleSnapshot(tracker.previous, first)
     testlib.equal(storageCalls, 0)
     testlib.equal(movementCalls, 0)
     testlib.equal(emitCalls, 0)
@@ -206,7 +221,7 @@ testlib.case("tracker aggregates once and emits the exact accepted segment", fun
         { value = second },
     })
     deps.movement.BuildSegment = function(from, to)
-        testlib.equal(from, first)
+        assertSampleSnapshot(from, first)
         testlib.equal(to, second)
         return expectedSegment
     end
@@ -228,7 +243,7 @@ testlib.case("tracker aggregates once and emits the exact accepted segment", fun
 
     testlib.equal(reason, nil)
     testlib.equal(segment, expectedSegment)
-    testlib.equal(tracker.previous, second)
+    assertSampleSnapshot(tracker.previous, second)
     testlib.equal(storageArguments.count, 4)
     testlib.equal(storageArguments[1], deps.character)
     testlib.equal(storageArguments[2], 10)
@@ -263,7 +278,7 @@ testlib.case("tracker updates its baseline for stationary samples without side e
 
     testlib.equal(segment, nil)
     testlib.equal(reason, "stationary")
-    testlib.equal(tracker.previous, second)
+    assertSampleSnapshot(tracker.previous, second)
     testlib.equal(deps.character.diagnostics.stationary, nil)
     testlib.equal(storageCalls, 0)
     testlib.equal(emitCalls, 0)
@@ -305,7 +320,7 @@ testlib.case("tracker records rejected segments and advances the baseline", func
 
         testlib.equal(segment, nil, rejectionReason .. " returned a segment")
         testlib.equal(reason, rejectionReason)
-        testlib.equal(tracker.previous, second)
+        assertSampleSnapshot(tracker.previous, second)
         testlib.equal(deps.character.diagnostics[rejectionReason], 1)
         testlib.equal(storageCalls, 0)
         testlib.equal(emitCalls, 0)
@@ -359,7 +374,7 @@ testlib.case("tracker does not aggregate mounted movement rejected by Movement",
     testlib.equal(reason, "unsupportedState")
     testlib.equal(deps.character.diagnostics.unsupportedState, 1)
     testlib.equal(storageCalls, 0)
-    testlib.equal(tracker.previous, second)
+    assertSampleSnapshot(tracker.previous, second)
 end)
 
 testlib.case("tracker sends taxi and swimming distance only to their category", function()
@@ -428,7 +443,7 @@ testlib.case("tracker ResetBaseline prevents a bridge segment", function()
     testlib.equal(segment, nil)
     testlib.equal(reason, "baseline")
     testlib.equal(movementCalls, 0)
-    testlib.equal(tracker.previous, second)
+    assertSampleSnapshot(tracker.previous, second)
 end)
 
 testlib.case("tracker SetLevel ensures storage before updating and uses the new level", function()
@@ -461,7 +476,7 @@ testlib.case("tracker SetLevel ensures storage before updating and uses the new 
     local tracker
     deps.storage.EnsureLevel = function(character, level, now)
         testlib.equal(tracker.level, 10)
-        testlib.equal(tracker.previous, beforeLevelChange)
+        assertSampleSnapshot(tracker.previous, beforeLevelChange)
         ensuredCharacter = character
         ensuredLevel = level
         ensuredNow = now
@@ -570,7 +585,7 @@ testlib.case("tracker records storage failures and does not emit", function()
     testlib.equal(reason, "invalidStoredTotal")
     testlib.equal(deps.character.diagnostics.invalidStoredTotal, 1)
     testlib.equal(emitCalls, 0)
-    testlib.equal(tracker.previous, second)
+    assertSampleSnapshot(tracker.previous, second)
 end)
 
 testlib.case("tracker subscribers receive full segment coordinates and references", function()
@@ -611,4 +626,217 @@ testlib.case("tracker subscribers receive full segment coordinates and reference
     testlib.equal(emittedSegment.from.x, 1)
     testlib.equal(emittedSegment.to.y, 6)
     testlib.equal(emittedSegment.reference, reference)
+end)
+
+testlib.case("tracker keeps its baseline isolated from subscriber mutation", function()
+    local addon = testlib.loadAddon({
+        "AzerothTravelTracker\\Namespace.lua",
+        "AzerothTravelTracker\\Movement.lua",
+        "AzerothTravelTracker\\Tracker.lua",
+    })
+    local first = sample()
+    local second = sample({ x = 5, time = 11 })
+    local third = sample({ x = 8, time = 12 })
+    local storedYards = {}
+    local deps = validDependencies()
+    deps.compat.ReadSample = sequenceReader({
+        { value = first },
+        { value = second },
+        { value = third },
+    })
+    deps.movement = addon.Movement
+    deps.storage.AddDistance = function(_, _, _, yards)
+        table.insert(storedYards, yards)
+        return true
+    end
+    deps.emit = function(_, segment)
+        segment.to.x = 1000
+    end
+    local tracker = addon.Tracker.New(deps)
+
+    tracker:Sample()
+    local firstSegment = tracker:Sample()
+    local secondSegment = tracker:Sample()
+
+    testlib.equal(firstSegment.to, second)
+    testlib.equal(firstSegment.to.x, 1000)
+    testlib.equal(secondSegment.from.x, 5)
+    testlib.equal(secondSegment.to, third)
+    testlib.equal(storedYards[1], 5)
+    testlib.equal(storedYards[2], 3)
+end)
+
+testlib.case("tracker returns committed segments when a throwing emitter fails", function()
+    local addon = loadTracker()
+    local first = sample()
+    local second = sample({ x = 5, time = 11 })
+    local acceptedSegment = {
+        category = "onFoot",
+        yards = 5,
+        from = first,
+        to = second,
+    }
+    local storageCalls = 0
+    local deps = validDependencies()
+    deps.compat.ReadSample = sequenceReader({
+        { value = first },
+        { value = second },
+    })
+    deps.movement.BuildSegment = function()
+        return acceptedSegment
+    end
+    deps.storage.AddDistance = function()
+        storageCalls = storageCalls + 1
+        return true
+    end
+    deps.emit = function()
+        error("emitter failed")
+    end
+    local tracker = addon.Tracker.New(deps)
+
+    tracker:Sample()
+    local succeeded, segment, reason = pcall(tracker.Sample, tracker)
+
+    testlib.equal(succeeded, true)
+    testlib.equal(segment, acceptedSegment)
+    testlib.equal(reason, "emitFailed")
+    testlib.equal(storageCalls, 1)
+    testlib.equal(deps.character.diagnostics.emitFailed, 1)
+end)
+
+testlib.case("tracker recognizes isolated subscriber failure results", function()
+    local addon = loadTracker()
+    local first = sample()
+    local second = sample({ x = 5, time = 11 })
+    local acceptedSegment = {
+        category = "onFoot",
+        yards = 5,
+        from = first,
+        to = second,
+    }
+    local deps = validDependencies()
+    deps.compat.ReadSample = sequenceReader({
+        { value = first },
+        { value = second },
+    })
+    deps.movement.BuildSegment = function()
+        return acceptedSegment
+    end
+    deps.emit = function()
+        return false, "subscriberFailed"
+    end
+    local tracker = addon.Tracker.New(deps)
+
+    tracker:Sample()
+    local segment, reason = tracker:Sample()
+
+    testlib.equal(segment, acceptedSegment)
+    testlib.equal(reason, "emitFailed")
+    testlib.equal(deps.character.diagnostics.emitFailed, 1)
+end)
+
+testlib.case("tracker repairs invalid diagnostic counters on every failure path", function()
+    local invalidCounters = {
+        { name = "missing" },
+        { name = "nonnumeric", value = "corrupt" },
+        { name = "negative", value = -1 },
+        { name = "NaN", value = 0 / 0 },
+        { name = "infinite", value = math.huge },
+    }
+    local failurePaths = {
+        {
+            reason = "readFailed",
+            configure = function(deps)
+                deps.compat.ReadSample = function()
+                    return nil, "readFailed"
+                end
+            end,
+            exercise = function(tracker)
+                tracker:Sample()
+            end,
+        },
+        {
+            reason = "buildFailed",
+            configure = function(deps)
+                deps.compat.ReadSample = sequenceReader({
+                    { value = sample() },
+                    { value = sample({ x = 1, time = 11 }) },
+                })
+                deps.movement.BuildSegment = function()
+                    return nil, "buildFailed"
+                end
+            end,
+            exercise = function(tracker)
+                tracker:Sample()
+                tracker:Sample()
+            end,
+        },
+        {
+            reason = "storageFailed",
+            configure = function(deps)
+                deps.compat.ReadSample = sequenceReader({
+                    { value = sample() },
+                    { value = sample({ x = 1, time = 11 }) },
+                })
+                deps.movement.BuildSegment = function(from, to)
+                    return {
+                        category = "onFoot",
+                        yards = 1,
+                        from = from,
+                        to = to,
+                    }
+                end
+                deps.storage.AddDistance = function()
+                    return nil, "storageFailed"
+                end
+            end,
+            exercise = function(tracker)
+                tracker:Sample()
+                tracker:Sample()
+            end,
+        },
+        {
+            reason = "emitFailed",
+            configure = function(deps)
+                deps.compat.ReadSample = sequenceReader({
+                    { value = sample() },
+                    { value = sample({ x = 1, time = 11 }) },
+                })
+                deps.movement.BuildSegment = function(from, to)
+                    return {
+                        category = "onFoot",
+                        yards = 1,
+                        from = from,
+                        to = to,
+                    }
+                end
+                deps.emit = function()
+                    error("emit failed")
+                end
+            end,
+            exercise = function(tracker)
+                tracker:Sample()
+                tracker:Sample()
+            end,
+        },
+    }
+
+    for _, failurePath in ipairs(failurePaths) do
+        for _, invalidCounter in ipairs(invalidCounters) do
+            local addon = loadTracker()
+            local deps = validDependencies()
+            deps.character.diagnostics[failurePath.reason] = invalidCounter.value
+            failurePath.configure(deps)
+            local tracker = addon.Tracker.New(deps)
+
+            local succeeded = pcall(failurePath.exercise, tracker)
+
+            testlib.equal(
+                succeeded,
+                true,
+                failurePath.reason .. " crashed for " .. invalidCounter.name
+            )
+            testlib.equal(deps.character.diagnostics[failurePath.reason], 1)
+        end
+    end
 end)
