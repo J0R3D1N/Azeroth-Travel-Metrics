@@ -13,6 +13,7 @@ Movement.lua
 Compat.lua
 Tracker.lua
 UIModel.lua
+UITheme.lua
 UI.lua
 Minimap.lua
 Core.lua

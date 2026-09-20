@@ -15,6 +15,7 @@ local futureModules = {
     "test_compat",
     "test_tracker",
     "test_ui_model",
+    "test_ui_theme",
     "test_core",
     "test_minimap",
 }

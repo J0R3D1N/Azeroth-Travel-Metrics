@@ -1,0 +1,284 @@
+local _, ATT = ...
+
+local Theme = {
+    Icons = {
+        PORTRAIT = "Interface\\Icons\\INV_Misc_Map_01",
+        OVERVIEW = "Interface\\Icons\\INV_Misc_Map_01",
+        LEVELS = "Interface\\Icons\\INV_Misc_Book_09",
+        SETTINGS = "Interface\\Icons\\INV_Misc_Gear_01",
+    },
+    Atlases = {
+        SECTION = "UI-Character-Info-Title",
+        ROW = "UI-Character-Info-Line-Bounce",
+        ROW_ALTERNATE = "UI-Character-Info-Line-Bounce2",
+        INSET = "common-insideframe",
+    },
+}
+
+ATT.UITheme = Theme
+
+local SIDE_TAB_SIZE = 50
+local SECTION_HEADER_HEIGHT = 24
+local SECTION_ROW_HEIGHT = 18
+
+local function setTooltip(frame, text)
+    frame:SetScript("OnEnter", function(self)
+        if not GameTooltip then
+            return
+        end
+
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        if type(GameTooltip.SetText) == "function" then
+            GameTooltip:SetText(text)
+        elseif type(GameTooltip.AddLine) == "function" then
+            GameTooltip:AddLine(text)
+        end
+        GameTooltip:Show()
+    end)
+    frame:SetScript("OnLeave", function()
+        if GameTooltip then
+            GameTooltip:Hide()
+        end
+    end)
+end
+
+local function createColorTexture(parent, layer, red, green, blue, alpha)
+    local texture = parent:CreateTexture(nil, layer)
+    texture:SetAllPoints(parent)
+    texture:SetColorTexture(red, green, blue, alpha)
+    return texture
+end
+
+local function createSelectedBorder(parent)
+    local border = {
+        BorderTextures = {},
+        color = { 1, 0.82, 0, 0.9 },
+        shown = true,
+    }
+    local edges = {
+        { "TOPLEFT", "TOPRIGHT", SIDE_TAB_SIZE, 2 },
+        { "BOTTOMLEFT", "BOTTOMRIGHT", SIDE_TAB_SIZE, 2 },
+        { "TOPLEFT", "BOTTOMLEFT", 2, SIDE_TAB_SIZE - 4 },
+        { "TOPRIGHT", "BOTTOMRIGHT", 2, SIDE_TAB_SIZE - 4 },
+    }
+
+    for _, edge in ipairs(edges) do
+        local texture = parent:CreateTexture(nil, "OVERLAY")
+        texture:SetColorTexture(1, 0.82, 0, 0.9)
+        texture:SetSize(edge[3], edge[4])
+        texture:SetPoint(edge[1], parent, edge[1], 0, 0)
+        texture:SetPoint(edge[2], parent, edge[2], 0, 0)
+        table.insert(border.BorderTextures, texture)
+    end
+
+    function border:Show()
+        self.shown = true
+        for _, texture in ipairs(self.BorderTextures) do
+            texture:Show()
+        end
+    end
+
+    function border:Hide()
+        self.shown = false
+        for _, texture in ipairs(self.BorderTextures) do
+            texture:Hide()
+        end
+    end
+
+    border:Hide()
+    return border
+end
+
+function Theme.SetAtlasOrColor(texture, atlas, red, green, blue, alpha)
+    if texture
+        and type(texture.SetAtlas) == "function"
+        and pcall(texture.SetAtlas, texture, atlas, true)
+    then
+        return true
+    end
+
+    if texture and type(texture.SetColorTexture) == "function" then
+        texture:SetColorTexture(red, green, blue, alpha)
+    end
+    return false
+end
+
+function Theme.CreateInset(parent)
+    local inset = parent:CreateTexture(nil, "BACKGROUND")
+    inset:SetAllPoints(parent)
+    Theme.SetAtlasOrColor(inset, Theme.Atlases.INSET, 0.08, 0.05, 0.03, 0.95)
+    return inset
+end
+
+function Theme.CreateSideTab(name, parent, options)
+    options = options or {}
+
+    local created, tab = pcall(
+        CreateFrame,
+        "Button",
+        name,
+        parent,
+        "LargeSideTabButtonTemplate"
+    )
+    local nativeTemplate = created and tab ~= nil
+    if not nativeTemplate then
+        tab = CreateFrame("Button", name, parent)
+    end
+
+    tab:SetSize(SIDE_TAB_SIZE, SIDE_TAB_SIZE)
+
+    if not tab.Icon then
+        tab.Icon = tab:CreateTexture(nil, "ARTWORK")
+    end
+    tab.Icon:SetTexture(options.icon)
+    tab.Icon:SetSize(32, 32)
+    tab.Icon:SetPoint("CENTER", tab, "CENTER", 0, 0)
+
+    if not tab.SelectedTexture then
+        tab.SelectedTexture = createSelectedBorder(tab)
+    end
+    tab.SelectedTexture:Hide()
+
+    if not nativeTemplate then
+        tab.Background = createColorTexture(
+            tab,
+            "BACKGROUND",
+            0.18,
+            0.10,
+            0.04,
+            0.95
+        )
+        tab.HighlightTexture = createColorTexture(
+            tab,
+            "HIGHLIGHT",
+            1,
+            0.72,
+            0.18,
+            0.25
+        )
+    end
+
+    setTooltip(tab, options.tooltip or "")
+    return tab
+end
+
+function Theme.SetSideTabSelected(tab, selected)
+    tab.selected = selected == true
+    if not tab.SelectedTexture then
+        return
+    end
+
+    if tab.selected then
+        tab.SelectedTexture:Show()
+    else
+        tab.SelectedTexture:Hide()
+    end
+end
+
+function Theme.CreateSection(parent, title, rowCount)
+    rowCount = rowCount or 4
+
+    local frame = CreateFrame("Frame", nil, parent)
+    frame:SetSize(1, SECTION_HEADER_HEIGHT + (rowCount * SECTION_ROW_HEIGHT))
+
+    local header = frame:CreateTexture(nil, "BACKGROUND")
+    header:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+    header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+    header:SetHeight(SECTION_HEADER_HEIGHT)
+    Theme.SetAtlasOrColor(header, Theme.Atlases.SECTION, 0.24, 0.13, 0.05, 1)
+
+    local titleText = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    titleText:SetPoint("LEFT", header, "LEFT", 10, 0)
+    titleText:SetText(title)
+
+    local section = {
+        frame = frame,
+        header = header,
+        title = titleText,
+        rows = {},
+    }
+
+    local previous = header
+    for index = 1, rowCount do
+        local rowFrame = CreateFrame("Frame", nil, frame)
+        rowFrame:SetHeight(SECTION_ROW_HEIGHT)
+        rowFrame:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, 0)
+        rowFrame:SetPoint("TOPRIGHT", previous, "BOTTOMRIGHT", 0, 0)
+
+        local background = rowFrame:CreateTexture(nil, "BACKGROUND")
+        background:SetAllPoints(rowFrame)
+        Theme.SetAtlasOrColor(
+            background,
+            Theme.Atlases.ROW,
+            0.12,
+            0.075,
+            0.035,
+            index % 2 == 0 and 0.82 or 0.68
+        )
+
+        local label = rowFrame:CreateFontString(
+            nil,
+            "ARTWORK",
+            "GameFontNormalSmall"
+        )
+        label:SetPoint("LEFT", rowFrame, "LEFT", 8, 0)
+        label:SetTextColor(1, 0.82, 0, 1)
+
+        local value = rowFrame:CreateFontString(
+            nil,
+            "ARTWORK",
+            "GameFontHighlightSmall"
+        )
+        value:SetPoint("RIGHT", rowFrame, "RIGHT", -8, 0)
+        value:SetTextColor(1, 1, 1, 1)
+        value:SetJustifyH("RIGHT")
+
+        table.insert(section.rows, {
+            frame = rowFrame,
+            background = background,
+            label = label,
+            value = value,
+        })
+        previous = rowFrame
+    end
+
+    return section
+end
+
+function Theme.SetSectionValues(section, values)
+    values = values or {}
+    for index, row in ipairs(section.rows) do
+        local rowValues = values[index] or {}
+        row.label:SetText(rowValues.label or "")
+        row.value:SetText(rowValues.value or "")
+    end
+end
+
+function Theme.CreateIconButton(parent, icon, tooltip)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(24, 24)
+
+    button.Background = createColorTexture(
+        button,
+        "BACKGROUND",
+        0.18,
+        0.10,
+        0.04,
+        0.95
+    )
+    button.HighlightTexture = createColorTexture(
+        button,
+        "HIGHLIGHT",
+        1,
+        0.72,
+        0.18,
+        0.28
+    )
+    button.Icon = button:CreateTexture(nil, "ARTWORK")
+    button.Icon:SetTexture(icon)
+    button.Icon:SetPoint("TOPLEFT", button, "TOPLEFT", 3, -3)
+    button.Icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -3, 3)
+
+    setTooltip(button, tooltip or "")
+    return button
+end
