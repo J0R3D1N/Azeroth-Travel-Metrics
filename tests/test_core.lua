@@ -831,6 +831,10 @@ local function newFrame(frameType, name, parent, template, options)
         self.verticalScroll = offset
     end
 
+    function frame:GetVerticalScroll()
+        return self.verticalScroll or 0
+    end
+
     function frame:GetVerticalScrollRange()
         if not self.scrollChild then
             return 0
@@ -848,6 +852,15 @@ local function newFrame(frameType, name, parent, template, options)
 
     function frame:SetTextColor(...)
         self.textColor = { ... }
+    end
+
+    function frame:GetStringHeight()
+        local text = tostring(self.text or "")
+        local lineCount = 1
+        for _ in text:gmatch("\n") do
+            lineCount = lineCount + 1
+        end
+        return lineCount * 12
     end
 
     function frame:SetAlpha(alpha)
@@ -1076,6 +1089,12 @@ local function newUIHarness(options)
         BuildOverview = function()
             calls.overview = calls.overview + 1
             table.insert(order, "refresh")
+            if options.overviewSequence then
+                local result = options.overviewSequence[
+                    math.min(calls.overview, #options.overviewSequence)
+                ]
+                return result.overview, result.error
+            end
             if options.overviewError then
                 return nil, options.overviewError
             end
@@ -1780,7 +1799,7 @@ testlib.case("ui level cards reuse frames and hide stale data after shrinking", 
     testlib.equal(UI.levelScrollChild.height, UI.levelScrollFrame.height)
 end)
 
-testlib.case("ui diagnostics use only a visible compact footer when enabled", function()
+testlib.case("ui diagnostics use no visible space when disabled", function()
     local disabled = newUIHarness({
         db = {
             settings = {
@@ -1795,44 +1814,140 @@ testlib.case("ui diagnostics use only a visible compact footer when enabled", fu
     })
     disabled.addon.UI.Create()
     disabled.addon.UI.Refresh()
-    testlib.equal(disabled.addon.UI.diagnosticsText:IsShown(), false)
+    testlib.equal(disabled.addon.UI.diagnosticsScrollFrame:IsShown(), false)
     testlib.equal(disabled.addon.UI.diagnosticsText:GetText(), "")
     testlib.equal(disabled.addon.UI.overviewPanel.height, 296)
-
-    local enabled = newUIHarness()
-    enabled.addon.UI.Create()
-    enabled.addon.UI.Refresh()
-    testlib.equal(enabled.addon.UI.diagnosticsText:IsShown(), true)
-    testlib.equal(enabled.addon.UI.diagnosticsText.point[1], "BOTTOMLEFT")
-    testlib.equal(
-        enabled.addon.UI.diagnosticsText.point[2],
-        enabled.addon.UI.overviewPanel
-    )
-    testlib.truthy(enabled.addon.UI.diagnosticsText.point[5] >= 0)
-    testlib.truthy(enabled.addon.UI.overviewPanel.height > 296)
 end)
 
-testlib.case("ui errors are visible before and after creation", function()
+testlib.case("ui diagnostics retain and scroll realistic multi-reason output", function()
+    local diagnostics = {
+        { reason = "baseline", count = 3 },
+        { reason = "falling", count = 12 },
+        { reason = "mounted", count = 27 },
+        { reason = "speedExceeded", count = 4 },
+        { reason = "stateTransition", count = 6 },
+        { reason = "timeGap", count = 9 },
+        { reason = "unsupportedMap", count = 2 },
+        { reason = "zoning", count = 5 },
+    }
+    local enabled = newUIHarness({
+        diagnostics = diagnostics,
+    })
+    enabled.addon.UI.Create()
+    enabled.addon.UI.Refresh()
+
+    local UI = enabled.addon.UI
+    testlib.equal(UI.frame.width, 420)
+    testlib.equal(UI.frame.height, 430)
+    testlib.equal(UI.diagnosticsScrollFrame:IsShown(), true)
+    testlib.equal(UI.diagnosticsScrollFrame.mouseWheelEnabled, true)
+    testlib.equal(UI.diagnosticsScrollFrame.point[1], "TOPLEFT")
+    testlib.equal(
+        UI.diagnosticsScrollFrame.point[2],
+        UI.overviewPanel
+    )
+    testlib.equal(UI.diagnosticsScrollFrame.point[3], "TOPLEFT")
+    testlib.truthy(UI.diagnosticsScrollFrame.point[5] <= -296)
+    testlib.truthy(UI.overviewPanel.height <= UI.contentFrame.height)
+    testlib.truthy(
+        UI.diagnosticsScrollChild.height > UI.diagnosticsScrollFrame.height
+    )
+    testlib.truthy(UI.diagnosticsScrollFrame:GetVerticalScrollRange() > 0)
+    for _, diagnostic in ipairs(diagnostics) do
+        testlib.truthy(contains(
+            UI.diagnosticsText:GetText(),
+            diagnostic.reason .. ": " .. tostring(diagnostic.count)
+        ))
+    end
+
+    UI.diagnosticsScrollFrame.scripts.OnMouseWheel(
+        UI.diagnosticsScrollFrame,
+        -1
+    )
+    testlib.truthy(UI.diagnosticsScrollFrame:GetVerticalScroll() > 0)
+end)
+
+testlib.case("ui errors replace overview content inside the compact inset", function()
     local harness = newUIHarness()
 
     harness.addon.UI.ShowError("before create")
     harness.addon.UI.Create()
     testlib.equal(harness.addon.UI.errorText:GetText(), "before create")
-    testlib.equal(harness.addon.UI.errorText:IsShown(), true)
+    testlib.equal(harness.addon.UI.errorPanel:IsShown(), true)
+    testlib.equal(harness.addon.UI.overviewPanel:IsShown(), false)
+    testlib.equal(harness.addon.UI.levelPanel:IsShown(), false)
+    testlib.equal(harness.addon.UI.errorPanel.parent, harness.addon.UI.contentFrame)
+    testlib.truthy(
+        harness.addon.UI.errorPanel.height <= harness.addon.UI.contentFrame.height
+    )
 
     harness.addon.UI.ShowError("after create")
     testlib.equal(harness.addon.UI.errorText:GetText(), "after create")
-    testlib.equal(harness.addon.UI.errorText:IsShown(), true)
+    testlib.equal(harness.addon.UI.errorPanel:IsShown(), true)
+    testlib.equal(harness.addon.UI.overviewPanel:IsShown(), false)
+    testlib.equal(harness.addon.UI.levelPanel:IsShown(), false)
+end)
 
+testlib.case("ui refresh failure replaces level content with the inset error", function()
     local refreshFailure = newUIHarness({
         overviewError = "invalidStatistics",
     })
     refreshFailure.addon.UI.Create()
+    refreshFailure.addon.UI.levelTab.scripts.OnClick()
     refreshFailure.addon.UI.Refresh()
-    testlib.equal(refreshFailure.addon.UI.errorText:IsShown(), true)
+    testlib.equal(refreshFailure.addon.UI.errorPanel:IsShown(), true)
+    testlib.equal(refreshFailure.addon.UI.overviewPanel:IsShown(), false)
+    testlib.equal(refreshFailure.addon.UI.levelPanel:IsShown(), false)
     testlib.truthy(
         contains(refreshFailure.addon.UI.errorText:GetText(), "invalidStatistics")
     )
+end)
+
+testlib.case("ui successful refresh clears error and restores active panel", function()
+    local harness = newUIHarness({
+        overviewSequence = {
+            {
+                error = "invalidStatistics",
+            },
+            {
+                overview = {
+                    lifetime = {
+                        steps = "12.5K",
+                        onFoot = "1.00 km",
+                        swimming = "2.00 km",
+                        taxi = "3.00 km",
+                    },
+                    session = {
+                        steps = "10",
+                        onFoot = "100 m",
+                        swimming = "200 m",
+                        taxi = "300 m",
+                    },
+                    currentLevel = {
+                        steps = "5",
+                        onFoot = "50 m",
+                        swimming = "60 m",
+                        taxi = "70 m",
+                    },
+                },
+            },
+        },
+    })
+    local UI = harness.addon.UI
+    UI.Create()
+    UI.levelTab.scripts.OnClick()
+
+    testlib.equal(UI.Refresh(), false)
+    testlib.equal(UI.errorPanel:IsShown(), true)
+    testlib.equal(UI.overviewPanel:IsShown(), false)
+    testlib.equal(UI.levelPanel:IsShown(), false)
+
+    testlib.equal(UI.Refresh(), true)
+    testlib.equal(UI.errorPanel:IsShown(), false)
+    testlib.equal(UI.errorText:GetText(), "")
+    testlib.equal(UI.overviewPanel:IsShown(), false)
+    testlib.equal(UI.levelPanel:IsShown(), true)
+    testlib.equal(UI.levelTab.selected, true)
 end)
 
 testlib.case("ui confirmation resets only the session after acceptance", function()

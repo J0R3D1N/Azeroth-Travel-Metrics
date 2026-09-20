@@ -7,7 +7,10 @@ local RESET_DIALOG_KEY = "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
 local SECTION_HEIGHT = 96
 local SECTION_GAP = 4
 local SUMMARY_CONTENT_HEIGHT = (SECTION_HEIGHT * 3) + (SECTION_GAP * 2)
-local DIAGNOSTICS_FOOTER_HEIGHT = 16
+local DIAGNOSTICS_GAP = 4
+local DIAGNOSTICS_VIEW_HEIGHT = 22
+local DIAGNOSTICS_LINE_HEIGHT = 12
+local DIAGNOSTICS_CONTENT_WIDTH = 348
 local LEVEL_CARD_HEIGHT = 100
 local LEVEL_VIEW_HEIGHT = 282
 local LEVEL_CONTENT_WIDTH = 348
@@ -141,14 +144,30 @@ local function setPanelVisibility()
         return
     end
 
-    if activeTab == "levels" then
+    local hasError = pendingError ~= nil
+    if UI.errorPanel then
+        if hasError then
+            UI.errorPanel:Show()
+        else
+            UI.errorPanel:Hide()
+        end
+    end
+
+    if hasError then
+        UI.overviewPanel:Hide()
+        UI.levelPanel:Hide()
+    elseif activeTab == "levels" then
         UI.overviewPanel:Hide()
         UI.levelPanel:Show()
-        ATT.UITheme.SetSideTabSelected(UI.overviewTab, false)
-        ATT.UITheme.SetSideTabSelected(UI.levelTab, true)
     else
         UI.levelPanel:Hide()
         UI.overviewPanel:Show()
+    end
+
+    if activeTab == "levels" then
+        ATT.UITheme.SetSideTabSelected(UI.overviewTab, false)
+        ATT.UITheme.SetSideTabSelected(UI.levelTab, true)
+    else
         ATT.UITheme.SetSideTabSelected(UI.levelTab, false)
         ATT.UITheme.SetSideTabSelected(UI.overviewTab, true)
     end
@@ -737,11 +756,27 @@ function UI.Create()
     UI.contentFrame:SetSize(388, 330)
     UI.contentInset = ATT.UITheme.CreateInset(UI.contentFrame)
 
-    UI.errorText = createLabel(frame, "", "GameFontHighlight")
-    UI.errorText:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -54)
-    UI.errorText:SetWidth(376)
+    UI.errorPanel = CreateFrame("Frame", nil, UI.contentFrame)
+    UI.errorPanel:SetPoint(
+        "TOPLEFT",
+        UI.contentFrame,
+        "TOPLEFT",
+        6,
+        -8
+    )
+    UI.errorPanel:SetSize(376, 310)
+    UI.errorInset = ATT.UITheme.CreateInset(UI.errorPanel)
+
+    UI.errorText = createLabel(
+        UI.errorPanel,
+        "",
+        "GameFontHighlight"
+    )
+    UI.errorText:SetPoint("TOPLEFT", UI.errorPanel, "TOPLEFT", 14, -14)
+    UI.errorText:SetWidth(348)
     UI.errorText:SetTextColor(1, 0.25, 0.25)
     UI.errorText:Hide()
+    UI.errorPanel:Hide()
 
     UI.overviewPanel = CreateFrame("Frame", nil, frame)
     UI.overviewPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -54)
@@ -777,21 +812,62 @@ function UI.Create()
         table.insert(UI.summarySections, section)
     end
 
-    UI.diagnosticsText = createLabel(
+    local diagnosticsScrollFrame = CreateFrame(
+        "ScrollFrame",
+        nil,
+        UI.overviewPanel
+    )
+    UI.diagnosticsScrollFrame = diagnosticsScrollFrame
+    diagnosticsScrollFrame:SetPoint(
+        "TOPLEFT",
         UI.overviewPanel,
+        "TOPLEFT",
+        0,
+        -(SUMMARY_CONTENT_HEIGHT + DIAGNOSTICS_GAP)
+    )
+    diagnosticsScrollFrame:SetSize(376, DIAGNOSTICS_VIEW_HEIGHT)
+    diagnosticsScrollFrame:EnableMouseWheel(true)
+
+    UI.diagnosticsScrollChild = CreateFrame(
+        "Frame",
+        nil,
+        diagnosticsScrollFrame
+    )
+    UI.diagnosticsScrollChild:SetSize(
+        DIAGNOSTICS_CONTENT_WIDTH,
+        DIAGNOSTICS_VIEW_HEIGHT
+    )
+    diagnosticsScrollFrame:SetScrollChild(UI.diagnosticsScrollChild)
+    diagnosticsScrollFrame:SetScript("OnMouseWheel", function(self, delta)
+        local current = 0
+        if type(self.GetVerticalScroll) == "function" then
+            current = self:GetVerticalScroll()
+        end
+        local scrollRange = self:GetVerticalScrollRange()
+        self:SetVerticalScroll(math.max(
+            0,
+            math.min(
+                scrollRange,
+                current - (delta * DIAGNOSTICS_LINE_HEIGHT * 2)
+            )
+        ))
+    end)
+
+    UI.diagnosticsText = createLabel(
+        UI.diagnosticsScrollChild,
         "",
         "GameFontDisableSmall"
     )
     UI.diagnosticsText:SetPoint(
-        "BOTTOMLEFT",
-        UI.overviewPanel,
-        "BOTTOMLEFT",
+        "TOPLEFT",
+        UI.diagnosticsScrollChild,
+        "TOPLEFT",
         0,
         0
     )
-    UI.diagnosticsText:SetWidth(376)
-    UI.diagnosticsText:SetHeight(DIAGNOSTICS_FOOTER_HEIGHT)
+    UI.diagnosticsText:SetWidth(DIAGNOSTICS_CONTENT_WIDTH)
     UI.diagnosticsText:Hide()
+    diagnosticsScrollFrame:Hide()
 
     UI.levelPanel = CreateFrame("Frame", nil, frame)
     UI.levelPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -54)
@@ -943,20 +1019,42 @@ function UI.Refresh()
         and context.db.settings
         and context.db.settings.showDiagnostics == true
     if diagnosticsEnabled and #diagnosticLines > 0 then
-        UI.diagnosticsText:SetText(table.concat(diagnosticLines, "  |  "))
+        UI.diagnosticsText:SetText(table.concat(diagnosticLines, "\n"))
+        local contentHeight = #diagnosticLines * DIAGNOSTICS_LINE_HEIGHT
+        if type(UI.diagnosticsText.GetStringHeight) == "function" then
+            local measured, height = pcall(
+                UI.diagnosticsText.GetStringHeight,
+                UI.diagnosticsText
+            )
+            if measured and isFiniteNumber(height) and height > 0 then
+                contentHeight = math.ceil(height)
+            end
+        end
+        UI.diagnosticsScrollChild:SetHeight(math.max(
+            DIAGNOSTICS_VIEW_HEIGHT,
+            contentHeight
+        ))
+        UI.diagnosticsScrollFrame:SetVerticalScroll(0)
         UI.diagnosticsText:Show()
+        UI.diagnosticsScrollFrame:Show()
         UI.overviewPanel:SetHeight(
-            SUMMARY_CONTENT_HEIGHT + DIAGNOSTICS_FOOTER_HEIGHT
+            SUMMARY_CONTENT_HEIGHT
+                + DIAGNOSTICS_GAP
+                + DIAGNOSTICS_VIEW_HEIGHT
         )
     else
         UI.diagnosticsText:SetText("")
         UI.diagnosticsText:Hide()
+        UI.diagnosticsScrollFrame:SetVerticalScroll(0)
+        UI.diagnosticsScrollFrame:Hide()
+        UI.diagnosticsScrollChild:SetHeight(DIAGNOSTICS_VIEW_HEIGHT)
         UI.overviewPanel:SetHeight(SUMMARY_CONTENT_HEIGHT)
     end
 
     pendingError = nil
     UI.errorText:SetText("")
     UI.errorText:Hide()
+    setPanelVisibility()
     return true
 end
 
@@ -1008,6 +1106,7 @@ function UI.ShowError(message)
     if UI.frame then
         UI.errorText:SetText(pendingError)
         UI.errorText:Show()
+        setPanelVisibility()
     end
 end
 
