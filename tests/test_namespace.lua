@@ -23,3 +23,15 @@ testlib.case("namespace defines schema version and travel categories", function(
     addon.Emit("distanceChanged", 42)
     testlib.truthy(received == 42)
 end)
+
+testlib.case("near rejects NaN values", function()
+    local nan = 0 / 0
+
+    local actualAccepted = pcall(testlib.near, nan, 1, 0.1)
+    local expectedAccepted = pcall(testlib.near, 1, nan, 0.1)
+    local toleranceAccepted = pcall(testlib.near, 1, 1, nan)
+
+    testlib.equal(actualAccepted, false)
+    testlib.equal(expectedAccepted, false)
+    testlib.equal(toleranceAccepted, false)
+end)

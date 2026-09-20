@@ -1,10 +1,13 @@
 local separator = package.config:sub(1, 1)
-package.path = "tests" .. separator .. "?.lua;" .. package.path
+local runPath = debug.getinfo(1, "S").source:sub(2)
+local testsDirectory = runPath:match("^(.*)[\\/][^\\/]+$") or "."
+package.path = testsDirectory .. separator .. "?.lua;" .. package.path
 
 local testlib = require("testlib")
 
-local modules = {
-    "test_namespace",
+require("test_namespace")
+
+local futureModules = {
     "test_distance",
     "test_stride",
     "test_storage",
@@ -16,13 +19,19 @@ local modules = {
     "test_minimap",
 }
 
-for _, moduleName in ipairs(modules) do
-    local path = "tests" .. separator .. moduleName .. ".lua"
+for _, moduleName in ipairs(futureModules) do
+    local path = testsDirectory .. separator .. moduleName .. ".lua"
     local file = io.open(path, "r")
     if file then
         file:close()
         require(moduleName)
     end
+end
+
+if #testlib.cases == 0 then
+    print("FAIL no test cases registered")
+    print("0 passed, 1 failed")
+    os.exit(1)
 end
 
 local passed = 0
