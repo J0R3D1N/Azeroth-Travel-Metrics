@@ -14,4 +14,5 @@ Compat.lua
 Tracker.lua
 UIModel.lua
 UI.lua
+Minimap.lua
 Core.lua

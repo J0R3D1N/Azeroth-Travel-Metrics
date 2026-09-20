@@ -60,6 +60,7 @@ local function newCoreHarness(options)
         getCharacter = 0,
         trackerNew = 0,
         uiInitialize = 0,
+        minimapInitialize = 0,
         uiRefresh = 0,
         uiToggle = 0,
         uiConfirmReset = 0,
@@ -70,6 +71,7 @@ local function newCoreHarness(options)
         resets = 0,
         levelCalls = {},
         order = {},
+        initializationOrder = {},
     }
     local initializedDB = options.initializedDB or {
         settings = {
@@ -204,6 +206,7 @@ local function newCoreHarness(options)
         Initialize = function(context)
             calls.uiInitialize = calls.uiInitialize + 1
             calls.uiContext = context
+            table.insert(calls.initializationOrder, "uiInitialize")
         end,
         Refresh = function()
             calls.uiRefresh = calls.uiRefresh + 1
@@ -222,6 +225,18 @@ local function newCoreHarness(options)
             calls.uiConfirmReset = calls.uiConfirmReset + 1
         end,
     }
+    if not options.missingMinimap then
+        addon.Minimap = {
+            Initialize = function(context)
+                calls.minimapInitialize = calls.minimapInitialize + 1
+                calls.minimapContext = context
+                table.insert(calls.initializationOrder, "minimapInitialize")
+                if options.minimapThrows then
+                    error("minimap exploded")
+                end
+            end,
+        }
+    end
 
     environment.C_Timer = {
         NewTicker = function(interval, callback)
@@ -317,6 +332,10 @@ testlib.case("core ignores nonmatching ADDON_LOADED and initializes matching add
     testlib.equal(harness.calls.getCharacter, 1)
     testlib.equal(harness.calls.trackerNew, 1)
     testlib.equal(harness.calls.uiInitialize, 1)
+    testlib.equal(harness.calls.minimapInitialize, 1)
+    testlib.equal(harness.calls.initializationOrder[1], "uiInitialize")
+    testlib.equal(harness.calls.initializationOrder[2], "minimapInitialize")
+    testlib.equal(harness.calls.minimapContext.db, harness.db)
     testlib.equal(harness.environment.AzerothTravelTrackerDB, harness.db)
     testlib.equal(harness.calls.characterArguments.db, harness.db)
     testlib.equal(
@@ -342,6 +361,37 @@ testlib.case("core ignores nonmatching ADDON_LOADED and initializes matching add
     harness.fire("ADDON_LOADED", "AzerothTravelTracker")
     testlib.equal(harness.calls.initialize, 1)
     testlib.equal(harness.calls.getCharacter, 1)
+end)
+
+testlib.case("core tolerates missing minimap for load-order safety", function()
+    local harness = newCoreHarness({
+        missingMinimap = true,
+    })
+
+    initialize(harness)
+
+    testlib.equal(harness.addon.Core.GetState().ready, true)
+    testlib.equal(harness.calls.uiInitialize, 1)
+    testlib.equal(#harness.calls.uiErrors, 0)
+end)
+
+testlib.case("core reports minimap initialization failure without disabling tracking", function()
+    local harness = newCoreHarness({
+        minimapThrows = true,
+    })
+
+    initialize(harness)
+    initialize(harness)
+
+    testlib.equal(harness.addon.Core.GetState().ready, true)
+    testlib.equal(harness.calls.minimapInitialize, 1)
+    testlib.equal(#harness.calls.prints, 1)
+    testlib.equal(#harness.calls.uiErrors, 1)
+    testlib.truthy(contains(harness.calls.prints[1], "minimap"))
+    testlib.truthy(contains(harness.calls.uiErrors[1], "minimap"))
+
+    harness.fire("PLAYER_ENTERING_WORLD")
+    testlib.equal(#harness.calls.tickers, 1)
 end)
 
 testlib.case("unsupported storage preserves the saved DB and reports once", function()
@@ -682,6 +732,14 @@ local function newFrame(frameType, name, parent, template)
         self.strata = strata
     end
 
+    function frame:SetFrameLevel(level)
+        self.frameLevel = level
+    end
+
+    function frame:GetFrameLevel()
+        return self.frameLevel or 1
+    end
+
     function frame:SetID(id)
         self.id = id
     end
@@ -772,6 +830,14 @@ local function newFrame(frameType, name, parent, template)
 
     function frame:SetTextColor(...)
         self.textColor = { ... }
+    end
+
+    function frame:SetChecked(value)
+        self.checked = value == true
+    end
+
+    function frame:GetChecked()
+        return self.checked == true
     end
 
     function frame:SetBackdrop(...)
@@ -904,6 +970,7 @@ local function newUIHarness(options)
     local db = options.db or {
         settings = {
             units = "metric",
+            showMinimap = true,
             showDiagnostics = true,
         },
     }
@@ -988,6 +1055,11 @@ local function newUIHarness(options)
         end,
     }
     addon.Compat = {}
+    addon.Minimap = {
+        UpdateVisibility = function()
+            calls.minimapVisibility = (calls.minimapVisibility or 0) + 1
+        end,
+    }
     if not options.nowUnavailable then
         addon.Compat.GetNow = function()
             calls.now = calls.now + 1
@@ -1053,6 +1125,11 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
     testlib.equal(type(first.scripts.OnDragStop), "function")
     testlib.equal(#harness.addon.UI.summaryGroups, 3)
     testlib.equal(harness.addon.UI.resetButton.template, "UIPanelButtonTemplate")
+    testlib.equal(harness.addon.UI.settingsButton.template, "UIPanelButtonTemplate")
+    testlib.equal(harness.addon.UI.settingsPanel:IsShown(), false)
+    testlib.truthy(
+        harness.addon.UI.settingsPanel:GetFrameLevel() > first:GetFrameLevel()
+    )
     testlib.equal(
         harness.addon.UI.overviewTab.template,
         "CharacterFrameTabButtonTemplate"
@@ -1066,6 +1143,53 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
     first.scripts.OnDragStop(first)
     testlib.equal(first.startedMoving, true)
     testlib.equal(first.stoppedMoving, true)
+end)
+
+testlib.case("ui settings button toggles a compact panel", function()
+    local harness = newUIHarness()
+    harness.addon.UI.Create()
+
+    testlib.equal(harness.addon.UI.settingsPanel:IsShown(), false)
+    harness.addon.UI.settingsButton.scripts.OnClick()
+    testlib.equal(harness.addon.UI.settingsPanel:IsShown(), true)
+    harness.addon.UI.settingsButton.scripts.OnClick()
+    testlib.equal(harness.addon.UI.settingsPanel:IsShown(), false)
+end)
+
+testlib.case("ui unit controls remain mutually exclusive persist and refresh", function()
+    local harness = newUIHarness()
+    harness.addon.UI.Create()
+
+    testlib.equal(harness.addon.UI.metricCheck:GetChecked(), true)
+    testlib.equal(harness.addon.UI.imperialCheck:GetChecked(), false)
+
+    harness.addon.UI.imperialCheck.scripts.OnClick()
+    testlib.equal(harness.db.settings.units, "imperial")
+    testlib.equal(harness.addon.UI.metricCheck:GetChecked(), false)
+    testlib.equal(harness.addon.UI.imperialCheck:GetChecked(), true)
+    testlib.equal(harness.calls.overview, 1)
+
+    harness.addon.UI.metricCheck.scripts.OnClick()
+    testlib.equal(harness.db.settings.units, "metric")
+    testlib.equal(harness.addon.UI.metricCheck:GetChecked(), true)
+    testlib.equal(harness.addon.UI.imperialCheck:GetChecked(), false)
+    testlib.equal(harness.calls.overview, 2)
+end)
+
+testlib.case("ui settings checkboxes persist and invoke focused updates", function()
+    local harness = newUIHarness()
+    harness.addon.UI.Create()
+
+    harness.addon.UI.minimapCheck:SetChecked(false)
+    harness.addon.UI.minimapCheck.scripts.OnClick()
+    testlib.equal(harness.db.settings.showMinimap, false)
+    testlib.equal(harness.calls.minimapVisibility, 1)
+    testlib.equal(harness.calls.overview, 0)
+
+    harness.addon.UI.diagnosticsCheck:SetChecked(false)
+    harness.addon.UI.diagnosticsCheck.scripts.OnClick()
+    testlib.equal(harness.db.settings.showDiagnostics, false)
+    testlib.equal(harness.calls.overview, 1)
 end)
 
 testlib.case("ui falls back when the main template is rejected", function()
@@ -1467,6 +1591,12 @@ testlib.case("ui lifecycle remains safe during combat lockdown", function()
         harness.addon.UI.Toggle()
         harness.addon.UI.levelTab.scripts.OnClick()
         harness.addon.UI.overviewTab.scripts.OnClick()
+        harness.addon.UI.settingsButton.scripts.OnClick()
+        harness.addon.UI.metricCheck.scripts.OnClick()
+        harness.addon.UI.minimapCheck:SetChecked(false)
+        harness.addon.UI.minimapCheck.scripts.OnClick()
+        harness.addon.UI.diagnosticsCheck:SetChecked(true)
+        harness.addon.UI.diagnosticsCheck.scripts.OnClick()
         harness.addon.UI.Refresh()
         harness.addon.UI.ConfirmResetSession()
     end)
@@ -1512,8 +1642,10 @@ testlib.case("addon manifest references only files present in this task", functi
         .. "AzerothTravelTracker.toc"
     local toc = assert(io.open(tocPath, "r"))
 
+    local files = {}
     for line in toc:lines() do
         if line:match("%.lua%s*$") then
+            table.insert(files, line)
             local relativePath = line:gsub("[\\/]", separator)
             local filePath = projectDirectory
                 .. separator
@@ -1529,4 +1661,21 @@ testlib.case("addon manifest references only files present in this task", functi
     end
 
     toc:close()
+    local minimapIndex
+    local uiIndex
+    local coreIndex
+    for index, fileName in ipairs(files) do
+        if fileName == "UI.lua" then
+            uiIndex = index
+        elseif fileName == "Minimap.lua" then
+            minimapIndex = index
+        elseif fileName == "Core.lua" then
+            coreIndex = index
+        end
+    end
+    testlib.truthy(uiIndex ~= nil, "UI.lua missing from TOC")
+    testlib.truthy(minimapIndex ~= nil, "Minimap.lua missing from TOC")
+    testlib.truthy(coreIndex ~= nil, "Core.lua missing from TOC")
+    testlib.truthy(uiIndex < minimapIndex, "Minimap.lua must load after UI.lua")
+    testlib.truthy(minimapIndex < coreIndex, "Minimap.lua must load before Core.lua")
 end)

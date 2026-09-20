@@ -57,6 +57,9 @@ local function initializeVersionOne(db)
     if db.settings.showMinimap == nil then
         db.settings.showMinimap = true
     end
+    if db.settings.minimapAngle == nil then
+        db.settings.minimapAngle = 225
+    end
     if db.settings.showDiagnostics == nil then
         db.settings.showDiagnostics = false
     end

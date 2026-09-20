@@ -32,6 +32,7 @@ testlib.case("storage initializes nil with v1 defaults", function()
     testlib.equal(db.schemaVersion, addon.SCHEMA_VERSION)
     testlib.equal(db.settings.units, "metric")
     testlib.equal(db.settings.showMinimap, true)
+    testlib.equal(db.settings.minimapAngle, 225)
     testlib.equal(db.settings.showDiagnostics, false)
     testlib.truthy(type(db.characters) == "table")
 end)
@@ -46,6 +47,7 @@ testlib.case("storage initializes a schema-less empty table in place", function(
     testlib.equal(db.schemaVersion, addon.SCHEMA_VERSION)
     testlib.equal(db.settings.units, "metric")
     testlib.equal(db.settings.showMinimap, true)
+    testlib.equal(db.settings.minimapAngle, 225)
     testlib.equal(db.settings.showDiagnostics, false)
     testlib.truthy(type(db.characters) == "table")
 end)
@@ -58,6 +60,7 @@ testlib.case("storage preserves customized v1 settings and characters", function
         settings = {
             units = "imperial",
             showMinimap = false,
+            minimapAngle = 135,
             showDiagnostics = true,
         },
         characters = {
@@ -70,8 +73,30 @@ testlib.case("storage preserves customized v1 settings and characters", function
     testlib.equal(db, existing)
     testlib.equal(db.settings.units, "imperial")
     testlib.equal(db.settings.showMinimap, false)
+    testlib.equal(db.settings.minimapAngle, 135)
     testlib.equal(db.settings.showDiagnostics, true)
     testlib.equal(db.characters["Jaina-Proudmoore"], character)
+end)
+
+testlib.case("storage backfills missing known v1 settings without overwriting custom values", function()
+    local addon = loadStorage()
+    local existing = {
+        schemaVersion = 1,
+        settings = {
+            units = "imperial",
+            showMinimap = false,
+            showDiagnostics = true,
+        },
+        characters = {},
+    }
+
+    local db = addon.Storage.Initialize(existing)
+
+    testlib.equal(db, existing)
+    testlib.equal(db.settings.units, "imperial")
+    testlib.equal(db.settings.showMinimap, false)
+    testlib.equal(db.settings.minimapAngle, 225)
+    testlib.equal(db.settings.showDiagnostics, true)
 end)
 
 testlib.case("storage creates a character and current level bucket", function()

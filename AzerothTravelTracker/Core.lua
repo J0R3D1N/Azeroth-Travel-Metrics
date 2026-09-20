@@ -236,7 +236,7 @@ function Core.Initialize()
         return false
     end
 
-    local uiCallSucceeded = pcall(ATT.UI.Initialize, {
+    local runtimeContext = {
         db = db,
         character = character,
         tracker = tracker,
@@ -244,10 +244,25 @@ function Core.Initialize()
         getCurrentLevel = function()
             return state.currentLevel
         end,
-    })
+    }
+    local uiCallSucceeded = pcall(ATT.UI.Initialize, runtimeContext)
     if not uiCallSucceeded then
         failInitialization("uiInitializeFailed")
         return false
+    end
+
+    if ATT.Minimap and type(ATT.Minimap.Initialize) == "function" then
+        local minimapCallSucceeded = pcall(
+            ATT.Minimap.Initialize,
+            runtimeContext
+        )
+        if not minimapCallSucceeded then
+            Core.ReportOnce(
+                "minimapInitializeFailed",
+                "Minimap launcher unavailable: minimapInitializeFailed",
+                true
+            )
+        end
     end
 
     AzerothTravelTrackerDB = db

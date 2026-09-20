@@ -85,6 +85,50 @@ local function createLabel(parent, text, font)
     return label
 end
 
+local function createCheckButton(parent, text)
+    local succeeded, checkButton = pcall(
+        CreateFrame,
+        "CheckButton",
+        nil,
+        parent,
+        "UICheckButtonTemplate"
+    )
+    if not succeeded then
+        checkButton = CreateFrame("CheckButton", nil, parent)
+    end
+
+    local label = checkButton.Text
+    if not label then
+        label = createLabel(checkButton, text, "GameFontHighlight")
+        label:SetPoint("LEFT", checkButton, "RIGHT", 2, 0)
+    end
+    label:SetText(text)
+    checkButton.label = label
+    return checkButton
+end
+
+local function syncSettingsControls()
+    if not context or not context.db or not context.db.settings then
+        return
+    end
+
+    local settings = context.db.settings
+    UI.metricCheck:SetChecked(settings.units ~= "imperial")
+    UI.imperialCheck:SetChecked(settings.units == "imperial")
+    UI.minimapCheck:SetChecked(settings.showMinimap == true)
+    UI.diagnosticsCheck:SetChecked(settings.showDiagnostics == true)
+end
+
+local function setUnits(units)
+    if not context or not context.db or not context.db.settings then
+        return
+    end
+
+    context.db.settings.units = units
+    syncSettingsControls()
+    UI.Refresh()
+end
+
 local function setFallbackTabColor(tab, selected)
     if not tab.fallbackLabel then
         return
@@ -262,6 +306,128 @@ function UI.Create()
         UI.ConfirmResetSession()
     end)
 
+    UI.settingsButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    UI.settingsButton:SetSize(82, 24)
+    UI.settingsButton:SetPoint(
+        "RIGHT",
+        UI.resetButton,
+        "LEFT",
+        -8,
+        0
+    )
+    UI.settingsButton:SetText("Settings")
+
+    local settingsPanelSucceeded, settingsPanel = pcall(
+        CreateFrame,
+        "Frame",
+        nil,
+        frame,
+        "InsetFrameTemplate3"
+    )
+    if not settingsPanelSucceeded then
+        settingsPanel = CreateFrame("Frame", nil, frame)
+    end
+    UI.settingsPanel = settingsPanel
+    settingsPanel:SetSize(205, 128)
+    settingsPanel:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -18, -76)
+    if type(settingsPanel.SetFrameLevel) == "function"
+        and type(frame.GetFrameLevel) == "function"
+    then
+        settingsPanel:SetFrameLevel(frame:GetFrameLevel() + 10)
+    end
+
+    UI.settingsHeading = createLabel(
+        settingsPanel,
+        "Settings",
+        "GameFontNormal"
+    )
+    UI.settingsHeading:SetPoint(
+        "TOPLEFT",
+        settingsPanel,
+        "TOPLEFT",
+        12,
+        -10
+    )
+
+    UI.metricCheck = createCheckButton(settingsPanel, "Metric")
+    UI.metricCheck:SetSize(24, 24)
+    UI.metricCheck:SetPoint(
+        "TOPLEFT",
+        settingsPanel,
+        "TOPLEFT",
+        8,
+        -28
+    )
+    UI.metricCheck:SetScript("OnClick", function()
+        setUnits("metric")
+    end)
+
+    UI.imperialCheck = createCheckButton(settingsPanel, "Imperial")
+    UI.imperialCheck:SetSize(24, 24)
+    UI.imperialCheck:SetPoint(
+        "LEFT",
+        UI.metricCheck,
+        "RIGHT",
+        68,
+        0
+    )
+    UI.imperialCheck:SetScript("OnClick", function()
+        setUnits("imperial")
+    end)
+
+    UI.minimapCheck = createCheckButton(settingsPanel, "Show minimap button")
+    UI.minimapCheck:SetSize(24, 24)
+    UI.minimapCheck:SetPoint(
+        "TOPLEFT",
+        UI.metricCheck,
+        "BOTTOMLEFT",
+        0,
+        -4
+    )
+    UI.minimapCheck:SetScript("OnClick", function()
+        if not context or not context.db or not context.db.settings then
+            return
+        end
+        context.db.settings.showMinimap = UI.minimapCheck:GetChecked() == true
+        if ATT.Minimap
+            and type(ATT.Minimap.UpdateVisibility) == "function"
+        then
+            ATT.Minimap.UpdateVisibility()
+        end
+    end)
+
+    UI.diagnosticsCheck = createCheckButton(
+        settingsPanel,
+        "Show diagnostics"
+    )
+    UI.diagnosticsCheck:SetSize(24, 24)
+    UI.diagnosticsCheck:SetPoint(
+        "TOPLEFT",
+        UI.minimapCheck,
+        "BOTTOMLEFT",
+        0,
+        -2
+    )
+    UI.diagnosticsCheck:SetScript("OnClick", function()
+        if not context or not context.db or not context.db.settings then
+            return
+        end
+        context.db.settings.showDiagnostics =
+            UI.diagnosticsCheck:GetChecked() == true
+        UI.Refresh()
+    end)
+
+    UI.settingsButton:SetScript("OnClick", function()
+        if settingsPanel:IsShown() then
+            settingsPanel:Hide()
+        else
+            syncSettingsControls()
+            settingsPanel:Show()
+        end
+    end)
+    syncSettingsControls()
+    settingsPanel:Hide()
+
     UI.errorText = createLabel(frame, "", "GameFontHighlight")
     UI.errorText:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -80)
     UI.errorText:SetWidth(484)
@@ -398,6 +564,7 @@ function UI.Refresh()
         and context.db.settings
         and context.db.settings.units
         or "metric"
+    syncSettingsControls()
     local currentLevel = context.getCurrentLevel()
 
     local overview, overviewError = ATT.UIModel.BuildOverview(
