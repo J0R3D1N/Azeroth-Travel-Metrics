@@ -39,9 +39,9 @@ end
 testlib.case("movement calculates 3D world-coordinate distance", function()
     local addon = loadMovement()
     local from = sample({ x = 1, y = 2, z = 3 })
-    local to = sample({ x = 4, y = 6, z = 3 })
+    local to = sample({ x = 4, y = 6, z = 15 })
 
-    testlib.equal(addon.Movement.Distance(from, to), 5)
+    testlib.equal(addon.Movement.Distance(from, to), 13)
 end)
 
 testlib.case("movement builds an on-foot segment and preserves sample references", function()
