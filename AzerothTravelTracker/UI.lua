@@ -261,7 +261,7 @@ local function updateHUDHover()
     )
 end
 
-local function createHUDCell(parent, index, labelText)
+local function createHUDCell(parent, index, labelText, iconTexture)
     local cell = CreateFrame("Frame", nil, parent)
     cell:SetSize(104, 29)
 
@@ -283,8 +283,12 @@ local function createHUDCell(parent, index, labelText)
         0.025,
         0.72
     )
+    cell.icon = cell:CreateTexture(nil, "ARTWORK")
+    cell.icon:SetTexture(iconTexture)
+    cell.icon:SetSize(18, 18)
+    cell.icon:SetPoint("LEFT", cell, "LEFT", 4, 0)
     cell.label = createLabel(cell, labelText, "GameFontNormalSmall")
-    cell.label:SetPoint("TOPLEFT", cell, "TOPLEFT", 5, -3)
+    cell.label:SetPoint("TOPLEFT", cell, "TOPLEFT", 26, -3)
     cell.label:SetTextColor(1, 0.82, 0, 1)
     cell.value = createLabel(cell, "", "GameFontHighlightSmall")
     cell.value:SetPoint("BOTTOMRIGHT", cell, "BOTTOMRIGHT", -5, 3)
@@ -337,10 +341,30 @@ local function createHUD()
     end
 
     local cells = {
-        createHUDCell(frame, 1, "Steps"),
-        createHUDCell(frame, 2, "On Foot"),
-        createHUDCell(frame, 3, "Swimming"),
-        createHUDCell(frame, 4, "Flight Path"),
+        createHUDCell(
+            frame,
+            1,
+            "Steps",
+            "Interface\\Icons\\Ability_Rogue_Sprint"
+        ),
+        createHUDCell(
+            frame,
+            2,
+            "On Foot",
+            "Interface\\Icons\\INV_Boots_05"
+        ),
+        createHUDCell(
+            frame,
+            3,
+            "Swimming",
+            "Interface\\Icons\\Ability_Druid_AquaticForm"
+        ),
+        createHUDCell(
+            frame,
+            4,
+            "Flight Path",
+            "Interface\\Icons\\Ability_Mount_Wyvern_01"
+        ),
     }
 
     local restoreButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")

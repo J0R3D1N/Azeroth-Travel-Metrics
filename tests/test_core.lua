@@ -1464,6 +1464,26 @@ testlib.case("ui minimize restore close and toggle coordinate both surfaces", fu
     testlib.equal(UI.hud.frame.movable, true)
     testlib.equal(UI.hud.frame.dragButton, "LeftButton")
     testlib.equal(#UI.hud.cells, 4)
+    testlib.truthy(UI.hud.cells[1].icon)
+    testlib.equal(
+        UI.hud.cells[1].icon.texture,
+        "Interface\\Icons\\Ability_Rogue_Sprint"
+    )
+    testlib.truthy(UI.hud.cells[2].icon)
+    testlib.equal(
+        UI.hud.cells[2].icon.texture,
+        "Interface\\Icons\\INV_Boots_05"
+    )
+    testlib.truthy(UI.hud.cells[3].icon)
+    testlib.equal(
+        UI.hud.cells[3].icon.texture,
+        "Interface\\Icons\\Ability_Druid_AquaticForm"
+    )
+    testlib.truthy(UI.hud.cells[4].icon)
+    testlib.equal(
+        UI.hud.cells[4].icon.texture,
+        "Interface\\Icons\\Ability_Mount_Wyvern_01"
+    )
     testlib.equal(UI.IsShown(), true)
 
     UI.hud.restoreButton.scripts.OnClick()
