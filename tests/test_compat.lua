@@ -10,7 +10,7 @@ end
 local function completeGlobals(overrides)
     local globals = {
         UnitPosition = function()
-            return 10, 20, 30, 40
+            return 111, 222, 333, 444
         end,
         C_Map = {
             GetBestMapForUnit = function()
@@ -65,10 +65,10 @@ testlib.case("compat reads a complete normalized sample", function()
     local value, reason = addon.Compat.ReadSample()
 
     testlib.equal(reason, nil)
-    testlib.equal(value.x, 10)
-    testlib.equal(value.y, 20)
-    testlib.equal(value.z, 30)
-    testlib.equal(value.instanceID, 40)
+    testlib.equal(value.x, 222)
+    testlib.equal(value.y, 111)
+    testlib.equal(value.z, 333)
+    testlib.equal(value.instanceID, 444)
     testlib.equal(value.mapID, 50)
     testlib.equal(value.time, 60)
     testlib.equal(value.onTaxi, true)
@@ -388,18 +388,57 @@ testlib.case("compat rejects malformed identity level and wall-clock values", fu
     testlib.equal(reason, "levelUnavailable")
 end)
 
-testlib.case("compat wall-clock time falls back and rejects unavailable values", function()
-    local fallbackAddon = loadCompat(completeGlobals({
+testlib.case("compat wall-clock time accepts only positive integers and falls back", function()
+    local invalidValues = {
+        { name = "nil", value = nil },
+        { name = "malformed", value = "2000" },
+        { name = "zero", value = 0 },
+        { name = "negative", value = -1 },
+        { name = "fractional", value = 1000.5 },
+        { name = "NaN", value = 0 / 0 },
+        { name = "positive infinity", value = math.huge },
+        { name = "negative infinity", value = -math.huge },
+    }
+
+    testlib.equal(loadCompat(completeGlobals()).Compat.GetNow(), 1000)
+
+    for _, invalid in ipairs(invalidValues) do
+        local fallbackAddon = loadCompat(completeGlobals({
+            GetServerTime = function()
+                return invalid.value
+            end,
+        }))
+        testlib.equal(
+            fallbackAddon.Compat.GetNow(),
+            2000,
+            "server " .. invalid.name .. " did not fall back to local time"
+        )
+
+        local unavailableAddon = loadCompat(completeGlobals({
+            GetServerTime = false,
+            time = function()
+                return invalid.value
+            end,
+        }))
+        local now, reason = unavailableAddon.Compat.GetNow()
+        testlib.equal(now, nil, "local " .. invalid.name .. " returned a time")
+        testlib.equal(
+            reason,
+            "timeUnavailable",
+            "local " .. invalid.name .. " returned the wrong reason"
+        )
+    end
+
+    local throwingAddon = loadCompat(completeGlobals({
         GetServerTime = function()
             error("not ready")
         end,
     }))
-    testlib.equal(fallbackAddon.Compat.GetNow(), 2000)
+    testlib.equal(throwingAddon.Compat.GetNow(), 2000)
 
     local missingServerTimeGlobals = completeGlobals()
     missingServerTimeGlobals.GetServerTime = nil
-    local missingServerTimeAddon = loadCompat(missingServerTimeGlobals)
-    testlib.equal(missingServerTimeAddon.Compat.GetNow(), 2000)
+    testlib.equal(loadCompat(missingServerTimeGlobals).Compat.GetNow(), 2000)
 
     local unavailableAddon = loadCompat(completeGlobals({
         GetServerTime = false,

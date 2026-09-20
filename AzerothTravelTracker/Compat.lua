@@ -11,6 +11,10 @@ local function isFiniteNumber(value)
         and value < math.huge
 end
 
+local function isPositiveInteger(value)
+    return isFiniteNumber(value) and value > 0 and value % 1 == 0
+end
+
 local function isNonemptyString(value)
     return type(value) == "string" and value ~= ""
 end
@@ -33,7 +37,7 @@ local function readPosition()
         return nil
     end
 
-    local succeeded, x, y, z, instanceID = pcall(UnitPosition, "player")
+    local succeeded, y, x, z, instanceID = pcall(UnitPosition, "player")
     if not succeeded
         or not isFiniteNumber(x)
         or not isFiniteNumber(y)
@@ -175,14 +179,14 @@ end
 function Compat.GetNow()
     if type(GetServerTime) == "function" then
         local succeeded, now = pcall(GetServerTime)
-        if succeeded and isFiniteNumber(now) then
+        if succeeded and isPositiveInteger(now) then
             return now
         end
     end
 
     if type(time) == "function" then
         local succeeded, now = pcall(time)
-        if succeeded and isFiniteNumber(now) then
+        if succeeded and isPositiveInteger(now) then
             return now
         end
     end
