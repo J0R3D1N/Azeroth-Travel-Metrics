@@ -97,7 +97,11 @@ function New-PackageRepoFixture {
     New-Item -ItemType Directory -Path $fixtureAddonRoot -Force | Out-Null
     Copy-Item -LiteralPath $packageScript -Destination (Join-Path $Path 'tools\Package-Addon.ps1')
     Set-Content -LiteralPath (Join-Path $Path 'tests\run.lua') -Value "print('fixture Lua tests passed')"
-    Set-Content -LiteralPath (Join-Path $fixtureAddonRoot 'Present.lua') -Value '-- fixture'
+    [System.IO.File]::WriteAllText(
+        (Join-Path $fixtureAddonRoot 'Present.lua'),
+        "-- fixture`n-- second line`n",
+        [System.Text.UTF8Encoding]::new($false)
+    )
     @'
 ## Interface: 16001
 ## Title: Azeroth Travel Tracker
@@ -107,7 +111,27 @@ function New-PackageRepoFixture {
 Present.lua
 '@ | Set-Content -LiteralPath (Join-Path $fixtureAddonRoot 'AzerothTravelTracker.toc')
 
+    & git -C $Path init --quiet
+    & git -C $Path config user.name 'Package Fixture'
+    & git -C $Path config user.email 'package-fixture@example.invalid'
+    & git -C $Path config core.autocrlf false
+    & git -C $Path add --all
+    & git -C $Path commit --quiet -m 'fixture'
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not initialize package fixture repository: $Path"
+    }
+
     return $fixtureAddonRoot
+}
+
+function Save-PackageRepoFixture {
+    param([string]$Path)
+
+    & git -C $Path add --all
+    & git -C $Path commit --quiet -m 'update fixture'
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not update package fixture repository: $Path"
+    }
 }
 
 function Invoke-PackageFixture {
@@ -352,15 +376,111 @@ Present.lua
             }
     }
 
+    $snapshotRepo = Join-Path $fixtureRoot 'immutable-snapshot-repo'
+    $snapshotAddonRoot = New-PackageRepoFixture -Path $snapshotRepo
+    $snapshotZip = Join-Path $snapshotRepo 'snapshot.zip'
+    Assert-CleanAddonWorktree -RepoRoot $snapshotRepo
+    $trackedSnapshotFiles = @(Get-TrackedAddonFilesAtHead -RepoRoot $snapshotRepo)
+    & git -C $snapshotRepo config core.autocrlf true
+
+    $replacedAddonRoot = Join-Path $fixtureRoot 'validated-addon-root'
+    Move-Item -LiteralPath $snapshotAddonRoot -Destination $replacedAddonRoot
+    $maliciousAddonRoot = Join-Path $fixtureRoot 'malicious-addon-root'
+    New-Item -ItemType Directory -Path $maliciousAddonRoot | Out-Null
+    Set-Content `
+        -LiteralPath (Join-Path $maliciousAddonRoot 'Present.lua') `
+        -Value '-- malicious replacement'
+    New-Item `
+        -ItemType Junction `
+        -Path $snapshotAddonRoot `
+        -Target $maliciousAddonRoot | Out-Null
+
+    Test-DoesNotThrow `
+        -Name 'git snapshot ignores a post-validation addon junction swap' `
+        -Action {
+            New-GitAddonSnapshot `
+                -RepoRoot $snapshotRepo `
+                -SnapshotZipPath $snapshotZip
+            Assert-ZipLayout `
+                -ZipPath $snapshotZip `
+                -ExpectedTopLevelDirectory 'AzerothTravelTracker' `
+                -ExpectedFilePaths $trackedSnapshotFiles
+
+            $archive = [System.IO.Compression.ZipFile]::OpenRead($snapshotZip)
+            try {
+                $entry = $archive.GetEntry('AzerothTravelTracker/Present.lua')
+                if ($null -eq $entry) {
+                    throw 'The immutable snapshot omitted Present.lua.'
+                }
+
+                $entryStream = $entry.Open()
+                try {
+                    $memory = [System.IO.MemoryStream]::new()
+                    $entryStream.CopyTo($memory)
+                    $content = $memory.ToArray()
+                }
+                finally {
+                    $entryStream.Dispose()
+                }
+
+                $expected = [System.Text.Encoding]::UTF8.GetBytes(
+                    "-- fixture`n-- second line`n"
+                )
+                if (
+                    $content.Length -ne $expected.Length -or
+                    [System.BitConverter]::ToString($content) -cne
+                        [System.BitConverter]::ToString($expected)
+                ) {
+                    throw 'The immutable snapshot did not preserve exact HEAD blob bytes.'
+                }
+            }
+            finally {
+                $archive.Dispose()
+            }
+        }
+
+    $dirtyTrackedRepo = Join-Path $fixtureRoot 'dirty-tracked-repo'
+    $dirtyTrackedAddonRoot = New-PackageRepoFixture -Path $dirtyTrackedRepo
+    Set-Content `
+        -LiteralPath (Join-Path $dirtyTrackedAddonRoot 'Present.lua') `
+        -Value '-- dirty tracked file'
+
+    Test-Throws `
+        -Name 'package rejects dirty tracked addon files' `
+        -MessagePattern 'working tree must be clean.*Present.lua' `
+        -Action {
+            $result = Invoke-PackageFixture -RepoRoot $dirtyTrackedRepo
+            if ($result.ExitCode -ne 0) {
+                throw $result.Output
+            }
+        }
+
+    $untrackedRepo = Join-Path $fixtureRoot 'untracked-addon-repo'
+    $untrackedAddonRoot = New-PackageRepoFixture -Path $untrackedRepo
+    Set-Content `
+        -LiteralPath (Join-Path $untrackedAddonRoot 'Untracked.lua') `
+        -Value '-- untracked addon file'
+
+    Test-Throws `
+        -Name 'package rejects untracked addon files' `
+        -MessagePattern 'working tree must be clean.*Untracked.lua' `
+        -Action {
+            $result = Invoke-PackageFixture -RepoRoot $untrackedRepo
+            if ($result.ExitCode -ne 0) {
+                throw $result.Output
+            }
+        }
+
     $normalRepo = Join-Path $fixtureRoot 'normal-source-repo'
     $normalAddonRoot = New-PackageRepoFixture -Path $normalRepo
     New-Item -ItemType Directory -Path (Join-Path $normalAddonRoot 'Nested') | Out-Null
     Set-Content `
         -LiteralPath (Join-Path $normalAddonRoot 'Nested\Normal.lua') `
         -Value '-- nested fixture'
+    Save-PackageRepoFixture -Path $normalRepo
 
     Test-DoesNotThrow `
-        -Name 'normal source tree packages successfully' `
+        -Name 'normal clean repository packages successfully' `
         -Action {
             $result = Invoke-PackageFixture -RepoRoot $normalRepo
             if ($result.ExitCode -ne 0) {
