@@ -74,10 +74,51 @@ function Assert-AddonManifest {
     return [int]$interface
 }
 
+function Get-ValidatedAddonFiles {
+    param([string]$AddonRoot)
+
+    if (-not (Test-Path -LiteralPath $AddonRoot -PathType Container)) {
+        throw "Addon directory does not exist: $AddonRoot"
+    }
+
+    $root = Get-Item -LiteralPath $AddonRoot -Force
+    if (($root.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "Addon source contains a reparse point: $($root.FullName)"
+    }
+
+    $rootPath = $root.FullName.TrimEnd('\')
+    $directories = [System.Collections.Generic.Stack[System.IO.DirectoryInfo]]::new()
+    $files = [System.Collections.Generic.List[object]]::new()
+    $directories.Push($root)
+
+    while ($directories.Count -gt 0) {
+        $directory = $directories.Pop()
+        foreach ($item in $directory.EnumerateFileSystemInfos()) {
+            if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "Addon source contains a reparse point: $($item.FullName)"
+            }
+
+            if (($item.Attributes -band [System.IO.FileAttributes]::Directory) -ne 0) {
+                $directories.Push([System.IO.DirectoryInfo]$item)
+                continue
+            }
+
+            $relativePath = $item.FullName.Substring($rootPath.Length + 1)
+            $files.Add([pscustomobject]@{
+                FullPath = $item.FullName
+                RelativePath = $relativePath
+            })
+        }
+    }
+
+    return @($files | Sort-Object -Property RelativePath)
+}
+
 function Assert-ZipLayout {
     param(
         [string]$ZipPath,
-        [string]$ExpectedTopLevelDirectory
+        [string]$ExpectedTopLevelDirectory,
+        [string[]]$ExpectedFilePaths
     )
 
     if (-not (Test-Path -LiteralPath $ZipPath -PathType Leaf)) {
@@ -91,6 +132,7 @@ function Assert-ZipLayout {
             throw "Package zip is empty: $ZipPath"
         }
 
+        $actualFilePaths = [System.Collections.Generic.List[string]]::new()
         foreach ($entry in $archive.Entries) {
             $name = $entry.FullName -replace '\\', '/'
             if (
@@ -122,6 +164,28 @@ function Assert-ZipLayout {
                 ($parts.Count -lt 2 -and -not $isDirectoryMarker)
             ) {
                 throw "Every zip entry must be under exactly one top-level directory named '$ExpectedTopLevelDirectory': $name"
+            }
+
+            if (-not $isDirectoryMarker) {
+                $actualFilePaths.Add(($parts[1..($parts.Count - 1)] -join '/'))
+            }
+        }
+
+        if ($null -ne $ExpectedFilePaths) {
+            $expected = @($ExpectedFilePaths | ForEach-Object { $_ -replace '\\', '/' })
+            $actual = @($actualFilePaths)
+            [System.Array]::Sort($expected, [System.StringComparer]::Ordinal)
+            [System.Array]::Sort($actual, [System.StringComparer]::Ordinal)
+
+            if (
+                $expected.Count -ne $actual.Count -or
+                [string]::Join("`n", $expected) -cne [string]::Join("`n", $actual)
+            ) {
+                throw (
+                    "Package archive file set does not match the validated addon source. " +
+                    "Expected: [$([string]::Join(', ', $expected))]. " +
+                    "Actual: [$([string]::Join(', ', $actual))]."
+                )
             }
         }
     }
@@ -198,6 +262,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "Lua tests failed with exit code $LASTEXITCODE."
 }
 
+$validatedFiles = @(Get-ValidatedAddonFiles -AddonRoot $addonRoot)
 $interface = Assert-AddonManifest `
     -TocPath $tocPath `
     -AddonRoot $addonRoot `
@@ -216,10 +281,15 @@ if (Test-Path -LiteralPath $resolvedStagingPath) {
 }
 New-Item -ItemType Directory -Path $resolvedStagingPath | Out-Null
 
-Get-ChildItem -LiteralPath $addonRoot | Copy-Item `
-    -Destination $resolvedStagingPath `
-    -Recurse `
-    -Force
+foreach ($file in $validatedFiles) {
+    $destinationPath = Join-Path $resolvedStagingPath $file.RelativePath
+    $destinationDirectory = Split-Path -Parent $destinationPath
+    New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
+    Copy-Item `
+        -LiteralPath $file.FullPath `
+        -Destination $destinationPath `
+        -Force
+}
 
 if (Test-Path -LiteralPath $zipPath) {
     Remove-Item -LiteralPath $zipPath -Force
@@ -227,6 +297,7 @@ if (Test-Path -LiteralPath $zipPath) {
 Compress-Archive -LiteralPath $resolvedStagingPath -DestinationPath $zipPath
 Assert-ZipLayout `
     -ZipPath $zipPath `
-    -ExpectedTopLevelDirectory 'AzerothTravelTracker'
+    -ExpectedTopLevelDirectory 'AzerothTravelTracker' `
+    -ExpectedFilePaths @($validatedFiles.RelativePath)
 
 Write-Output ([System.IO.Path]::GetFullPath($zipPath))

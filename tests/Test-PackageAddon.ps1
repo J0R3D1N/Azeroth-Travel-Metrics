@@ -13,6 +13,7 @@ Remove-Item Env:\ATT_PACKAGE_VALIDATION_ONLY
 
 $passed = 0
 $failed = 0
+$skipped = 0
 
 function Test-Throws {
     param(
@@ -84,6 +85,43 @@ function New-ZipFixture {
     }
     finally {
         $archive.Dispose()
+    }
+}
+
+function New-PackageRepoFixture {
+    param([string]$Path)
+
+    $fixtureAddonRoot = Join-Path $Path 'AzerothTravelTracker'
+    New-Item -ItemType Directory -Path (Join-Path $Path 'tools') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $Path 'tests') -Force | Out-Null
+    New-Item -ItemType Directory -Path $fixtureAddonRoot -Force | Out-Null
+    Copy-Item -LiteralPath $packageScript -Destination (Join-Path $Path 'tools\Package-Addon.ps1')
+    Set-Content -LiteralPath (Join-Path $Path 'tests\run.lua') -Value "print('fixture Lua tests passed')"
+    Set-Content -LiteralPath (Join-Path $fixtureAddonRoot 'Present.lua') -Value '-- fixture'
+    @'
+## Interface: 16001
+## Title: Azeroth Travel Tracker
+## Version: 0.1.0-beta
+## SavedVariables: AzerothTravelTrackerDB
+
+Present.lua
+'@ | Set-Content -LiteralPath (Join-Path $fixtureAddonRoot 'AzerothTravelTracker.toc')
+
+    return $fixtureAddonRoot
+}
+
+function Invoke-PackageFixture {
+    param([string]$RepoRoot)
+
+    $hostExecutable = (Get-Process -Id $PID).Path
+    $output = & $hostExecutable `
+        -NoProfile `
+        -File (Join-Path $RepoRoot 'tools\Package-Addon.ps1') 2>&1 |
+        Out-String
+
+    return @{
+        ExitCode = $LASTEXITCODE
+        Output = $output
     }
 }
 
@@ -164,6 +202,16 @@ Present.lua
         -Name 'zip validation accepts normal entries and directory markers' `
         -Action { Assert-ZipLayout -ZipPath $validZip -ExpectedTopLevelDirectory 'AzerothTravelTracker' }
 
+    Test-Throws `
+        -Name 'zip validation rejects an omitted regular source file' `
+        -MessagePattern 'archive file set does not match' `
+        -Action {
+            Assert-ZipLayout `
+                -ZipPath $validZip `
+                -ExpectedTopLevelDirectory 'AzerothTravelTracker' `
+                -ExpectedFilePaths @('Present.lua', 'Nested/Present.lua', 'Missing.lua')
+        }
+
     $invalidZipEntries = @(
         'AzerothTravelTracker/../escaped.lua',
         'AzerothTravelTracker/./Present.lua',
@@ -211,6 +259,119 @@ Present.lua
                 -ArtifactsRoot $artifactsJunction `
                 -StagingPath (Join-Path $artifactsJunction 'AzerothTravelTracker')
         }
+
+    $junctionRepo = Join-Path $fixtureRoot 'junction-source-repo'
+    $junctionAddonRoot = New-PackageRepoFixture -Path $junctionRepo
+    $externalJunctionTarget = Join-Path $fixtureRoot 'external-junction-target'
+    New-Item -ItemType Directory -Path $externalJunctionTarget | Out-Null
+    Set-Content `
+        -LiteralPath (Join-Path $externalJunctionTarget 'External.lua') `
+        -Value '-- must not be packaged'
+    New-Item `
+        -ItemType Junction `
+        -Path (Join-Path $junctionAddonRoot 'LinkedExternal') `
+        -Target $externalJunctionTarget | Out-Null
+
+    Test-Throws `
+        -Name 'package rejects a source junction before staging' `
+        -MessagePattern 'reparse point' `
+        -Action {
+            $result = Invoke-PackageFixture -RepoRoot $junctionRepo
+            if ($result.ExitCode -ne 0) {
+                throw $result.Output
+            }
+        }
+    Test-DoesNotThrow `
+        -Name 'source junction failure leaves no staging or package output' `
+        -Action {
+            if (Test-Path -LiteralPath (Join-Path $junctionRepo 'artifacts')) {
+                throw 'Artifacts were created before the source junction was rejected.'
+            }
+        }
+
+    $rootJunctionRepo = Join-Path $fixtureRoot 'root-junction-source-repo'
+    $rootJunctionAddon = New-PackageRepoFixture -Path $rootJunctionRepo
+    $externalRootTarget = Join-Path $fixtureRoot 'external-addon-root'
+    Move-Item -LiteralPath $rootJunctionAddon -Destination $externalRootTarget
+    New-Item `
+        -ItemType Junction `
+        -Path $rootJunctionAddon `
+        -Target $externalRootTarget | Out-Null
+
+    Test-Throws `
+        -Name 'package rejects a source root junction before staging' `
+        -MessagePattern 'reparse point' `
+        -Action {
+            $result = Invoke-PackageFixture -RepoRoot $rootJunctionRepo
+            if ($result.ExitCode -ne 0) {
+                throw $result.Output
+            }
+        }
+    Test-DoesNotThrow `
+        -Name 'source root junction failure leaves no staging or package output' `
+        -Action {
+            if (Test-Path -LiteralPath (Join-Path $rootJunctionRepo 'artifacts')) {
+                throw 'Artifacts were created before the source root junction was rejected.'
+            }
+        }
+
+    $symlinkRepo = Join-Path $fixtureRoot 'symlink-source-repo'
+    $symlinkAddonRoot = New-PackageRepoFixture -Path $symlinkRepo
+    $externalSymlinkTarget = Join-Path $fixtureRoot 'external-symlink-target.lua'
+    Set-Content -LiteralPath $externalSymlinkTarget -Value '-- must not be packaged'
+    $symlinkCreated = $false
+    try {
+        New-Item `
+            -ItemType SymbolicLink `
+            -Path (Join-Path $symlinkAddonRoot 'LinkedExternal.lua') `
+            -Target $externalSymlinkTarget `
+            -ErrorAction Stop | Out-Null
+        $symlinkCreated = $true
+    }
+    catch {
+        Write-Output "SKIP package rejects a source file symbolic link ($($_.Exception.Message))"
+        $skipped++
+    }
+
+    if ($symlinkCreated) {
+        Test-Throws `
+            -Name 'package rejects a source file symbolic link before staging' `
+            -MessagePattern 'reparse point' `
+            -Action {
+                $result = Invoke-PackageFixture -RepoRoot $symlinkRepo
+                if ($result.ExitCode -ne 0) {
+                    throw $result.Output
+                }
+            }
+        Test-DoesNotThrow `
+            -Name 'source file symlink failure leaves no staging or package output' `
+            -Action {
+                if (Test-Path -LiteralPath (Join-Path $symlinkRepo 'artifacts')) {
+                    throw 'Artifacts were created before the source file symlink was rejected.'
+                }
+            }
+    }
+
+    $normalRepo = Join-Path $fixtureRoot 'normal-source-repo'
+    $normalAddonRoot = New-PackageRepoFixture -Path $normalRepo
+    New-Item -ItemType Directory -Path (Join-Path $normalAddonRoot 'Nested') | Out-Null
+    Set-Content `
+        -LiteralPath (Join-Path $normalAddonRoot 'Nested\Normal.lua') `
+        -Value '-- nested fixture'
+
+    Test-DoesNotThrow `
+        -Name 'normal source tree packages successfully' `
+        -Action {
+            $result = Invoke-PackageFixture -RepoRoot $normalRepo
+            if ($result.ExitCode -ne 0) {
+                throw $result.Output
+            }
+            if (-not (Test-Path -LiteralPath (
+                Join-Path $normalRepo 'artifacts\AzerothTravelTracker-0.1.0-beta.zip'
+            ) -PathType Leaf)) {
+                throw 'Expected package zip was not created.'
+            }
+        }
 }
 finally {
     if (Test-Path -LiteralPath $fixtureRoot) {
@@ -218,7 +379,7 @@ finally {
     }
 }
 
-Write-Output "$passed passed, $failed failed"
+Write-Output "$passed passed, $failed failed, $skipped skipped"
 if ($failed -gt 0) {
     exit 1
 }
