@@ -73,7 +73,7 @@ Both `/att` and `/azerothtraveltracker` accept the same commands:
 | `/att diagnostics off` | Hide diagnostic counters. |
 | `/att status` | Print capability state and diagnostic counters to chat. |
 
-The main window can be moved by left-dragging it. Left-click the minimap launcher to toggle the window and drag the launcher to reposition it. Use **Settings** in the main window for units, minimap visibility, and diagnostic visibility.
+The main window can be moved by left-dragging it. Left-click the minimap launcher to always open the regular panel; if the minimized HUD is visible, the regular panel replaces it. The launcher does not toggle the regular panel closed. Drag the launcher to reposition it. Use **Settings** in the main window for units, minimap visibility, and diagnostic visibility.
 
 ## Data and reset behavior
 

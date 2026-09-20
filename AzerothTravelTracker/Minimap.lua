@@ -198,7 +198,7 @@ function MinimapLauncher.Create()
         end
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:AddLine("Azeroth Travel Tracker")
-        GameTooltip:AddLine("Left-click to open or close")
+        GameTooltip:AddLine("Left-click to open")
         GameTooltip:AddLine("Drag to reposition")
         GameTooltip:Show()
     end)
