@@ -1,0 +1,45 @@
+# Azeroth Travel Tracker Beta Smoke Tests
+
+This checklist is the manual release gate for the World of Warcraft: Forever beta. Automated tests and static API inspection do not count as observing gameplay.
+
+## Test record
+
+- **Beta build:** `1.60.1.69913`
+- **Interface:** `16001`
+- **Beta AddOns path:** `D:\Games\World of Warcraft\_classic_beta_\Interface\AddOns`
+- **Addon folder:** `D:\Games\World of Warcraft\_classic_beta_\Interface\AddOns\AzerothTravelTracker`
+- **Tester/date:** Not run in this automated session
+
+Before testing, replace the build and Interface values above if the beta has updated. For each scenario, perform the listed steps in the running beta client, replace **Observed** with concise factual evidence, and change **Result** to `PASS` or `FAIL`. Keep `PENDING` when the scenario was not fully observed. For failures, include the character, zone, relevant `/att status` output, Lua error text, and reproduction steps.
+
+| Scenario | Steps | Expected | Observed | Result |
+|---|---|---|---|---|
+| Fresh install | Install the packaged `AzerothTravelTracker` folder, enable it at character select, and log in on a character with no prior `AzerothTravelTrackerDB`. | Addon loads without Lua errors; default settings are metric, minimap shown, diagnostics hidden; lifetime/session/current-level values begin coherently. | Not run in this automated session | PENDING |
+| Login/logout and `/reload` | Record totals, log out and back in, then run `/reload`. | Lifetime, level totals, and settings persist; each initialization starts a fresh session without adding a bridge segment. | Not run in this automated session | PENDING |
+| Walking/running | Walk and run measured routes while unmounted, then open `/att`. | On-foot yards increase; estimated steps increase using the character race; swimming and taxi totals do not increase. | Not run in this automated session | PENDING |
+| Idle | Remain stationary longer than several sampling intervals. | No distance or estimated steps are added. | Not run in this automated session | PENDING |
+| Swimming entry/exit | Walk into swimmable water, swim, then return to land. | Swimming distance increases only during stable swimming samples; category transitions do not create jump distance. | Not run in this automated session | PENDING |
+| Completed flight path | Take a flight path from takeoff through landing. | Taxi distance increases during the stable taxi portion; on-foot and swimming totals do not increase from the flight. | Not run in this automated session | PENDING |
+| Interrupted flight path | Begin a flight path and interrupt it if the beta permits, or disconnect/reload during travel. | Recorded taxi distance remains plausible; interruption does not create a bridge or large false segment. | Not run in this automated session | PENDING |
+| Zoning, portal, hearth, teleport, and instance transitions | Exercise each available transition and inspect totals immediately before and after. | Map/instance discontinuities and implausible jumps are excluded; normal tracking resumes from a new baseline. | Not run in this automated session | PENDING |
+| Level-up rollover | Record current-level totals, gain a level, move normally, and inspect Overview and By Level. | Previous level totals remain; the new level bucket receives subsequent distance; lifetime/session totals continue. | Not run in this automated session | PENDING |
+| Mounted movement excluded | Travel while mounted outside a taxi, dismount, then walk. | Mounted distance is excluded; normal on-foot tracking resumes without a bridge segment. | Not run in this automated session | PENDING |
+| Minimap and slash controls | Click and drag the minimap launcher; run `/att`, `/azerothtraveltracker`, reset, units, diagnostics, and status commands. | Both aliases work; launcher position and visibility behave correctly; reset requires confirmation; invalid command values show usage; status prints capabilities/diagnostics. | Not run in this automated session | PENDING |
+| Movable main window | Open the main window and left-drag it from multiple points. | Window moves smoothly without blocking its buttons, tabs, or close control. | Not run in this automated session | PENDING |
+| Compact layout at 80/100/120% UI scale | At each UI scale, inspect Overview, By Level, settings, reset confirmation, and scroll behavior. | Content remains readable, uncrowded, inside the frame, and usable without overlap or clipping. | Not run in this automated session | PENDING |
+| Top strata below tooltips | Open normal panels behind the tracker, then hover controls to show game tooltips. | Tracker remains above normal panels at the highest safe supported strata; tooltips remain above the tracker. | Not run in this automated session | PENDING |
+| Settings persistence | Change units, minimap visibility/position, and diagnostic visibility; `/reload` and relog. | Settings persist exactly; metric is the default only for fresh data and imperial remains selected when chosen. | Not run in this automated session | PENDING |
+| Combat-safe UI | Enter combat, toggle the window, switch tabs/settings, move the frame, use the minimap launcher, and allow samples to accumulate. | No blocked-action or taint errors; controls remain usable and tracking continues. | Not run in this automated session | PENDING |
+| Missing capability diagnostic | In a beta build/environment where a required capability is unavailable, or with an approved diagnostic test build, run `/att status` and enable diagnostics. | Missing capability is reported without repeated chat spam; affected movement category is excluded rather than estimated from fabricated state. | Not run in this automated session | PENDING |
+
+## Automated evidence
+
+The release preparation workflow must separately record:
+
+- `tests\run.lua` result.
+- `tests\Test-PackageAddon.ps1` result, including rejection of a missing TOC file, nonnumeric Interface, and invalid zip layout.
+- `tools\Package-Addon.ps1` result and final archive path.
+- Independent zip entry inspection confirming one `AzerothTravelTracker` top-level directory.
+- Highest installed Blizzard/addon TOC Interface value and equality with `AzerothTravelTracker.toc`.
+
+These checks can qualify the archive as a beta candidate, but they do not change any smoke-test row from `PENDING`.
