@@ -1,0 +1,18 @@
+## Interface: 16001
+## Title: Azeroth Travel Tracker
+## Notes: Tracks estimated steps and travel distance.
+## Author: Jason Parker
+## Version: 0.1.0-beta
+## SavedVariables: AzerothTravelTrackerDB
+
+Namespace.lua
+Distance.lua
+Stride.lua
+Storage.lua
+Movement.lua
+Compat.lua
+Tracker.lua
+UIModel.lua
+UI.lua
+Minimap.lua
+Core.lua
