@@ -950,12 +950,14 @@ function UI.Minimize()
     local hud = createHUD()
     frame:Hide()
     UI.Refresh()
+    setHUDHovering(false)
     hud.frame:Show()
 end
 
 function UI.ShowMain()
     local frame = UI.Create()
     if UI.hud then
+        setHUDHovering(false)
         UI.hud.frame:Hide()
     end
     UI.Refresh()
@@ -964,6 +966,7 @@ end
 
 function UI.CloseHUD()
     if UI.hud then
+        setHUDHovering(false)
         UI.hud.frame:Hide()
     end
 end

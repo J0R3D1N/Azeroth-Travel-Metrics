@@ -1555,6 +1555,34 @@ testlib.case("ui HUD hover reveals controls and refreshes current session values
     testlib.equal(UI.hud.closeButton:IsShown(), false)
 end)
 
+testlib.case("ui HUD resets hover state after restore and minimize", function()
+    local harness = newUIHarness()
+    local UI = harness.addon.UI
+    UI.Minimize()
+
+    UI.hud.frame.scripts.OnEnter()
+    UI.hud.restoreButton.scripts.OnClick()
+    UI.Minimize()
+
+    testlib.equal(UI.hud.frame:GetAlpha(), 0.45)
+    testlib.equal(UI.hud.restoreButton:IsShown(), false)
+    testlib.equal(UI.hud.closeButton:IsShown(), false)
+end)
+
+testlib.case("ui HUD resets hover state after close and minimize", function()
+    local harness = newUIHarness()
+    local UI = harness.addon.UI
+    UI.Minimize()
+
+    UI.hud.frame.scripts.OnEnter()
+    UI.hud.closeButton.scripts.OnClick()
+    UI.Minimize()
+
+    testlib.equal(UI.hud.frame:GetAlpha(), 0.45)
+    testlib.equal(UI.hud.restoreButton:IsShown(), false)
+    testlib.equal(UI.hud.closeButton:IsShown(), false)
+end)
+
 testlib.case("ui HUD persists valid drag positions and ignores malformed points", function()
     local harness = newUIHarness()
     local UI = harness.addon.UI
