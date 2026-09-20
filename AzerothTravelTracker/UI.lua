@@ -608,7 +608,7 @@ function UI.Refresh()
         local row = levelRows[index]
         if row then
             rowLabel:SetText(string.format(
-                "Level %d  |  %d est.  |  %s  |  %s  |  %s",
+                "Level %d  |  %s est.  |  %s  |  %s  |  %s",
                 row.level,
                 row.steps,
                 row.onFoot,

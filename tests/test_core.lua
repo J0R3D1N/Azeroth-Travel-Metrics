@@ -984,19 +984,19 @@ local function newUIHarness(options)
             end
             return options.overview or {
                 lifetime = {
-                    steps = 100,
+                    steps = "12.5K",
                     onFoot = "1.00 km",
                     swimming = "2.00 km",
                     taxi = "3.00 km",
                 },
                 session = {
-                    steps = 10,
+                    steps = "10",
                     onFoot = "100 m",
                     swimming = "200 m",
                     taxi = "300 m",
                 },
                 currentLevel = {
-                    steps = 5,
+                    steps = "5",
                     onFoot = "50 m",
                     swimming = "60 m",
                     taxi = "70 m",
@@ -1008,14 +1008,14 @@ local function newUIHarness(options)
             return options.levelRows or {
                 {
                     level = 42,
-                    steps = 5,
+                    steps = "12.5K",
                     onFoot = "50 m",
                     swimming = "60 m",
                     taxi = "70 m",
                 },
                 {
                     level = 41,
-                    steps = 50,
+                    steps = "50",
                     onFoot = "500 m",
                     swimming = "600 m",
                     taxi = "700 m",
@@ -1319,13 +1319,14 @@ testlib.case("ui refresh consumes overview levels and diagnostics models", funct
     local harness = newUIHarness()
     harness.addon.UI.Create()
 
-    harness.addon.UI.Refresh()
+    local succeeded = pcall(harness.addon.UI.Refresh)
 
+    testlib.equal(succeeded, true)
     testlib.equal(harness.calls.overview, 1)
     testlib.equal(harness.calls.rows, 1)
     testlib.equal(harness.calls.diagnostics, 1)
     testlib.truthy(
-        contains(harness.addon.UI.summaryGroups[1].value:GetText(), "Estimated steps: 100")
+        contains(harness.addon.UI.summaryGroups[1].value:GetText(), "Estimated steps: 12.5K")
     )
     testlib.truthy(
         contains(harness.addon.UI.summaryGroups[2].value:GetText(), "On foot: 100 m")
@@ -1333,7 +1334,12 @@ testlib.case("ui refresh consumes overview levels and diagnostics models", funct
     testlib.truthy(
         contains(harness.addon.UI.summaryGroups[3].value:GetText(), "Flight path: 70 m")
     )
-    testlib.truthy(contains(harness.addon.UI.levelRows[1]:GetText(), "Level 42"))
+    testlib.truthy(
+        contains(
+            harness.addon.UI.levelRows[1]:GetText(),
+            "Level 42  |  12.5K est."
+        )
+    )
     testlib.truthy(contains(harness.addon.UI.diagnosticsText:GetText(), "alpha: 2"))
     testlib.equal(harness.addon.UI.errorText:IsShown(), false)
 end)
