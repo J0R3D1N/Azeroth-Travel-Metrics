@@ -636,6 +636,27 @@ local function newFrame(frameType, name, parent, template)
         self.strata = strata
     end
 
+    function frame:SetID(id)
+        self.id = id
+    end
+
+    function frame:GetID()
+        return self.id
+    end
+
+    function frame:SetButtonState(state, locked)
+        self.buttonState = state
+        self.buttonStateLocked = locked
+    end
+
+    function frame:LockHighlight()
+        self.highlightLocked = true
+    end
+
+    function frame:UnlockHighlight()
+        self.highlightLocked = false
+    end
+
     function frame:SetMovable(value)
         self.movable = value
     end
@@ -722,6 +743,15 @@ local function newUIHarness(options)
     options = options or {}
 
     local created = {}
+    local strataAttempts = {}
+    local calls = {
+        overview = 0,
+        rows = 0,
+        diagnostics = 0,
+        reset = 0,
+        now = 0,
+        protected = 0,
+    }
     local globals = {
         UIParent = {
             name = "UIParent",
@@ -732,27 +762,53 @@ local function newUIHarness(options)
     }
 
     globals.CreateFrame = function(frameType, name, parent, template)
+        if options.inCombat
+            and type(template) == "string"
+            and contains(template, "Secure")
+        then
+            calls.protected = calls.protected + 1
+            error("protected template used in combat")
+        end
         if template == "BasicFrameTemplateWithInset" and options.rejectMainTemplate then
             error("template unavailable")
         end
-        if options.rejectFullscreen
-            and name == "AzerothTravelTrackerFrame"
-        then
-            local frame = newFrame(frameType, name, parent, template)
+        if options.rejectTemplates and options.rejectTemplates[template] then
+            error("template unavailable")
+        end
+
+        local frame = newFrame(frameType, name, parent, template)
+        if name == "AzerothTravelTrackerFrame" then
             local original = frame.SetFrameStrata
             frame.SetFrameStrata = function(self, strata)
-                if strata == "FULLSCREEN_DIALOG" then
+                table.insert(strataAttempts, strata)
+                if (options.rejectFullscreen and strata == "FULLSCREEN_DIALOG")
+                    or (options.rejectStrata and options.rejectStrata[strata])
+                then
                     error("strata unavailable")
                 end
                 original(self, strata)
             end
-            table.insert(created, frame)
-            return frame
         end
-
-        local frame = newFrame(frameType, name, parent, template)
         table.insert(created, frame)
         return frame
+    end
+
+    if not options.noPanelTemplates then
+        if not options.missingSelectTabHelper then
+            globals.PanelTemplates_SelectTab = function(tab)
+                tab.selected = true
+                tab:SetButtonState("PUSHED", true)
+                tab:LockHighlight()
+            end
+        end
+        globals.PanelTemplates_DeselectTab = function(tab)
+            tab.selected = false
+            tab:SetButtonState("NORMAL", false)
+            tab:UnlockHighlight()
+        end
+        globals.PanelTemplates_SetNumTabs = function(frame, count)
+            frame.numTabs = count
+        end
     end
 
     globals.StaticPopup_Show = function(key)
@@ -760,18 +816,21 @@ local function newUIHarness(options)
         return globals.StaticPopupDialogs[key]
     end
 
+    globals.InCombatLockdown = function()
+        return options.inCombat == true
+    end
+
     local addon, environment = testlib.loadAddon(UI_FILES, globals)
-    local calls = {
-        overview = 0,
-        rows = 0,
-        diagnostics = 0,
-        reset = 0,
-        now = 0,
-    }
     local character = options.character or {
         identity = {
             name = "Traveler",
             realm = "TestRealm",
+        },
+        session = {
+            startedAt = 1000,
+            totals = {
+                onFoot = 12,
+            },
         },
     }
     local db = options.db or {
@@ -843,17 +902,31 @@ local function newUIHarness(options)
             calls.reset = calls.reset + 1
             calls.resetCharacter = receivedCharacter
             calls.resetNow = now
+            if options.resetThrows then
+                error("reset exploded")
+            end
+            if options.resetError then
+                return false, options.resetError
+            end
+            receivedCharacter.session = {
+                startedAt = now,
+                totals = {
+                    onFoot = 0,
+                },
+            }
+            return true
         end,
     }
-    addon.Compat = {
-        GetNow = function()
+    addon.Compat = {}
+    if not options.nowUnavailable then
+        addon.Compat.GetNow = function()
             calls.now = calls.now + 1
             if options.nowError then
                 return nil, options.nowError
             end
             return 3000
-        end,
-    }
+        end
+    end
 
     addon.UI.Initialize({
         db = db,
@@ -874,6 +947,7 @@ local function newUIHarness(options)
         calls = calls,
         character = character,
         db = db,
+        strataAttempts = strataAttempts,
     }
 end
 
@@ -896,8 +970,14 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
     testlib.equal(type(first.scripts.OnDragStop), "function")
     testlib.equal(#harness.addon.UI.summaryGroups, 3)
     testlib.equal(harness.addon.UI.resetButton.template, "UIPanelButtonTemplate")
-    testlib.equal(harness.addon.UI.overviewTab.template, "UIPanelButtonTemplate")
-    testlib.equal(harness.addon.UI.levelTab.template, "UIPanelButtonTemplate")
+    testlib.equal(
+        harness.addon.UI.overviewTab.template,
+        "CharacterFrameTabButtonTemplate"
+    )
+    testlib.equal(
+        harness.addon.UI.levelTab.template,
+        "CharacterFrameTabButtonTemplate"
+    )
 
     first.scripts.OnDragStart(first)
     first.scripts.OnDragStop(first)
@@ -905,19 +985,119 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
     testlib.equal(first.stoppedMoving, true)
 end)
 
-testlib.case("ui falls back when the main template or fullscreen strata is rejected", function()
+testlib.case("ui falls back when the main template is rejected", function()
     local noTemplate = newUIHarness({
         rejectMainTemplate = true,
     })
     local templateFrame = noTemplate.addon.UI.Create()
     testlib.equal(templateFrame.template, nil)
     testlib.truthy(noTemplate.addon.UI.closeButton ~= nil)
+end)
 
-    local noFullscreen = newUIHarness({
-        rejectFullscreen = true,
+testlib.case("ui selects the highest accepted non-tooltip strata", function()
+    local cases = {
+        {
+            rejected = {},
+            expected = "FULLSCREEN_DIALOG",
+            attempts = 1,
+        },
+        {
+            rejected = {
+                FULLSCREEN_DIALOG = true,
+            },
+            expected = "FULLSCREEN",
+            attempts = 2,
+        },
+        {
+            rejected = {
+                FULLSCREEN_DIALOG = true,
+                FULLSCREEN = true,
+            },
+            expected = "DIALOG",
+            attempts = 3,
+        },
+        {
+            rejected = {
+                FULLSCREEN_DIALOG = true,
+                FULLSCREEN = true,
+                DIALOG = true,
+            },
+            expected = "HIGH",
+            attempts = 4,
+        },
+    }
+
+    for _, case in ipairs(cases) do
+        local harness = newUIHarness({
+            rejectStrata = case.rejected,
+        })
+        local frame = harness.addon.UI.Create()
+        testlib.equal(frame.strata, case.expected)
+        testlib.equal(#harness.strataAttempts, case.attempts)
+    end
+end)
+
+testlib.case("ui native tabs switch panels and selected visual state", function()
+    local harness = newUIHarness()
+    harness.addon.UI.Create()
+
+    testlib.equal(harness.addon.UI.overviewPanel:IsShown(), true)
+    testlib.equal(harness.addon.UI.levelPanel:IsShown(), false)
+    testlib.equal(harness.addon.UI.overviewTab.selected, true)
+    testlib.equal(harness.addon.UI.levelTab.selected, false)
+
+    harness.addon.UI.levelTab.scripts.OnClick()
+    testlib.equal(harness.addon.UI.overviewPanel:IsShown(), false)
+    testlib.equal(harness.addon.UI.levelPanel:IsShown(), true)
+    testlib.equal(harness.addon.UI.overviewTab.selected, false)
+    testlib.equal(harness.addon.UI.levelTab.selected, true)
+    testlib.equal(harness.addon.UI.levelTab.buttonState, "PUSHED")
+
+    harness.addon.UI.overviewTab.scripts.OnClick()
+    testlib.equal(harness.addon.UI.overviewPanel:IsShown(), true)
+    testlib.equal(harness.addon.UI.levelPanel:IsShown(), false)
+    testlib.equal(harness.addon.UI.overviewTab.selected, true)
+    testlib.equal(harness.addon.UI.levelTab.selected, false)
+end)
+
+testlib.case("ui native tabs fall back through supported templates safely", function()
+    local optionsFallback = newUIHarness({
+        rejectTemplates = {
+            CharacterFrameTabButtonTemplate = true,
+        },
     })
-    local strataFrame = noFullscreen.addon.UI.Create()
-    testlib.equal(strataFrame.strata, "HIGH")
+    optionsFallback.addon.UI.Create()
+    testlib.equal(
+        optionsFallback.addon.UI.overviewTab.template,
+        "OptionsFrameTabButtonTemplate"
+    )
+    testlib.equal(
+        optionsFallback.addon.UI.levelTab.template,
+        "OptionsFrameTabButtonTemplate"
+    )
+
+    local safeFallback = newUIHarness({
+        rejectTemplates = {
+            CharacterFrameTabButtonTemplate = true,
+            OptionsFrameTabButtonTemplate = true,
+        },
+        noPanelTemplates = true,
+    })
+    local succeeded = pcall(safeFallback.addon.UI.Create)
+    testlib.equal(succeeded, true)
+    testlib.equal(safeFallback.addon.UI.overviewTab.template, nil)
+    testlib.equal(safeFallback.addon.UI.levelTab.template, nil)
+    testlib.equal(safeFallback.addon.UI.overviewTab.buttonState, "PUSHED")
+end)
+
+testlib.case("ui native tab selection tolerates a missing select helper", function()
+    local harness = newUIHarness({
+        missingSelectTabHelper = true,
+    })
+    harness.addon.UI.Create()
+
+    testlib.equal(harness.addon.UI.overviewTab.buttonState, "PUSHED")
+    testlib.equal(harness.addon.UI.levelTab.buttonState, "NORMAL")
 end)
 
 testlib.case("ui refresh consumes overview levels and diagnostics models", function()
@@ -987,6 +1167,102 @@ testlib.case("ui confirmation resets only the session after acceptance", functio
     testlib.equal(harness.calls.resetCharacter, harness.character)
     testlib.equal(harness.calls.resetNow, 3000)
     testlib.equal(harness.calls.overview, 1)
+end)
+
+testlib.case("ui reset preserves session and reports unavailable time", function()
+    local harness = newUIHarness({
+        nowUnavailable = true,
+    })
+    harness.addon.UI.Create()
+    local session = harness.character.session
+
+    harness.addon.UI.ConfirmResetSession()
+    local dialog = harness.environment.StaticPopupDialogs[
+        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+    ]
+    local succeeded = pcall(dialog.OnAccept)
+
+    testlib.equal(succeeded, true)
+    testlib.equal(harness.calls.reset, 0)
+    testlib.equal(harness.calls.overview, 0)
+    testlib.equal(harness.character.session, session)
+    testlib.equal(harness.addon.UI.errorText:IsShown(), true)
+    testlib.truthy(contains(
+        harness.addon.UI.errorText:GetText(),
+        "timeUnavailable"
+    ))
+end)
+
+testlib.case("ui reset preserves session and reports storage exceptions", function()
+    local harness = newUIHarness({
+        resetThrows = true,
+    })
+    harness.addon.UI.Create()
+    local session = harness.character.session
+
+    harness.addon.UI.ConfirmResetSession()
+    local dialog = harness.environment.StaticPopupDialogs[
+        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+    ]
+    local succeeded = pcall(dialog.OnAccept)
+
+    testlib.equal(succeeded, true)
+    testlib.equal(harness.calls.reset, 1)
+    testlib.equal(harness.calls.overview, 0)
+    testlib.equal(harness.character.session, session)
+    testlib.equal(harness.addon.UI.errorText:IsShown(), true)
+    testlib.truthy(contains(
+        harness.addon.UI.errorText:GetText(),
+        "reset exploded"
+    ))
+end)
+
+testlib.case("ui reset preserves session and reports storage rejection", function()
+    local harness = newUIHarness({
+        resetError = "resetRejected",
+    })
+    harness.addon.UI.Create()
+    local session = harness.character.session
+
+    harness.addon.UI.ConfirmResetSession()
+    local dialog = harness.environment.StaticPopupDialogs[
+        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+    ]
+    local succeeded = pcall(dialog.OnAccept)
+
+    testlib.equal(succeeded, true)
+    testlib.equal(harness.calls.reset, 1)
+    testlib.equal(harness.calls.overview, 0)
+    testlib.equal(harness.character.session, session)
+    testlib.equal(harness.addon.UI.errorText:IsShown(), true)
+    testlib.truthy(contains(
+        harness.addon.UI.errorText:GetText(),
+        "resetRejected"
+    ))
+end)
+
+testlib.case("ui lifecycle remains safe during combat lockdown", function()
+    local harness = newUIHarness({
+        inCombat = true,
+    })
+
+    local succeeded, failure = pcall(function()
+        harness.addon.UI.Create()
+        harness.addon.UI.Toggle()
+        harness.addon.UI.levelTab.scripts.OnClick()
+        harness.addon.UI.overviewTab.scripts.OnClick()
+        harness.addon.UI.Refresh()
+        harness.addon.UI.ConfirmResetSession()
+    end)
+
+    testlib.equal(succeeded, true, failure)
+    testlib.equal(harness.calls.protected, 0)
+    testlib.equal(harness.addon.UI.overviewPanel:IsShown(), true)
+    testlib.equal(harness.addon.UI.levelPanel:IsShown(), false)
+    testlib.equal(
+        harness.environment.shownPopup,
+        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+    )
 end)
 
 testlib.case("ui reset button opens confirmation and toggle reflects visibility", function()

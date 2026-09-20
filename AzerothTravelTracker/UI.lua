@@ -11,10 +11,21 @@ local pendingError
 local activeTab = "overview"
 
 local function safeSetFrameStrata(frame)
-    local succeeded = pcall(frame.SetFrameStrata, frame, "FULLSCREEN_DIALOG")
-    if not succeeded then
-        frame:SetFrameStrata("HIGH")
+    local strataOptions = {
+        "FULLSCREEN_DIALOG",
+        "FULLSCREEN",
+        "DIALOG",
+        "HIGH",
+    }
+
+    for _, strata in ipairs(strataOptions) do
+        local succeeded = pcall(frame.SetFrameStrata, frame, strata)
+        if succeeded then
+            return strata
+        end
     end
+
+    return nil
 end
 
 local function createMainFrame()
@@ -36,12 +47,63 @@ local function createMainFrame()
     )
 end
 
+local function createTab(name, parent)
+    local templates = {
+        "CharacterFrameTabButtonTemplate",
+        "OptionsFrameTabButtonTemplate",
+    }
+
+    for _, template in ipairs(templates) do
+        local succeeded, tab = pcall(
+            CreateFrame,
+            "Button",
+            name,
+            parent,
+            template
+        )
+        if succeeded then
+            return tab
+        end
+    end
+
+    return CreateFrame("Button", name, parent)
+end
+
 local function createLabel(parent, text, font)
     local label = parent:CreateFontString(nil, "ARTWORK", font or "GameFontNormal")
     label:SetText(text)
     label:SetJustifyH("LEFT")
     label:SetJustifyV("TOP")
     return label
+end
+
+local function setTabSelected(tab, selected)
+    local helper
+    if selected then
+        helper = PanelTemplates_SelectTab
+    else
+        helper = PanelTemplates_DeselectTab
+    end
+    if type(helper) == "function" then
+        local succeeded = pcall(helper, tab)
+        if succeeded then
+            return
+        end
+    end
+
+    if type(tab.SetButtonState) == "function" then
+        pcall(
+            tab.SetButtonState,
+            tab,
+            selected and "PUSHED" or "NORMAL",
+            selected
+        )
+    end
+
+    local highlightMethod = selected and tab.LockHighlight or tab.UnlockHighlight
+    if type(highlightMethod) == "function" then
+        pcall(highlightMethod, tab)
+    end
 end
 
 local function setPanelVisibility()
@@ -52,9 +114,13 @@ local function setPanelVisibility()
     if activeTab == "levels" then
         UI.overviewPanel:Hide()
         UI.levelPanel:Show()
+        setTabSelected(UI.overviewTab, false)
+        setTabSelected(UI.levelTab, true)
     else
         UI.levelPanel:Hide()
         UI.overviewPanel:Show()
+        setTabSelected(UI.levelTab, false)
+        setTabSelected(UI.overviewTab, true)
     end
 end
 
@@ -112,7 +178,8 @@ function UI.Create()
     UI.title = createLabel(frame, "Azeroth Travel Tracker", "GameFontNormalLarge")
     UI.title:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -16)
 
-    UI.overviewTab = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    UI.overviewTab = createTab("AzerothTravelTrackerFrameTab1", frame)
+    UI.overviewTab:SetID(1)
     UI.overviewTab:SetSize(110, 24)
     UI.overviewTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -46)
     UI.overviewTab:SetText("Overview")
@@ -121,7 +188,8 @@ function UI.Create()
         setPanelVisibility()
     end)
 
-    UI.levelTab = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    UI.levelTab = createTab("AzerothTravelTrackerFrameTab2", frame)
+    UI.levelTab:SetID(2)
     UI.levelTab:SetSize(110, 24)
     UI.levelTab:SetPoint("LEFT", UI.overviewTab, "RIGHT", 8, 0)
     UI.levelTab:SetText("By Level")
@@ -129,6 +197,10 @@ function UI.Create()
         activeTab = "levels"
         setPanelVisibility()
     end)
+
+    if type(PanelTemplates_SetNumTabs) == "function" then
+        pcall(PanelTemplates_SetNumTabs, frame, 2)
+    end
 
     UI.resetButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     UI.resetButton:SetSize(120, 24)
@@ -339,19 +411,36 @@ local function acceptReset()
         return
     end
 
-    local now, reason = ATT.Compat.GetNow()
-    if not now then
-        UI.ShowError("Session reset failed: " .. tostring(reason))
+    if not ATT.Compat or type(ATT.Compat.GetNow) ~= "function" then
+        UI.ShowError("Session reset failed: timeUnavailable")
         return
     end
 
-    local resetSucceeded, resetError = pcall(
+    local timeCallSucceeded, now, reason = pcall(ATT.Compat.GetNow)
+    if not timeCallSucceeded then
+        UI.ShowError("Session reset failed: " .. tostring(now))
+        return
+    end
+    if not now then
+        UI.ShowError(
+            "Session reset failed: " .. tostring(reason or "timeUnavailable")
+        )
+        return
+    end
+
+    local resetCallSucceeded, resetResult, resetError = pcall(
         ATT.Storage.ResetSession,
         context.character,
         now
     )
-    if not resetSucceeded then
-        UI.ShowError("Session reset failed: " .. tostring(resetError))
+    if not resetCallSucceeded then
+        UI.ShowError("Session reset failed: " .. tostring(resetResult))
+        return
+    end
+    if not resetResult then
+        UI.ShowError(
+            "Session reset failed: " .. tostring(resetError or "resetRejected")
+        )
         return
     end
 
