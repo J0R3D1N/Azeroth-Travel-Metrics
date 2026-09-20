@@ -202,7 +202,7 @@ testlib.case("tracker stores a private scalar snapshot as its first baseline", f
     testlib.equal(emitCalls, 0)
 end)
 
-testlib.case("tracker aggregates once and emits the exact accepted segment", function()
+testlib.case("tracker treats a nil emitter result as successful", function()
     local addon = loadTracker()
     local first = sample()
     local second = sample({ x = 5, time = 11 })
@@ -251,6 +251,7 @@ testlib.case("tracker aggregates once and emits the exact accepted segment", fun
     testlib.equal(storageArguments[4], 5)
     testlib.equal(emittedEvent, "movementSegment")
     testlib.equal(emittedSegment, expectedSegment)
+    testlib.equal(deps.character.diagnostics.emitFailed, nil)
 end)
 
 testlib.case("tracker updates its baseline for stationary samples without side effects", function()
@@ -723,7 +724,12 @@ testlib.case("tracker recognizes isolated subscriber failure results", function(
         return acceptedSegment
     end
     deps.emit = function()
-        return false, "subscriberFailed"
+        return false, "subscriberFailed", {
+            {
+                subscriber = 1,
+                error = "subscriber failed",
+            },
+        }
     end
     local tracker = addon.Tracker.New(deps)
 

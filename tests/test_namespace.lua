@@ -20,10 +20,8 @@ testlib.case("namespace defines schema version and travel categories", function(
     addon.Subscribe("distanceChanged", function(payload)
         received = payload
     end)
-    local emitted, reason, failures = addon.Emit("distanceChanged", 42)
-    testlib.equal(emitted, true)
-    testlib.equal(reason, nil)
-    testlib.equal(failures, nil)
+    local emitted = addon.Emit("distanceChanged", 42)
+    testlib.equal(emitted, nil)
     testlib.truthy(received == 42)
 end)
 
@@ -33,7 +31,11 @@ testlib.case("namespace isolates throwing subscribers and reports failures", fun
 
     addon.Subscribe("movementSegment", function()
         table.insert(callbacks, "first")
-        error("subscriber failed")
+        error("first subscriber failed")
+    end)
+    addon.Subscribe("movementSegment", function()
+        table.insert(callbacks, "second")
+        error("second subscriber failed")
     end)
     addon.Subscribe("movementSegment", function(payload)
         table.insert(callbacks, payload)
@@ -48,9 +50,48 @@ testlib.case("namespace isolates throwing subscribers and reports failures", fun
     testlib.equal(succeeded, true)
     testlib.equal(emitted, false)
     testlib.equal(reason, "subscriberFailed")
-    testlib.equal(failures, 1)
+    testlib.equal(type(failures), "table")
+    testlib.equal(#failures, 2)
+    testlib.equal(failures[1].subscriber, 1)
+    testlib.truthy(
+        failures[1].error:find("first subscriber failed", 1, true) ~= nil
+    )
+    testlib.equal(failures[2].subscriber, 2)
+    testlib.truthy(
+        failures[2].error:find("second subscriber failed", 1, true) ~= nil
+    )
     testlib.equal(callbacks[1], "first")
-    testlib.equal(callbacks[2], "later subscriber")
+    testlib.equal(callbacks[2], "second")
+    testlib.equal(callbacks[3], "later subscriber")
+end)
+
+testlib.case("namespace preserves unprintable subscriber errors without aborting", function()
+    local addon = testlib.loadAddon("AzerothTravelTracker\\Namespace.lua")
+    local hostileError = setmetatable({}, {
+        __tostring = function()
+            error("error formatting failed")
+        end,
+    })
+    local laterSubscriberRan = false
+
+    addon.Subscribe("movementSegment", function()
+        error(hostileError)
+    end)
+    addon.Subscribe("movementSegment", function()
+        laterSubscriberRan = true
+    end)
+
+    local succeeded, emitted, reason, failures = pcall(
+        addon.Emit,
+        "movementSegment",
+        {}
+    )
+
+    testlib.equal(succeeded, true)
+    testlib.equal(emitted, false)
+    testlib.equal(reason, "subscriberFailed")
+    testlib.equal(failures[1].error, hostileError)
+    testlib.equal(laterSubscriberRan, true)
 end)
 
 testlib.case("near rejects NaN values", function()

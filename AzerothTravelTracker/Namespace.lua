@@ -19,18 +19,21 @@ function ATT.Subscribe(eventName, callback)
 end
 
 function ATT.Emit(eventName, payload)
-    local failures = 0
+    local failures = {}
 
-    for _, callback in ipairs(callbacks[eventName] or {}) do
-        local succeeded = pcall(callback, payload)
+    for index, callback in ipairs(callbacks[eventName] or {}) do
+        local succeeded, callbackError = pcall(callback, payload)
         if not succeeded then
-            failures = failures + 1
+            table.insert(failures, {
+                subscriber = index,
+                error = callbackError,
+            })
         end
     end
 
-    if failures > 0 then
+    if #failures > 0 then
         return false, "subscriberFailed", failures
     end
 
-    return true
+    return nil
 end
