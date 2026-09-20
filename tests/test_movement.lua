@@ -102,6 +102,75 @@ testlib.case("movement independently classifies taxi and swimming samples", func
     end
 end)
 
+testlib.case("movement classifies taxi without unrelated optional states", function()
+    local addon = loadMovement()
+    local taxi = sample({ onTaxi = true })
+    taxi.swimming = nil
+    taxi.mounted = nil
+    taxi.grounded = nil
+
+    local category, reason = addon.Movement.Classify(taxi)
+
+    testlib.equal(reason, nil)
+    testlib.equal(category, addon.Categories.TAXI)
+end)
+
+testlib.case("movement requires category-specific state signals", function()
+    local addon = loadMovement()
+    local swimmingWithoutMounted = sample({
+        onTaxi = false,
+        swimming = true,
+    })
+    swimmingWithoutMounted.mounted = nil
+    swimmingWithoutMounted.grounded = nil
+
+    local onFootWithoutSwimming = sample({
+        onTaxi = false,
+        mounted = false,
+        grounded = true,
+    })
+    onFootWithoutSwimming.swimming = nil
+
+    local onFootWithoutMounted = sample({
+        onTaxi = false,
+        swimming = false,
+        grounded = true,
+    })
+    onFootWithoutMounted.mounted = nil
+
+    local onFootWithoutGrounded = sample({
+        onTaxi = false,
+        swimming = false,
+        mounted = false,
+    })
+    onFootWithoutGrounded.grounded = nil
+
+    local cases = {
+        {
+            name = "swimming without mounted state",
+            value = swimmingWithoutMounted,
+        },
+        {
+            name = "on foot without swimming state",
+            value = onFootWithoutSwimming,
+        },
+        {
+            name = "on foot without mounted state",
+            value = onFootWithoutMounted,
+        },
+        {
+            name = "on foot without grounded state",
+            value = onFootWithoutGrounded,
+        },
+    }
+
+    for _, case in ipairs(cases) do
+        local category, reason = addon.Movement.Classify(case.value)
+        testlib.equal(category, nil, case.name .. " was classified")
+        testlib.equal(reason, "unsupportedState", case.name .. " returned the wrong reason")
+    end
+end)
+
 testlib.case("movement rejects contradictory taxi and swimming state", function()
     local addon = loadMovement()
     local contradictory = sample({

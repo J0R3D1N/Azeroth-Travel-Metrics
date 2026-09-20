@@ -27,25 +27,21 @@ local function hasValidNumericFields(sample)
         and isFiniteNumber(sample.time)
 end
 
-local function hasExplicitState(sample)
-    return type(sample) == "table"
-        and type(sample.onTaxi) == "boolean"
-        and type(sample.swimming) == "boolean"
-        and type(sample.mounted) == "boolean"
-        and type(sample.grounded) == "boolean"
-end
-
 function Movement.Classify(sample)
-    if not hasExplicitState(sample) then
+    if type(sample) ~= "table" or type(sample.onTaxi) ~= "boolean" then
         return nil, "unsupportedState"
     end
 
     if sample.onTaxi then
-        if sample.swimming then
+        if sample.swimming == true then
             return nil, "unsupportedState"
         end
 
         return ATT.Categories.TAXI
+    end
+
+    if type(sample.swimming) ~= "boolean" or type(sample.mounted) ~= "boolean" then
+        return nil, "unsupportedState"
     end
 
     if sample.mounted then
@@ -54,6 +50,10 @@ function Movement.Classify(sample)
 
     if sample.swimming then
         return ATT.Categories.SWIMMING
+    end
+
+    if type(sample.grounded) ~= "boolean" then
+        return nil, "unsupportedState"
     end
 
     if sample.grounded then
