@@ -25,7 +25,15 @@ local function callBoolean(api, ...)
     end
 
     local succeeded, value = pcall(api, ...)
-    if not succeeded or type(value) ~= "boolean" then
+    if not succeeded then
+        return nil, false
+    end
+
+    if value == nil then
+        return false, true
+    end
+
+    if type(value) ~= "boolean" then
         return nil, false
     end
 

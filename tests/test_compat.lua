@@ -77,6 +77,37 @@ testlib.case("compat reads a complete normalized sample", function()
     testlib.equal(value.grounded, true)
 end)
 
+testlib.case("compat normalizes nil predicate results as false", function()
+    local addon = loadCompat(completeGlobals({
+        UnitOnTaxi = function()
+            return nil
+        end,
+        IsSwimming = function()
+            return nil
+        end,
+        IsMounted = function()
+            return nil
+        end,
+        IsFalling = function()
+            return nil
+        end,
+    }))
+
+    local value, reason = addon.Compat.ReadSample()
+    local capabilities = addon.Compat.GetCapabilities()
+
+    testlib.equal(reason, nil)
+    testlib.equal(value.onTaxi, false)
+    testlib.equal(value.swimming, false)
+    testlib.equal(value.mounted, false)
+    testlib.equal(value.grounded, true)
+    testlib.equal(capabilities.taxi, true)
+    testlib.equal(capabilities.swimming, true)
+    testlib.equal(capabilities.mounted, true)
+    testlib.equal(capabilities.grounded, true)
+    testlib.equal(capabilities.onFootReady, true)
+end)
+
 testlib.case("compat normalizes a falling player as explicitly not grounded", function()
     local addon = loadCompat(completeGlobals({
         IsFalling = function()
