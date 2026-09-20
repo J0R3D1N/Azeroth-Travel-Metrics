@@ -34,6 +34,9 @@ testlib.case("storage initializes nil with v1 defaults", function()
     testlib.equal(db.settings.showMinimap, true)
     testlib.equal(db.settings.minimapAngle, 225)
     testlib.equal(db.settings.showDiagnostics, false)
+    testlib.equal(db.settings.hudPoint, "CENTER")
+    testlib.equal(db.settings.hudX, 0)
+    testlib.equal(db.settings.hudY, 0)
     testlib.truthy(type(db.characters) == "table")
 end)
 
@@ -49,6 +52,9 @@ testlib.case("storage initializes a schema-less empty table in place", function(
     testlib.equal(db.settings.showMinimap, true)
     testlib.equal(db.settings.minimapAngle, 225)
     testlib.equal(db.settings.showDiagnostics, false)
+    testlib.equal(db.settings.hudPoint, "CENTER")
+    testlib.equal(db.settings.hudX, 0)
+    testlib.equal(db.settings.hudY, 0)
     testlib.truthy(type(db.characters) == "table")
 end)
 
@@ -62,6 +68,9 @@ testlib.case("storage preserves customized v1 settings and characters", function
             showMinimap = false,
             minimapAngle = 135,
             showDiagnostics = true,
+            hudPoint = "TOPRIGHT",
+            hudX = -25,
+            hudY = -40,
         },
         characters = {
             ["Jaina-Proudmoore"] = character,
@@ -75,6 +84,9 @@ testlib.case("storage preserves customized v1 settings and characters", function
     testlib.equal(db.settings.showMinimap, false)
     testlib.equal(db.settings.minimapAngle, 135)
     testlib.equal(db.settings.showDiagnostics, true)
+    testlib.equal(db.settings.hudPoint, "TOPRIGHT")
+    testlib.equal(db.settings.hudX, -25)
+    testlib.equal(db.settings.hudY, -40)
     testlib.equal(db.characters["Jaina-Proudmoore"], character)
 end)
 
@@ -97,6 +109,34 @@ testlib.case("storage backfills missing known v1 settings without overwriting cu
     testlib.equal(db.settings.showMinimap, false)
     testlib.equal(db.settings.minimapAngle, 225)
     testlib.equal(db.settings.showDiagnostics, true)
+    testlib.equal(db.settings.hudPoint, "CENTER")
+    testlib.equal(db.settings.hudX, 0)
+    testlib.equal(db.settings.hudY, 0)
+end)
+
+testlib.case("storage repairs malformed HUD positions to safe center defaults", function()
+    local addon = loadStorage()
+    local invalidPositions = {
+        { point = "MIDDLE", x = 10, y = 20 },
+        { point = "TOP", x = "10", y = 20 },
+        { point = "BOTTOMLEFT", x = 10, y = math.huge },
+    }
+
+    for _, invalid in ipairs(invalidPositions) do
+        local db = addon.Storage.Initialize({
+            schemaVersion = 1,
+            settings = {
+                hudPoint = invalid.point,
+                hudX = invalid.x,
+                hudY = invalid.y,
+            },
+            characters = {},
+        })
+
+        testlib.equal(db.settings.hudPoint, "CENTER")
+        testlib.equal(db.settings.hudX, 0)
+        testlib.equal(db.settings.hudY, 0)
+    end
 end)
 
 testlib.case("storage creates a character and current level bucket", function()

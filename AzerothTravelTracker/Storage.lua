@@ -11,6 +11,17 @@ local validCategories = {
 }
 
 local migrations = {}
+local validFramePoints = {
+    TOPLEFT = true,
+    TOP = true,
+    TOPRIGHT = true,
+    LEFT = true,
+    CENTER = true,
+    RIGHT = true,
+    BOTTOMLEFT = true,
+    BOTTOM = true,
+    BOTTOMRIGHT = true,
+}
 
 local function isFiniteNumber(value)
     return type(value) == "number"
@@ -62,6 +73,14 @@ local function initializeVersionOne(db)
     end
     if db.settings.showDiagnostics == nil then
         db.settings.showDiagnostics = false
+    end
+    if not validFramePoints[db.settings.hudPoint]
+        or not isFiniteNumber(db.settings.hudX)
+        or not isFiniteNumber(db.settings.hudY)
+    then
+        db.settings.hudPoint = "CENTER"
+        db.settings.hudX = 0
+        db.settings.hudY = 0
     end
 
     db.characters = db.characters or {}

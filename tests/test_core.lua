@@ -7,6 +7,7 @@ local CORE_FILES = {
 
 local UI_FILES = {
     "AzerothTravelTracker\\Namespace.lua",
+    "AzerothTravelTracker\\UITheme.lua",
     "AzerothTravelTracker\\UI.lua",
 }
 
@@ -708,7 +709,8 @@ testlib.case("slash commands report not-ready and concise usage without throwing
     testlib.truthy(contains(harness.calls.prints[4], "Usage:"))
 end)
 
-local function newFrame(frameType, name, parent, template)
+local function newFrame(frameType, name, parent, template, options)
+    options = options or {}
     local frame = {
         frameType = frameType,
         name = name,
@@ -717,6 +719,7 @@ local function newFrame(frameType, name, parent, template)
         scripts = {},
         children = {},
         shown = false,
+        textures = {},
     }
 
     function frame:SetSize(width, height)
@@ -726,6 +729,21 @@ local function newFrame(frameType, name, parent, template)
 
     function frame:SetPoint(...)
         self.point = { ... }
+    end
+
+    function frame:GetPoint()
+        if self.malformedPoint then
+            return self.malformedPoint[1],
+                self.malformedPoint[2],
+                self.malformedPoint[3],
+                self.malformedPoint[4],
+                self.malformedPoint[5]
+        end
+        return table.unpack(self.point or {})
+    end
+
+    function frame:ClearAllPoints()
+        self.point = nil
     end
 
     function frame:SetFrameStrata(strata)
@@ -832,6 +850,14 @@ local function newFrame(frameType, name, parent, template)
         self.textColor = { ... }
     end
 
+    function frame:SetAlpha(alpha)
+        self.alpha = alpha
+    end
+
+    function frame:GetAlpha()
+        return self.alpha
+    end
+
     function frame:SetChecked(value)
         self.checked = value == true
     end
@@ -848,6 +874,14 @@ local function newFrame(frameType, name, parent, template)
         self.backdropColor = { ... }
     end
 
+    function frame:SetNormalTexture(texture)
+        self.normalTexture = texture
+    end
+
+    function frame:SetHighlightTexture(texture)
+        self.highlightTexture = texture
+    end
+
     function frame:Show()
         self.shown = true
     end
@@ -860,11 +894,44 @@ local function newFrame(frameType, name, parent, template)
         return self.shown
     end
 
+    function frame:IsMouseOver()
+        return self.mouseOver == true
+    end
+
     function frame:CreateFontString(childName, layer, font)
-        local child = newFrame("FontString", childName, self, font)
+        local child = newFrame("FontString", childName, self, font, options)
         child.layer = layer
         table.insert(self.children, child)
         return child
+    end
+
+    function frame:CreateTexture(childName, layer)
+        local child = newFrame("Texture", childName, self, nil, options)
+        child.layer = layer
+        table.insert(self.children, child)
+        table.insert(self.textures, child)
+        return child
+    end
+
+    function frame:SetAtlas(atlas, useAtlasSize)
+        if options.rejectAtlases and options.rejectAtlases[atlas] then
+            error("atlas unavailable")
+        end
+        self.atlas = atlas
+        self.useAtlasSize = useAtlasSize
+        return true
+    end
+
+    function frame:SetColorTexture(red, green, blue, alpha)
+        self.color = { red, green, blue, alpha }
+    end
+
+    function frame:SetTexture(texture)
+        self.texture = texture
+    end
+
+    function frame:SetAllPoints(target)
+        self.allPoints = target or true
     end
 
     return frame
@@ -885,6 +952,7 @@ local function newUIHarness(options)
         now = 0,
         protected = 0,
         order = order,
+        templates = {},
     }
     local globals = {
         UIParent = {
@@ -896,6 +964,7 @@ local function newUIHarness(options)
     }
 
     globals.CreateFrame = function(frameType, name, parent, template)
+        table.insert(calls.templates, template or false)
         if options.inCombat
             and type(template) == "string"
             and contains(template, "Secure")
@@ -903,14 +972,34 @@ local function newUIHarness(options)
             calls.protected = calls.protected + 1
             error("protected template used in combat")
         end
-        if template == "BasicFrameTemplateWithInset" and options.rejectMainTemplate then
+        if (template == "PortraitFrameBaseTemplate"
+                or template == "BasicFrameTemplateWithInset")
+            and options.rejectMainTemplate
+        then
             error("template unavailable")
         end
         if options.rejectTemplates and options.rejectTemplates[template] then
             error("template unavailable")
         end
 
-        local frame = newFrame(frameType, name, parent, template)
+        local frame = newFrame(frameType, name, parent, template, options)
+        if template == "PortraitFrameBaseTemplate" then
+            frame.TitleText = newFrame(
+                "FontString",
+                nil,
+                frame,
+                "GameFontNormal",
+                options
+            )
+            frame.PortraitContainer = {
+                portrait = newFrame("Texture", nil, frame, nil, options),
+            }
+            frame.CloseButton = newFrame("Button", nil, frame, nil, options)
+        end
+        if template == "LargeSideTabButtonTemplate" then
+            frame.Icon = newFrame("Texture", nil, frame, nil, options)
+            frame.SelectedTexture = newFrame("Texture", nil, frame, nil, options)
+        end
         if name == "AzerothTravelTrackerFrame" then
             local original = frame.SetFrameStrata
             frame.SetFrameStrata = function(self, strata)
@@ -927,23 +1016,28 @@ local function newUIHarness(options)
         return frame
     end
 
-    if not options.noPanelTemplates then
-        if not options.missingSelectTabHelper then
-            globals.PanelTemplates_SelectTab = function(tab)
-                tab.selected = true
-                tab:SetButtonState("PUSHED", true)
-                tab:LockHighlight()
-            end
+    globals.SetPortraitToTexture = function(frame, texture)
+        if options.portraitHelperThrows then
+            error("portrait helper unavailable")
         end
-        globals.PanelTemplates_DeselectTab = function(tab)
-            tab.selected = false
-            tab:SetButtonState("NORMAL", false)
-            tab:UnlockHighlight()
-        end
-        globals.PanelTemplates_SetNumTabs = function(frame, count)
-            frame.numTabs = count
-        end
+        frame.portraitTexture = texture
     end
+
+    globals.GameTooltip = {
+        SetOwner = function(_, owner, anchor)
+            calls.tooltipOwner = owner
+            calls.tooltipAnchor = anchor
+        end,
+        SetText = function(_, text)
+            calls.tooltipText = text
+        end,
+        Show = function()
+            calls.tooltipShown = true
+        end,
+        Hide = function()
+            calls.tooltipHidden = true
+        end,
+    }
 
     globals.StaticPopup_Show = function(key)
         globals.shownPopup = key
@@ -972,6 +1066,9 @@ local function newUIHarness(options)
             units = "metric",
             showMinimap = true,
             showDiagnostics = true,
+            hudPoint = "CENTER",
+            hudX = 0,
+            hudY = 0,
         },
     }
 
@@ -1116,28 +1213,48 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
 
     testlib.equal(first, second)
     testlib.equal(#harness.created, createdCount)
-    testlib.equal(first.template, "BasicFrameTemplateWithInset")
+    testlib.equal(first.template, "PortraitFrameBaseTemplate")
+    testlib.equal(first.width, 420)
+    testlib.equal(first.height, 430)
     testlib.equal(first.strata, "FULLSCREEN_DIALOG")
     testlib.equal(first.movable, true)
     testlib.equal(first.mouseEnabled, true)
     testlib.equal(first.dragButton, "LeftButton")
     testlib.equal(type(first.scripts.OnDragStart), "function")
     testlib.equal(type(first.scripts.OnDragStop), "function")
+    testlib.equal(first.portraitTexture, harness.addon.UITheme.Icons.PORTRAIT)
+    testlib.equal(harness.addon.UI.title, first.TitleText)
     testlib.equal(#harness.addon.UI.summaryGroups, 3)
     testlib.equal(harness.addon.UI.resetButton.template, "UIPanelButtonTemplate")
-    testlib.equal(harness.addon.UI.settingsButton.template, "UIPanelButtonTemplate")
+    testlib.equal(harness.addon.UI.settingsButton.width, 24)
+    testlib.equal(harness.addon.UI.settingsButton.height, 24)
+    testlib.equal(
+        harness.addon.UI.settingsButton.Icon.texture,
+        harness.addon.UITheme.Icons.SETTINGS
+    )
     testlib.equal(harness.addon.UI.settingsPanel:IsShown(), false)
     testlib.truthy(
         harness.addon.UI.settingsPanel:GetFrameLevel() > first:GetFrameLevel()
     )
     testlib.equal(
         harness.addon.UI.overviewTab.template,
-        "PanelTabButtonTemplate"
+        "LargeSideTabButtonTemplate"
     )
     testlib.equal(
         harness.addon.UI.levelTab.template,
-        "PanelTabButtonTemplate"
+        "LargeSideTabButtonTemplate"
     )
+    testlib.equal(harness.addon.UI.overviewTab.point[1], "TOPLEFT")
+    testlib.equal(harness.addon.UI.overviewTab.point[2], first)
+    testlib.equal(harness.addon.UI.overviewTab.point[3], "TOPRIGHT")
+    testlib.equal(harness.addon.UI.levelTab.point[1], "TOP")
+    testlib.equal(harness.addon.UI.levelTab.point[2], harness.addon.UI.overviewTab)
+    testlib.equal(harness.addon.UI.levelTab.point[3], "BOTTOM")
+
+    for _, template in ipairs(harness.calls.templates) do
+        testlib.truthy(template ~= "CharacterFrameTabButtonTemplate")
+        testlib.truthy(template ~= "PanelTabButtonTemplate")
+    end
 
     first.scripts.OnDragStart(first)
     first.scripts.OnDragStop(first)
@@ -1192,13 +1309,61 @@ testlib.case("ui settings checkboxes persist and invoke focused updates", functi
     testlib.equal(harness.calls.overview, 1)
 end)
 
-testlib.case("ui falls back when the main template is rejected", function()
-    local noTemplate = newUIHarness({
+testlib.case("ui falls back from portrait shell to basic shell", function()
+    local fallback = newUIHarness({
+        rejectTemplates = {
+            PortraitFrameBaseTemplate = true,
+        },
+    })
+    local frame = fallback.addon.UI.Create()
+    testlib.equal(frame.template, "BasicFrameTemplateWithInset")
+    testlib.truthy(fallback.addon.UI.closeButton ~= nil)
+end)
+
+testlib.case("ui falls back to the portrait container and fallback title safely", function()
+    local harness = newUIHarness({
+        portraitHelperThrows = true,
+    })
+    local frame = harness.addon.UI.Create()
+
+    testlib.equal(
+        frame.PortraitContainer.portrait.texture,
+        harness.addon.UITheme.Icons.PORTRAIT
+    )
+    testlib.equal(harness.addon.UI.title, frame.TitleText)
+
+    local bare = newUIHarness({
         rejectMainTemplate = true,
     })
-    local templateFrame = noTemplate.addon.UI.Create()
+    bare.addon.UI.Create()
+    testlib.equal(bare.addon.UI.title:GetText(), "Azeroth Travel Tracker")
+end)
+
+testlib.case("ui remains visible when all shell side-tab and atlas assets fail", function()
+    local noTemplate = newUIHarness({
+        rejectTemplates = {
+            PortraitFrameBaseTemplate = true,
+            BasicFrameTemplateWithInset = true,
+            LargeSideTabButtonTemplate = true,
+            MaximizeMinimizeButtonFrameTemplate = true,
+        },
+        rejectAtlases = {
+            ["common-insideframe"] = true,
+        },
+    })
+    local succeeded, templateFrame = pcall(noTemplate.addon.UI.Create)
+    testlib.equal(succeeded, true)
     testlib.equal(templateFrame.template, nil)
     testlib.truthy(noTemplate.addon.UI.closeButton ~= nil)
+    testlib.equal(noTemplate.addon.UI.overviewTab.template, nil)
+    testlib.equal(noTemplate.addon.UI.levelTab.template, nil)
+    testlib.equal(noTemplate.addon.UI.overviewTab:IsShown(), true)
+    testlib.equal(noTemplate.addon.UI.levelTab:IsShown(), true)
+    testlib.truthy(noTemplate.addon.UI.contentInset.color ~= nil)
+    testlib.truthy(noTemplate.addon.UI.settingsButton.Icon.texture ~= nil)
+    testlib.equal(noTemplate.addon.UI.resetButton:GetText(), "Reset Session")
+    testlib.equal(noTemplate.addon.UI.summaryGroups[1].heading:GetText(), "Lifetime")
+    testlib.equal(noTemplate.addon.UI.title:GetText(), "Azeroth Travel Tracker")
 end)
 
 testlib.case("ui selects the highest accepted non-tooltip strata", function()
@@ -1258,61 +1423,140 @@ testlib.case("ui native tabs switch panels and selected visual state", function(
     testlib.equal(harness.addon.UI.levelPanel:IsShown(), true)
     testlib.equal(harness.addon.UI.overviewTab.selected, false)
     testlib.equal(harness.addon.UI.levelTab.selected, true)
-    testlib.equal(harness.addon.UI.levelTab.buttonState, "PUSHED")
+    testlib.equal(harness.addon.UI.levelTab.SelectedTexture:IsShown(), true)
 
     harness.addon.UI.overviewTab.scripts.OnClick()
     testlib.equal(harness.addon.UI.overviewPanel:IsShown(), true)
     testlib.equal(harness.addon.UI.levelPanel:IsShown(), false)
     testlib.equal(harness.addon.UI.overviewTab.selected, true)
     testlib.equal(harness.addon.UI.levelTab.selected, false)
+    testlib.equal(harness.addon.UI.overviewTab.SelectedTexture:IsShown(), true)
 end)
 
-testlib.case("ui native tabs fall back safely when modern template is unavailable", function()
+testlib.case("ui side tabs fall back safely when native template is unavailable", function()
     local safeFallback = newUIHarness({
         rejectTemplates = {
-            PanelTabButtonTemplate = true,
+            LargeSideTabButtonTemplate = true,
         },
-        noPanelTemplates = true,
     })
     local succeeded = pcall(safeFallback.addon.UI.Create)
     testlib.equal(succeeded, true)
     testlib.equal(safeFallback.addon.UI.overviewTab.template, nil)
     testlib.equal(safeFallback.addon.UI.levelTab.template, nil)
-    testlib.equal(safeFallback.addon.UI.overviewTab.buttonState, "PUSHED")
+    testlib.equal(safeFallback.addon.UI.overviewTab.selected, true)
+    testlib.equal(safeFallback.addon.UI.overviewTab.SelectedTexture.shown, true)
 end)
 
-testlib.case("ui native tab selection tolerates a missing select helper", function()
-    local harness = newUIHarness({
-        missingSelectTabHelper = true,
-    })
-    harness.addon.UI.Create()
+testlib.case("ui minimize restore close and toggle coordinate both surfaces", function()
+    local harness = newUIHarness()
+    local UI = harness.addon.UI
+    UI.Create()
 
-    testlib.equal(harness.addon.UI.overviewTab.buttonState, "PUSHED")
-    testlib.equal(harness.addon.UI.levelTab.buttonState, "NORMAL")
+    UI.ShowMain()
+    testlib.equal(UI.frame:IsShown(), true)
+    testlib.equal(UI.hud, nil)
+
+    UI.minimizeButton.scripts.OnClick()
+    testlib.equal(UI.frame:IsShown(), false)
+    testlib.equal(UI.hud.frame:IsShown(), true)
+    testlib.equal(UI.hud.frame.width, 220)
+    testlib.equal(UI.hud.frame.height, 74)
+    testlib.equal(UI.hud.frame.movable, true)
+    testlib.equal(UI.hud.frame.dragButton, "LeftButton")
+    testlib.equal(#UI.hud.cells, 4)
+    testlib.equal(UI.IsShown(), true)
+
+    UI.hud.restoreButton.scripts.OnClick()
+    testlib.equal(UI.hud.frame:IsShown(), false)
+    testlib.equal(UI.frame:IsShown(), true)
+
+    UI.Minimize()
+    UI.hud.closeButton.scripts.OnClick()
+    testlib.equal(UI.hud.frame:IsShown(), false)
+    testlib.equal(UI.IsShown(), false)
+
+    UI.ShowMain()
+    UI.Toggle()
+    testlib.equal(UI.frame:IsShown(), false)
+    testlib.equal(UI.hud.frame:IsShown(), false)
+    UI.Toggle()
+    testlib.equal(UI.frame:IsShown(), true)
+    testlib.equal(UI.hud.frame:IsShown(), false)
 end)
 
-testlib.case("ui bare fallback tabs expose visible labels and selection colors", function()
+testlib.case("ui HUD hover reveals controls and refreshes current session values", function()
     local harness = newUIHarness({
-        rejectTemplates = {
-            PanelTabButtonTemplate = true,
+        overview = {
+            lifetime = {
+                steps = "1",
+                onFoot = "1 m",
+                swimming = "2 m",
+                taxi = "3 m",
+            },
+            session = {
+                steps = "12.5K",
+                onFoot = "100 m",
+                swimming = "200 m",
+                taxi = "300 m",
+            },
+            currentLevel = {
+                steps = "4",
+                onFoot = "4 m",
+                swimming = "5 m",
+                taxi = "6 m",
+            },
         },
     })
-    harness.addon.UI.Create()
+    local UI = harness.addon.UI
+    UI.Minimize()
 
-    local overviewLabel = harness.addon.UI.overviewTab.fallbackLabel
-    local levelLabel = harness.addon.UI.levelTab.fallbackLabel
-    testlib.truthy(overviewLabel ~= nil)
-    testlib.truthy(levelLabel ~= nil)
-    testlib.equal(overviewLabel:GetText(), "Overview")
-    testlib.equal(levelLabel:GetText(), "By Level")
-    testlib.equal(overviewLabel:IsShown(), true)
-    testlib.equal(levelLabel:IsShown(), true)
-    testlib.equal(overviewLabel.textColor[1], 1)
-    testlib.equal(levelLabel.textColor[1], 0.6)
+    testlib.equal(UI.hud.frame:GetAlpha(), 0.45)
+    testlib.equal(UI.hud.restoreButton:IsShown(), false)
+    testlib.equal(UI.hud.closeButton:IsShown(), false)
+    testlib.equal(UI.hud.cells[1].value:GetText(), "12.5K")
+    testlib.equal(UI.hud.cells[2].value:GetText(), "100 m")
+    testlib.equal(UI.hud.cells[3].value:GetText(), "200 m")
+    testlib.equal(UI.hud.cells[4].value:GetText(), "300 m")
 
-    harness.addon.UI.levelTab.scripts.OnClick()
-    testlib.equal(overviewLabel.textColor[1], 0.6)
-    testlib.equal(levelLabel.textColor[1], 1)
+    UI.hud.frame.scripts.OnEnter()
+    testlib.truthy(UI.hud.frame:GetAlpha() > 0.45)
+    testlib.equal(UI.hud.restoreButton:IsShown(), true)
+    testlib.equal(UI.hud.closeButton:IsShown(), true)
+
+    UI.hud.restoreButton.mouseOver = true
+    UI.hud.frame.scripts.OnLeave()
+    testlib.truthy(UI.hud.frame:GetAlpha() > 0.45)
+    testlib.equal(UI.hud.restoreButton:IsShown(), true)
+    UI.hud.restoreButton.mouseOver = false
+
+    UI.hud.frame.scripts.OnLeave()
+    testlib.equal(UI.hud.frame:GetAlpha(), 0.45)
+    testlib.equal(UI.hud.restoreButton:IsShown(), false)
+    testlib.equal(UI.hud.closeButton:IsShown(), false)
+end)
+
+testlib.case("ui HUD persists valid drag positions and ignores malformed points", function()
+    local harness = newUIHarness()
+    local UI = harness.addon.UI
+    UI.Minimize()
+
+    UI.hud.frame:SetPoint("TOPLEFT", harness.environment.UIParent, "TOPLEFT", 25, -35)
+    UI.hud.frame.scripts.OnDragStop(UI.hud.frame)
+    testlib.equal(harness.db.settings.hudPoint, "TOPLEFT")
+    testlib.equal(harness.db.settings.hudX, 25)
+    testlib.equal(harness.db.settings.hudY, -35)
+
+    UI.hud.frame.malformedPoint = {
+        "SIDEWAYS",
+        harness.environment.UIParent,
+        "TOPLEFT",
+        "bad",
+        math.huge,
+    }
+    UI.hud.frame.scripts.OnDragStop(UI.hud.frame)
+    testlib.equal(harness.db.settings.hudPoint, "TOPLEFT")
+    testlib.equal(harness.db.settings.hudX, 25)
+    testlib.equal(harness.db.settings.hudY, -35)
 end)
 
 testlib.case("ui refresh consumes overview levels and diagnostics models", function()
