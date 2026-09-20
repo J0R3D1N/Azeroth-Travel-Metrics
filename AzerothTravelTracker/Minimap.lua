@@ -7,6 +7,8 @@ local DEFAULT_ANGLE = 225
 local BUTTON_RADIUS = 80
 local context
 local dragging = false
+local dragMoved = false
+local suppressNextClick = false
 
 local function isFiniteNumber(value)
     return type(value) == "number"
@@ -102,9 +104,13 @@ function MinimapLauncher.UpdateFromCursor()
 
     local cursorX, cursorY = GetCursorPosition()
     local centerX, centerY = Minimap:GetCenter()
-    local scale = 1
-    if type(Minimap.GetEffectiveScale) == "function" then
-        scale = Minimap:GetEffectiveScale()
+    local scale
+    if UIParent then
+        if type(UIParent.GetEffectiveScale) == "function" then
+            scale = UIParent:GetEffectiveScale()
+        elseif type(UIParent.GetScale) == "function" then
+            scale = UIParent:GetScale()
+        end
     end
 
     if not isFiniteNumber(cursorX)
@@ -202,6 +208,10 @@ function MinimapLauncher.Create()
         end
     end)
     button:SetScript("OnClick", function(_, mouseButton)
+        if suppressNextClick then
+            suppressNextClick = false
+            return
+        end
         if mouseButton == "LeftButton"
             and ATT.UI
             and type(ATT.UI.Toggle) == "function"
@@ -212,13 +222,18 @@ function MinimapLauncher.Create()
     button:SetScript("OnDragStart", function(_, mouseButton)
         if mouseButton == nil or mouseButton == "LeftButton" then
             dragging = true
+            dragMoved = false
         end
     end)
     button:SetScript("OnDragStop", function()
         dragging = false
+        suppressNextClick = dragMoved
+        dragMoved = false
     end)
     button:SetScript("OnUpdate", function()
-        MinimapLauncher.UpdateFromCursor()
+        if MinimapLauncher.UpdateFromCursor() then
+            dragMoved = true
+        end
     end)
 
     local settings = context and context.db and context.db.settings

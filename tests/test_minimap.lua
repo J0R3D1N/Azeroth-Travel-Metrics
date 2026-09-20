@@ -128,11 +128,19 @@ local function newHarness(options)
         return options.centerX or 500, options.centerY or 400
     end
     function minimapFrame:GetEffectiveScale()
-        return options.scale or 1
+        return options.minimapScale or 1
+    end
+
+    local uiParentFrame = {
+        name = "UIParent",
+    }
+    function uiParentFrame:GetEffectiveScale()
+        return options.uiParentScale or 1
     end
 
     local globals = {
         Minimap = minimapFrame,
+        UIParent = uiParentFrame,
         GetCursorPosition = function()
             return options.cursorX or 500, options.cursorY or 400
         end,
@@ -185,6 +193,7 @@ local function newHarness(options)
         calls = calls,
         db = db,
         minimapFrame = minimapFrame,
+        uiParentFrame = uiParentFrame,
         options = options,
     }
 end
@@ -264,12 +273,13 @@ testlib.case("minimap create is idempotent native and interactive", function()
     testlib.equal(harness.calls.toggles, 1)
 end)
 
-testlib.case("minimap drag accounts for UI scale and persists normalized angle", function()
+testlib.case("minimap drag uses UI parent scale when minimap scale differs", function()
     local harness = newHarness({
         centerX = 300,
         centerY = 200,
-        scale = 2,
-        cursorX = 600,
+        uiParentScale = 2,
+        minimapScale = 0.5,
+        cursorX = 800,
         cursorY = 600,
     })
     local button = harness.addon.Minimap.Create()
@@ -278,9 +288,30 @@ testlib.case("minimap drag accounts for UI scale and persists normalized angle",
     button.scripts.OnUpdate(button)
     button.scripts.OnDragStop(button)
 
+    testlib.near(harness.db.settings.minimapAngle, 45, 0.0001)
+    testlib.near(button.point[4], 56.5685, 0.0001)
+    testlib.near(button.point[5], 56.5685, 0.0001)
+end)
+
+testlib.case("minimap drag release suppresses only its generated click", function()
+    local harness = newHarness({
+        centerX = 300,
+        centerY = 200,
+        cursorX = 300,
+        cursorY = 300,
+    })
+    local button = harness.addon.Minimap.Create()
+
+    button.scripts.OnDragStart(button, "LeftButton")
+    button.scripts.OnUpdate(button)
+    button.scripts.OnDragStop(button)
+    button.scripts.OnClick(button, "LeftButton")
+
+    testlib.equal(harness.calls.toggles, 0)
     testlib.near(harness.db.settings.minimapAngle, 90, 0.0001)
-    testlib.near(button.point[4], 0, 0.0001)
-    testlib.near(button.point[5], 80, 0.0001)
+
+    button.scripts.OnClick(button, "LeftButton")
+    testlib.equal(harness.calls.toggles, 1)
 end)
 
 testlib.case("minimap invalid drag data does not corrupt settings", function()
