@@ -1132,11 +1132,11 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
     )
     testlib.equal(
         harness.addon.UI.overviewTab.template,
-        "CharacterFrameTabButtonTemplate"
+        "PanelTabButtonTemplate"
     )
     testlib.equal(
         harness.addon.UI.levelTab.template,
-        "CharacterFrameTabButtonTemplate"
+        "PanelTabButtonTemplate"
     )
 
     first.scripts.OnDragStart(first)
@@ -1267,26 +1267,10 @@ testlib.case("ui native tabs switch panels and selected visual state", function(
     testlib.equal(harness.addon.UI.levelTab.selected, false)
 end)
 
-testlib.case("ui native tabs fall back through supported templates safely", function()
-    local optionsFallback = newUIHarness({
-        rejectTemplates = {
-            CharacterFrameTabButtonTemplate = true,
-        },
-    })
-    optionsFallback.addon.UI.Create()
-    testlib.equal(
-        optionsFallback.addon.UI.overviewTab.template,
-        "OptionsFrameTabButtonTemplate"
-    )
-    testlib.equal(
-        optionsFallback.addon.UI.levelTab.template,
-        "OptionsFrameTabButtonTemplate"
-    )
-
+testlib.case("ui native tabs fall back safely when modern template is unavailable", function()
     local safeFallback = newUIHarness({
         rejectTemplates = {
-            CharacterFrameTabButtonTemplate = true,
-            OptionsFrameTabButtonTemplate = true,
+            PanelTabButtonTemplate = true,
         },
         noPanelTemplates = true,
     })
@@ -1310,8 +1294,7 @@ end)
 testlib.case("ui bare fallback tabs expose visible labels and selection colors", function()
     local harness = newUIHarness({
         rejectTemplates = {
-            CharacterFrameTabButtonTemplate = true,
-            OptionsFrameTabButtonTemplate = true,
+            PanelTabButtonTemplate = true,
         },
     })
     harness.addon.UI.Create()

@@ -51,8 +51,7 @@ end
 
 local function createTab(name, parent, text)
     local templates = {
-        "CharacterFrameTabButtonTemplate",
-        "OptionsFrameTabButtonTemplate",
+        "PanelTabButtonTemplate",
     }
 
     for _, template in ipairs(templates) do
