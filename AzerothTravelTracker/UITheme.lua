@@ -90,11 +90,11 @@ local function createSelectedBorder(parent)
 end
 
 function Theme.SetAtlasOrColor(texture, atlas, red, green, blue, alpha)
-    if texture
-        and type(texture.SetAtlas) == "function"
-        and pcall(texture.SetAtlas, texture, atlas, true)
-    then
-        return true
+    if texture and type(texture.SetAtlas) == "function" then
+        local succeeded, accepted = pcall(texture.SetAtlas, texture, atlas, true)
+        if succeeded and accepted ~= false then
+            return true
+        end
     end
 
     if texture and type(texture.SetColorTexture) == "function" then
@@ -123,16 +123,17 @@ function Theme.CreateSideTab(name, parent, options)
     local nativeTemplate = created and tab ~= nil
     if not nativeTemplate then
         tab = CreateFrame("Button", name, parent)
+        tab:SetSize(SIDE_TAB_SIZE, SIDE_TAB_SIZE)
     end
-
-    tab:SetSize(SIDE_TAB_SIZE, SIDE_TAB_SIZE)
 
     if not tab.Icon then
         tab.Icon = tab:CreateTexture(nil, "ARTWORK")
     end
     tab.Icon:SetTexture(options.icon)
-    tab.Icon:SetSize(32, 32)
-    tab.Icon:SetPoint("CENTER", tab, "CENTER", 0, 0)
+    if not nativeTemplate then
+        tab.Icon:SetSize(32, 32)
+        tab.Icon:SetPoint("CENTER", tab, "CENTER", 0, 0)
+    end
 
     if not tab.SelectedTexture then
         tab.SelectedTexture = createSelectedBorder(tab)

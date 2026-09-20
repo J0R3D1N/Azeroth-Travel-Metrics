@@ -18,6 +18,10 @@ local function newRegion(kind, parent, options)
         end
         self.atlas = atlas
         self.useAtlasSize = useAtlasSize
+        if options.returnFalseAtlases then
+            return false
+        end
+        return true
     end
 
     function region:SetColorTexture(red, green, blue, alpha)
@@ -30,6 +34,7 @@ local function newRegion(kind, parent, options)
     end
 
     function region:SetSize(width, height)
+        self.sizeCalls = (self.sizeCalls or 0) + 1
         self.width = width
         self.height = height
     end
@@ -39,6 +44,7 @@ local function newRegion(kind, parent, options)
     end
 
     function region:SetPoint(...)
+        self.pointCalls = (self.pointCalls or 0) + 1
         self.point = { ... }
         self.points = self.points or {}
         table.insert(self.points, self.point)
@@ -88,6 +94,7 @@ local function newFrame(frameType, name, parent, template, options)
     }
 
     function frame:SetSize(width, height)
+        self.sizeCalls = (self.sizeCalls or 0) + 1
         self.width = width
         self.height = height
     end
@@ -175,7 +182,19 @@ local function newHarness(options)
                 options
             )
             if template == "LargeSideTabButtonTemplate" then
+                frame.width = 58
+                frame.height = 60
                 frame.Icon = newRegion("Texture", frame, options)
+                frame.Icon.width = 36
+                frame.Icon.height = 36
+                frame.Icon.point = {
+                    "TOPLEFT",
+                    frame,
+                    "TOPLEFT",
+                    11,
+                    -10,
+                }
+                frame.Icon.points = { frame.Icon.point }
                 frame.SelectedTexture = newRegion("Texture", frame, options)
                 frame.SelectedTexture:Hide()
             end
@@ -239,6 +258,20 @@ testlib.case("ui theme applies an atlas or a visible color fallback", function()
     testlib.equal(fallback.color[4], 0.4)
     testlib.equal(fallback.shown, true)
 
+    local rejected = newRegion("Texture", nil, {
+        returnFalseAtlases = true,
+    })
+    testlib.equal(
+        addon.UITheme.SetAtlasOrColor(rejected, "rejected", 0.2, 0.3, 0.4, 0.5),
+        false
+    )
+    testlib.equal(rejected.atlas, "rejected")
+    testlib.equal(rejected.color[1], 0.2)
+    testlib.equal(rejected.color[2], 0.3)
+    testlib.equal(rejected.color[3], 0.4)
+    testlib.equal(rejected.color[4], 0.5)
+    testlib.equal(rejected.shown, true)
+
     local missing = newRegion("Texture", nil, {})
     missing.SetAtlas = nil
     testlib.equal(
@@ -258,9 +291,17 @@ testlib.case("ui theme creates native side tabs with supplied regions", function
 
     testlib.equal(calls.templates[1], "LargeSideTabButtonTemplate")
     testlib.equal(#calls.templates, 1)
-    testlib.equal(tab.width, 50)
-    testlib.equal(tab.height, 50)
+    testlib.equal(tab.width, 58)
+    testlib.equal(tab.height, 60)
+    testlib.equal(tab.sizeCalls, nil)
     testlib.equal(tab.Icon.texture, addon.UITheme.Icons.OVERVIEW)
+    testlib.equal(tab.Icon.width, 36)
+    testlib.equal(tab.Icon.height, 36)
+    testlib.equal(tab.Icon.sizeCalls, nil)
+    testlib.equal(tab.Icon.pointCalls, nil)
+    testlib.equal(tab.Icon.points[1][1], "TOPLEFT")
+    testlib.equal(tab.Icon.points[1][4], 11)
+    testlib.equal(tab.Icon.points[1][5], -10)
     testlib.truthy(tab.scripts.OnEnter)
     tab.scripts.OnEnter(tab)
     testlib.equal(calls.tooltipOwner, tab)
@@ -273,6 +314,10 @@ testlib.case("ui theme creates native side tabs with supplied regions", function
     testlib.equal(tab.SelectedTexture.shown, true)
     addon.UITheme.SetSideTabSelected(tab, false)
     testlib.equal(tab.SelectedTexture.shown, false)
+    testlib.equal(tab.sizeCalls, nil)
+    testlib.equal(tab.Icon.sizeCalls, nil)
+    testlib.equal(tab.Icon.pointCalls, nil)
+    testlib.equal(#tab.Icon.points, 1)
 end)
 
 testlib.case("ui theme creates a visible bare side tab fallback", function()
@@ -289,8 +334,18 @@ testlib.case("ui theme creates a visible bare side tab fallback", function()
     testlib.equal(#calls.templates, 2)
     testlib.equal(tab.width, 50)
     testlib.equal(tab.height, 50)
+    testlib.equal(tab.sizeCalls, 1)
     testlib.truthy(tab.Icon)
     testlib.equal(tab.Icon.texture, addon.UITheme.Icons.LEVELS)
+    testlib.equal(tab.Icon.width, 32)
+    testlib.equal(tab.Icon.height, 32)
+    testlib.equal(tab.Icon.sizeCalls, 1)
+    testlib.equal(tab.Icon.pointCalls, 1)
+    testlib.equal(tab.Icon.point[1], "CENTER")
+    testlib.equal(tab.Icon.point[2], tab)
+    testlib.equal(tab.Icon.point[3], "CENTER")
+    testlib.equal(tab.Icon.point[4], 0)
+    testlib.equal(tab.Icon.point[5], 0)
     testlib.truthy(tab.Background)
     testlib.truthy(tab.Background.color)
     testlib.equal(tab.Background.shown, true)
