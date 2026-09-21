@@ -15,13 +15,15 @@ end
 
 local function newCharacter(storage)
     local db = storage.Initialize(nil)
-    return storage.GetCharacter(db, "Thrall-Area 52", {
+    local character = storage.GetCharacter(db, "Thrall-Area 52", {
         name = "Thrall",
         realm = "Area 52",
         raceFile = "Orc",
         level = 12,
         now = 1000,
     })
+    storage.StartSession(character, 1000)
+    return character
 end
 
 testlib.case("storage initializes nil with v1 defaults", function()
@@ -139,11 +141,11 @@ testlib.case("storage repairs malformed HUD positions to safe center defaults", 
     end
 end)
 
-testlib.case("storage creates a character and current level bucket", function()
+testlib.case("storage creates a character without starting a session", function()
     local addon = loadStorage()
     local db = addon.Storage.Initialize(nil)
 
-    local character = addon.Storage.GetCharacter(db, "Thrall-Area 52", {
+    local character, resolution = addon.Storage.GetCharacter(db, "Thrall-Area 52", {
         name = "Thrall",
         realm = "Area 52",
         raceFile = "Orc",
@@ -151,6 +153,7 @@ testlib.case("storage creates a character and current level bucket", function()
         now = 1000,
     })
 
+    testlib.equal(resolution, "created")
     testlib.equal(db.characters["Thrall-Area 52"], character)
     testlib.equal(character.identity.name, "Thrall")
     testlib.equal(character.identity.realm, "Area 52")
@@ -159,12 +162,11 @@ testlib.case("storage creates a character and current level bucket", function()
     assertTotals(character.lifetime, 0, 0, 0)
     assertTotals(character.levels[12], 0, 0, 0)
     testlib.equal(character.levels[12].reachedAt, 1000)
-    assertTotals(character.session, 0, 0, 0)
-    testlib.equal(character.session.startedAt, 1000)
+    testlib.equal(character.session, nil)
     testlib.truthy(type(character.diagnostics) == "table")
 end)
 
-testlib.case("storage refreshes existing identity and starts a fresh session", function()
+testlib.case("storage starts a fresh session explicitly", function()
     local addon = loadStorage()
     local db = addon.Storage.Initialize(nil)
     local character = addon.Storage.GetCharacter(db, "Thrall-Area 52", {
@@ -174,9 +176,33 @@ testlib.case("storage refreshes existing identity and starts a fresh session", f
         level = 12,
         now = 1000,
     })
-    addon.Storage.AddDistance(character, 12, "onFoot", 25)
 
-    local sameCharacter = addon.Storage.GetCharacter(db, "Thrall-Area 52", {
+    local session = addon.Storage.StartSession(character, 1100)
+
+    testlib.equal(session, character.session)
+    assertTotals(session, 0, 0, 0)
+    testlib.equal(session.startedAt, 1100)
+end)
+
+testlib.case("storage exact lookup refreshes identity without resetting data", function()
+    local addon = loadStorage()
+    local db = addon.Storage.Initialize(nil)
+    local character = addon.Storage.GetCharacter(db, "Thrall-Area 52", {
+        name = "Thrall",
+        realm = "Area 52",
+        raceFile = "Orc",
+        level = 12,
+        now = 1000,
+    })
+    addon.Storage.StartSession(character, 1000)
+    addon.Storage.AddDistance(character, 12, "onFoot", 25)
+    character.diagnostics.samples = 7
+    local session = character.session
+    local lifetime = character.lifetime
+    local levels = character.levels
+    local diagnostics = character.diagnostics
+
+    local sameCharacter, resolution = addon.Storage.GetCharacter(db, "Thrall-Area 52", {
         name = "Goel",
         realm = "Area 52",
         raceFile = "MagharOrc",
@@ -184,7 +210,12 @@ testlib.case("storage refreshes existing identity and starts a fresh session", f
         now = 2000,
     })
 
+    testlib.equal(resolution, "exact")
     testlib.equal(sameCharacter, character)
+    testlib.equal(character.session, session)
+    testlib.equal(character.lifetime, lifetime)
+    testlib.equal(character.levels, levels)
+    testlib.equal(character.diagnostics, diagnostics)
     testlib.equal(character.identity.name, "Goel")
     testlib.equal(character.identity.realm, "Area 52")
     testlib.equal(character.identity.raceFile, "MagharOrc")
@@ -194,8 +225,132 @@ testlib.case("storage refreshes existing identity and starts a fresh session", f
     testlib.equal(character.levels[12].reachedAt, 1000)
     assertTotals(character.levels[13], 0, 0, 0)
     testlib.equal(character.levels[13].reachedAt, 2000)
-    assertTotals(character.session, 0, 0, 0)
-    testlib.equal(character.session.startedAt, 2000)
+    assertTotals(character.session, 25, 0, 0)
+    testlib.equal(character.session.startedAt, 1000)
+    testlib.equal(character.diagnostics.samples, 7)
+end)
+
+testlib.case("storage uniquely rekeys a normalized identity without losing data", function()
+    local addon = loadStorage()
+    local character = {
+        identity = {
+            name = " Thr all ",
+            realm = " Area 52 ",
+            raceFile = "Orc",
+            firstSeenAt = 500,
+        },
+        session = {
+            onFoot = 11,
+            swimming = 12,
+            taxi = 13,
+            startedAt = 700,
+        },
+        lifetime = {
+            onFoot = 21,
+            swimming = 22,
+            taxi = 23,
+        },
+        levels = {
+            [11] = {
+                onFoot = 31,
+                swimming = 32,
+                taxi = 33,
+                reachedAt = 600,
+            },
+        },
+        diagnostics = {
+            samples = 9,
+        },
+    }
+    local db = addon.Storage.Initialize({
+        schemaVersion = addon.SCHEMA_VERSION,
+        characters = {
+            [" Thr all - Area 52 "] = character,
+        },
+    })
+    local session = character.session
+    local lifetime = character.lifetime
+    local levels = character.levels
+    local diagnostics = character.diagnostics
+
+    local resolved, resolution = addon.Storage.GetCharacter(db, "Thrall-Area52", {
+        name = "thrall",
+        realm = "AREA52",
+        raceFile = "MagharOrc",
+        level = 12,
+        now = 2000,
+    })
+
+    testlib.equal(resolution, "rekeyed")
+    testlib.equal(resolved, character)
+    testlib.equal(db.characters["Thrall-Area52"], character)
+    testlib.equal(db.characters[" Thr all - Area 52 "], nil)
+    testlib.equal(character.session, session)
+    testlib.equal(character.lifetime, lifetime)
+    testlib.equal(character.levels, levels)
+    testlib.equal(character.diagnostics, diagnostics)
+    testlib.equal(character.identity.name, "thrall")
+    testlib.equal(character.identity.realm, "AREA52")
+    testlib.equal(character.identity.raceFile, "MagharOrc")
+    testlib.equal(character.identity.firstSeenAt, 500)
+    assertTotals(character.session, 11, 12, 13)
+    assertTotals(character.lifetime, 21, 22, 23)
+    assertTotals(character.levels[11], 31, 32, 33)
+    assertTotals(character.levels[12], 0, 0, 0)
+    testlib.equal(character.levels[12].reachedAt, 2000)
+    testlib.equal(character.diagnostics.samples, 9)
+end)
+
+testlib.case("storage leaves ambiguous identity matches separate", function()
+    local addon = loadStorage()
+    local first = {
+        identity = {
+            name = "Thrall",
+            realm = "Area 52",
+            firstSeenAt = 100,
+        },
+        session = { onFoot = 1, swimming = 2, taxi = 3, startedAt = 200 },
+        lifetime = { onFoot = 4, swimming = 5, taxi = 6 },
+        levels = {},
+        diagnostics = {},
+    }
+    local second = {
+        identity = {
+            name = " thr all ",
+            realm = "area52",
+            firstSeenAt = 300,
+        },
+        session = { onFoot = 7, swimming = 8, taxi = 9, startedAt = 400 },
+        lifetime = { onFoot = 10, swimming = 11, taxi = 12 },
+        levels = {},
+        diagnostics = {},
+    }
+    local db = addon.Storage.Initialize({
+        schemaVersion = addon.SCHEMA_VERSION,
+        characters = {
+            ["Thrall-Area 52-old"] = first,
+            ["Thrall-Area52-other"] = second,
+        },
+    })
+
+    local character, resolution = addon.Storage.GetCharacter(db, "Thrall-Area52", {
+        name = "THRALL",
+        realm = "AREA 52",
+        raceFile = "Orc",
+        level = 12,
+        now = 1000,
+    })
+
+    testlib.equal(resolution, "ambiguous")
+    testlib.equal(db.characters["Thrall-Area 52-old"], first)
+    testlib.equal(db.characters["Thrall-Area52-other"], second)
+    testlib.equal(db.characters["Thrall-Area52"], character)
+    testlib.truthy(character ~= first)
+    testlib.truthy(character ~= second)
+    testlib.equal(character.diagnostics.ambiguousIdentity, 1)
+    testlib.equal(character.session, nil)
+    assertTotals(character.lifetime, 0, 0, 0)
+    assertTotals(character.levels[12], 0, 0, 0)
 end)
 
 testlib.case("storage adds distance to session lifetime and current level", function()

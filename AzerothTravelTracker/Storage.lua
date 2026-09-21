@@ -58,6 +58,66 @@ local function ensureTotals(totals)
     return totals
 end
 
+local function normalizeIdentityPart(value)
+    if type(value) ~= "string" then
+        return nil
+    end
+
+    return string.lower((value:match("^%s*(.-)%s*$"):gsub("%s+", "")))
+end
+
+local function identityMatches(character, identity)
+    if type(character) ~= "table"
+        or type(character.identity) ~= "table"
+    then
+        return false
+    end
+
+    local characterName = normalizeIdentityPart(character.identity.name)
+    local characterRealm = normalizeIdentityPart(character.identity.realm)
+    local identityName = normalizeIdentityPart(identity.name)
+    local identityRealm = normalizeIdentityPart(identity.realm)
+
+    return characterName ~= nil
+        and characterRealm ~= nil
+        and characterName == identityName
+        and characterRealm == identityRealm
+end
+
+local function createCharacter(identity)
+    return {
+        identity = {
+            name = identity.name,
+            realm = identity.realm,
+            raceFile = identity.raceFile,
+            firstSeenAt = identity.now,
+        },
+        lifetime = newTotals(),
+        levels = {},
+        diagnostics = {},
+    }
+end
+
+local function refreshCharacter(character, identity)
+    character.identity = character.identity or {}
+    character.lifetime = ensureTotals(character.lifetime)
+    character.levels = character.levels or {}
+    character.diagnostics = character.diagnostics or {}
+
+    if character.identity.firstSeenAt == nil then
+        character.identity.firstSeenAt = identity.now
+    end
+    if identity.name ~= nil then
+        character.identity.name = identity.name
+    end
+    if identity.realm ~= nil then
+        character.identity.realm = identity.realm
+    end
+    if identity.raceFile ~= nil then
+        character.identity.raceFile = identity.raceFile
+    end
+end
+
 local function initializeVersionOne(db)
     db.schemaVersion = ATT.SCHEMA_VERSION
     db.settings = db.settings or {}
@@ -149,46 +209,47 @@ function Storage.ResetSession(character, now)
     return character.session
 end
 
+function Storage.StartSession(character, now)
+    return Storage.ResetSession(character, now)
+end
+
 function Storage.GetCharacter(db, key, identity)
     local character = db.characters[key]
+    local resolution = "exact"
 
     if character == nil then
-        character = {
-            identity = {
-                name = identity.name,
-                realm = identity.realm,
-                raceFile = identity.raceFile,
-                firstSeenAt = identity.now,
-            },
-            lifetime = newTotals(),
-            levels = {},
-            diagnostics = {},
-        }
-        db.characters[key] = character
-    else
-        character.identity = character.identity or {}
-        character.lifetime = ensureTotals(character.lifetime)
-        character.levels = character.levels or {}
-        character.diagnostics = character.diagnostics or {}
+        local matchedKey
 
-        if character.identity.firstSeenAt == nil then
-            character.identity.firstSeenAt = identity.now
+        for existingKey, existingCharacter in pairs(db.characters) do
+            if identityMatches(existingCharacter, identity) then
+                if matchedKey ~= nil then
+                    matchedKey = false
+                    break
+                end
+
+                matchedKey = existingKey
+            end
         end
-        if identity.name ~= nil then
-            character.identity.name = identity.name
+
+        if matchedKey then
+            character = db.characters[matchedKey]
+            db.characters[matchedKey] = nil
+            resolution = "rekeyed"
+        else
+            character = createCharacter(identity)
+            resolution = matchedKey == false and "ambiguous" or "created"
+            if resolution == "ambiguous" then
+                character.diagnostics.ambiguousIdentity = 1
+            end
         end
-        if identity.realm ~= nil then
-            character.identity.realm = identity.realm
-        end
-        if identity.raceFile ~= nil then
-            character.identity.raceFile = identity.raceFile
-        end
+
+        db.characters[key] = character
     end
 
+    refreshCharacter(character, identity)
     Storage.EnsureLevel(character, identity.level, identity.now)
-    Storage.ResetSession(character, identity.now)
 
-    return character
+    return character, resolution
 end
 
 function Storage.AddDistance(character, level, category, yards)
