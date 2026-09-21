@@ -201,7 +201,11 @@ Present.lua
 
     Test-Throws `
         -Name 'manifest rejects the ambiguous pre-Forever title' `
-        -MessagePattern 'WoW: Forever \(beta\)' `
+        -MessagePattern (
+            '\A' + [regex]::Escape(
+                "Addon TOC Title must be 'Azeroth Travel Tracker - WoW: Forever (beta)', found 'Azeroth Travel Tracker'."
+            ) + '\z'
+        ) `
         -Action {
             Assert-AddonManifest `
                 -TocPath $oldTitleToc `
