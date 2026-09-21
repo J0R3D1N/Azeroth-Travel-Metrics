@@ -123,8 +123,10 @@ The clean package intentionally excludes `X-ForeverSVFix` markers, `ForeverSVFix
 
 ### Icon assets
 
-The editable source JPGs live in `artwork/source/`. Regenerate the three
-64 x 64 WoW runtime textures with:
+The editable source JPGs live in `artwork/source/`. The small title and
+minimap badge is generated from `azeroth_travel_metrics.jpg`; the Overview
+and By Level tab sources remain `overview_icon.jpg` and `by_level_icon.jpg`.
+Regenerate the three 64 x 64 WoW runtime textures with:
 
 ```powershell
 python .\tools\Build-IconAssets.py

@@ -1,4 +1,3 @@
-from collections import deque
 from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw
@@ -8,15 +7,14 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "artwork" / "source"
 TARGET = ROOT / "AzerothTravelTracker" / "Media"
 ASSETS = {
-    "att_logo_400x400.jpg": "ATTLogo.tga",
-    "overview_icon.jpg": "Overview.tga",
-    "by_level_icon.jpg": "ByLevel.tga",
+    "azeroth_travel_metrics.jpg": ("ATTLogo.tga", "circle"),
+    "overview_icon.jpg": ("Overview.tga", "rounded"),
+    "by_level_icon.jpg": ("ByLevel.tga", "rounded"),
 }
 SIZE = 64
 MASK_SCALE = 4
 CORNER_RADIUS = 14
-WHITE_MINIMUM = 235
-WHITE_CHANNEL_RANGE = 24
+CIRCLE_INSET = 5
 
 
 def center_crop(image: Image.Image) -> Image.Image:
@@ -24,47 +22,6 @@ def center_crop(image: Image.Image) -> Image.Image:
     left = (image.width - edge) // 2
     top = (image.height - edge) // 2
     return image.crop((left, top, left + edge, top + edge))
-
-
-def clear_edge_white(image: Image.Image) -> Image.Image:
-    rgba = image.convert("RGBA")
-    pixels = rgba.load()
-    width, height = rgba.size
-    queue = deque()
-    seen = set()
-
-    for x in range(width):
-        queue.append((x, 0))
-        queue.append((x, height - 1))
-    for y in range(height):
-        queue.append((0, y))
-        queue.append((width - 1, y))
-
-    while queue:
-        x, y = queue.popleft()
-        if (x, y) in seen:
-            continue
-        seen.add((x, y))
-
-        red, green, blue, _ = pixels[x, y]
-        if (
-            min(red, green, blue) < WHITE_MINIMUM
-            or max(red, green, blue) - min(red, green, blue)
-            > WHITE_CHANNEL_RANGE
-        ):
-            continue
-
-        pixels[x, y] = (red, green, blue, 0)
-        if x > 0:
-            queue.append((x - 1, y))
-        if x + 1 < width:
-            queue.append((x + 1, y))
-        if y > 0:
-            queue.append((x, y - 1))
-        if y + 1 < height:
-            queue.append((x, y + 1))
-
-    return rgba
 
 
 def resize_premultiplied(
@@ -78,38 +35,63 @@ def resize_premultiplied(
     )
 
 
-def apply_corner_mask(image: Image.Image) -> Image.Image:
-    rgba = image.convert("RGBA")
-    mask = Image.new("L", rgba.size, 0)
+def circular_mask(size: int, scale: int = MASK_SCALE) -> Image.Image:
+    large = Image.new("L", (size * scale, size * scale), 0)
+    draw = ImageDraw.Draw(large)
+    inset = CIRCLE_INSET * scale
+    draw.ellipse(
+        (inset, inset, size * scale - inset - 1, size * scale - inset - 1),
+        fill=255,
+    )
+    return large.resize((size, size), Image.Resampling.LANCZOS)
+
+
+def rounded_mask(size: int) -> Image.Image:
+    mask = Image.new("L", (size, size), 0)
     draw = ImageDraw.Draw(mask)
     draw.rounded_rectangle(
-        (0, 0, rgba.width - 1, rgba.height - 1),
+        (0, 0, size - 1, size - 1),
         radius=CORNER_RADIUS * MASK_SCALE,
         fill=255,
     )
+    return mask
+
+
+def apply_alpha_mask(
+    image: Image.Image, mask: Image.Image
+) -> Image.Image:
+    rgba = image.convert("RGBA")
     rgba.putalpha(ImageChops.multiply(rgba.getchannel("A"), mask))
     return rgba
 
 
-def build(source_name: str, target_name: str) -> None:
+def build(source_name: str, target_name: str, mask_kind: str) -> None:
     with Image.open(SOURCE / source_name) as original:
         cropped = center_crop(original)
-        prepared = (
-            clear_edge_white(cropped)
-            if target_name == "ATTLogo.tga"
-            else cropped.convert("RGBA")
-        )
-        working_size = (SIZE * MASK_SCALE, SIZE * MASK_SCALE)
-        supersampled = resize_premultiplied(prepared, working_size)
-        masked = apply_corner_mask(supersampled)
-        resized = resize_premultiplied(masked, (SIZE, SIZE))
+        if mask_kind == "circle":
+            resized = resize_premultiplied(cropped, (SIZE, SIZE))
+            mask = circular_mask(SIZE)
+            output = apply_alpha_mask(resized, mask)
+        elif mask_kind == "rounded":
+            working_size = SIZE * MASK_SCALE
+            supersampled = resize_premultiplied(
+                cropped,
+                (working_size, working_size),
+            )
+            mask = rounded_mask(working_size)
+            output = resize_premultiplied(
+                apply_alpha_mask(supersampled, mask),
+                (SIZE, SIZE),
+            )
+        else:
+            raise ValueError(f"unsupported mask kind: {mask_kind}")
         TARGET.mkdir(parents=True, exist_ok=True)
-        resized.save(TARGET / target_name, format="TGA", compression=None)
+        output.save(TARGET / target_name, format="TGA", compression=None)
 
 
 def main() -> None:
-    for source_name, target_name in ASSETS.items():
-        build(source_name, target_name)
+    for source_name, (target_name, mask_kind) in ASSETS.items():
+        build(source_name, target_name, mask_kind)
 
 
 if __name__ == "__main__":

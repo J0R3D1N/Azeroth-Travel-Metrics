@@ -41,6 +41,49 @@ def image_pixels(image):
 
 
 class IconAssetTests(unittest.TestCase):
+    def test_builder_uses_metrics_badge_source_and_preserves_tab_sources(self):
+        builder = load_builder()
+
+        self.assertEqual(
+            {
+                "azeroth_travel_metrics.jpg": ("ATTLogo.tga", "circle"),
+                "overview_icon.jpg": ("Overview.tga", "rounded"),
+                "by_level_icon.jpg": ("ByLevel.tga", "rounded"),
+            },
+            builder.ASSETS,
+        )
+
+    def test_att_logo_uses_circular_alpha_mask(self):
+        with Image.open(MEDIA / "ATTLogo.tga") as source:
+            image = source.convert("RGBA")
+
+        self.assertEqual((64, 64), image.size)
+        self.assertEqual("RGBA", image.mode)
+        self.assertEqual(
+            [0, 0, 0, 0],
+            [
+                image.getpixel((0, 0))[3],
+                image.getpixel((63, 0))[3],
+                image.getpixel((0, 63))[3],
+                image.getpixel((63, 63))[3],
+            ],
+        )
+        pixels = image_pixels(image)
+        self.assertGreater(
+            sum(pixel[3] == 0 for pixel in pixels),
+            400,
+        )
+        self.assertEqual(255, image.getpixel((32, 32))[3])
+
+        white_fringe = [
+            pixel
+            for pixel in pixels
+            if 0 < pixel[3] < 255
+            and min(pixel[:3]) >= 245
+            and max(pixel[:3]) - min(pixel[:3]) <= 12
+        ]
+        self.assertEqual([], white_fringe)
+
     def test_committed_icons_have_antialiased_transparent_corners(self):
         for asset_name in ASSET_NAMES:
             with self.subTest(asset=asset_name):
