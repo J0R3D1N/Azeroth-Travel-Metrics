@@ -110,10 +110,10 @@ The minimize button sits immediately left of Close and uses matching padding,
 size, border treatment, and frame level.
 
 The 44-pixel title region keeps the existing title font and 24 x 24 controls.
-Its framed sprint icon is 32 x 32, vertically centered with six pixels of
-margin above and below. The title glow fills the complete title region so the
-icon, text, minimize control, and Close control all sit within the colored
-strip without moving the tabs or content below it.
+Its framed ATT logo is 32 x 32, vertically centered with six pixels of margin
+above and below. The title glow fills the complete title region so the icon,
+text, minimize control, and Close control all sit within the colored strip
+without moving the tabs or content below it.
 
 ## Section Spacing
 
@@ -181,9 +181,23 @@ The launcher remains above the minimap border through a small relative frame
 level increase without using a globally elevated strata.
 
 The native tracking-border artwork keeps its Forever/classic alignment. The
-sprint artwork is 20 x 20 inside the visible ring, matching the 20 x 20
+ATT logo artwork is 20 x 20 inside the visible ring, matching the 20 x 20
 background, while the corrected ring alignment and rim tangency remain
 unchanged.
+
+## Custom Icon Assets
+
+Three user-provided source images become optimized 64 x 64 TGA textures under
+`AzerothTravelTracker\Media\`:
+
+- `att_logo` is used by the title and minimap launcher;
+- `overview_icon` is used by the Overview side tab;
+- `by_level_icon` is used by the By Level side tab.
+
+The conversion uses square crops and transparent outside corners so no white
+JPEG canvas appears in WoW. The package contains only the optimized runtime
+textures, not the multi-megabyte source JPGs or the `tab_iconography` reference
+sheet.
 
 ## AddOns Menu Identity
 
