@@ -2275,10 +2275,13 @@ testlib.case("addon manifest references only files present in this task", functi
 
     toc:close()
     local minimapIndex
+    local uiThemeIndex
     local uiIndex
     local coreIndex
     for index, fileName in ipairs(files) do
-        if fileName == "UI.lua" then
+        if fileName == "UITheme.lua" then
+            uiThemeIndex = index
+        elseif fileName == "UI.lua" then
             uiIndex = index
         elseif fileName == "Minimap.lua" then
             minimapIndex = index
@@ -2286,9 +2289,38 @@ testlib.case("addon manifest references only files present in this task", functi
             coreIndex = index
         end
     end
+    testlib.truthy(uiThemeIndex ~= nil, "UITheme.lua missing from TOC")
     testlib.truthy(uiIndex ~= nil, "UI.lua missing from TOC")
     testlib.truthy(minimapIndex ~= nil, "Minimap.lua missing from TOC")
     testlib.truthy(coreIndex ~= nil, "Core.lua missing from TOC")
+    testlib.truthy(uiThemeIndex < uiIndex, "UITheme.lua must load before UI.lua")
     testlib.truthy(uiIndex < minimapIndex, "Minimap.lua must load after UI.lua")
     testlib.truthy(minimapIndex < coreIndex, "Minimap.lua must load before Core.lua")
+end)
+
+testlib.case("addon manifest declares the sprint listing icon", function()
+    local source = debug.getinfo(1, "S").source:sub(2)
+    local testsDirectory = source:match("^(.*)[\\/][^\\/]+$") or "."
+    local projectDirectory = testsDirectory:match("^(.*)[\\/][^\\/]+$") or "."
+    local separator = package.config:sub(1, 1)
+    local tocPath = projectDirectory
+        .. separator
+        .. "AzerothTravelTracker"
+        .. separator
+        .. "AzerothTravelTracker.toc"
+    local toc = assert(io.open(tocPath, "r"))
+    local iconTextureLines = {}
+
+    for line in toc:lines() do
+        if line:match("^##%s*IconTexture:") then
+            table.insert(iconTextureLines, line)
+        end
+    end
+
+    toc:close()
+    testlib.equal(#iconTextureLines, 1)
+    testlib.equal(
+        iconTextureLines[1],
+        "## IconTexture: Interface\\Icons\\Ability_Rogue_Sprint"
+    )
 end)

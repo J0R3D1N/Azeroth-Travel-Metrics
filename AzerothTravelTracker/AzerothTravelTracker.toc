@@ -3,6 +3,7 @@
 ## Notes: Tracks estimated steps and travel distance.
 ## Author: Jason Parker
 ## Version: 0.1.0-beta
+## IconTexture: Interface\Icons\Ability_Rogue_Sprint
 ## SavedVariables: AzerothTravelTrackerDB
 
 Namespace.lua
