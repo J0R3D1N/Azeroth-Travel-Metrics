@@ -6,7 +6,7 @@ local MinimapLauncher = ATT.Minimap
 local DEFAULT_ANGLE = 225
 local BUTTON_SIZE = 32
 local BORDER_SIZE = 54
-local BUTTON_OUTER_RADIUS = BORDER_SIZE / 2
+local VISIBLE_RING_RADIUS = BUTTON_SIZE / 2
 local DEFAULT_MINIMAP_DIAMETER = 150
 local DEFAULT_MINIMAP_SHAPE = "ROUND"
 local OFFSET_SOLVE_ITERATIONS = 32
@@ -191,7 +191,7 @@ function MinimapLauncher.CalculateMinimapOffset(
     padding,
     shape
 )
-    padding = padding == nil and BUTTON_OUTER_RADIUS or padding
+    padding = padding == nil and VISIBLE_RING_RADIUS or padding
     if not isFiniteNumber(angleDegrees)
         or not isFiniteNumber(padding)
         or padding <= 0
@@ -291,7 +291,7 @@ local function positionButton(angle)
         angle,
         width,
         height,
-        BUTTON_OUTER_RADIUS,
+        VISIBLE_RING_RADIUS,
         getMinimapShape()
     )
     if not isFiniteNumber(x) or not isFiniteNumber(y) then
@@ -401,20 +401,20 @@ function MinimapLauncher.Create()
 
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
-    background:SetSize(24, 24)
-    background:SetPoint("CENTER", button, "CENTER", 0, 0)
+    background:SetSize(20, 20)
+    background:SetPoint("TOPLEFT", button, "TOPLEFT", 7, -5)
     MinimapLauncher.background = background
 
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetTexture("Interface\\Icons\\Ability_Rogue_Sprint")
-    icon:SetSize(20, 20)
-    icon:SetPoint("CENTER", button, "CENTER", 0, 0)
+    icon:SetSize(17, 17)
+    icon:SetPoint("TOPLEFT", button, "TOPLEFT", 7, -6)
     MinimapLauncher.icon = icon
 
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
     border:SetSize(BORDER_SIZE, BORDER_SIZE)
-    border:SetPoint("CENTER", button, "CENTER", 0, 0)
+    border:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
     MinimapLauncher.border = border
 
     button:SetScript("OnEnter", function(self)

@@ -4,7 +4,7 @@ local MINIMAP_FILES = {
     "AzerothTravelTracker\\Namespace.lua",
     "AzerothTravelTracker\\Minimap.lua",
 }
-local LAUNCHER_OUTER_RADIUS = 27
+local VISIBLE_RING_RADIUS = 16
 local SHAPE_QUADRANTS = {
     ROUND = { true, true, true, true },
     SQUARE = { false, false, false, false },
@@ -412,20 +412,20 @@ testlib.case("minimap calculates offsets from live rectangular dimensions", func
     })
 
     local x, y = addon.Minimap.CalculateMinimapOffset(0, 200, 160)
-    testlib.near(x, 127, 0.0001)
+    testlib.near(x, 116, 0.0001)
     testlib.near(y, 0, 0.0001)
 
     x, y = addon.Minimap.CalculateMinimapOffset(90, 200, 160)
     testlib.near(x, 0, 0.0001)
-    testlib.near(y, 107, 0.0001)
+    testlib.near(y, 96, 0.0001)
 
     x, y = addon.Minimap.CalculateMinimapOffset(45, 200, 160)
-    testlib.near(x, 81.9157, 0.0001)
-    testlib.near(y, 81.9157, 0.0001)
+    testlib.near(x, 74.0140, 0.0001)
+    testlib.near(y, 74.0140, 0.0001)
     testlib.near(math.deg(math.atan(y / x)), 45, 0.0001)
 
     x, y = addon.Minimap.CalculateMinimapOffset(45, 140, 140)
-    local expected = (70 + LAUNCHER_OUTER_RADIUS) / math.sqrt(2)
+    local expected = (70 + VISIBLE_RING_RADIUS) / math.sqrt(2)
     testlib.near(x, expected, 0.0001)
     testlib.near(y, expected, 0.0001)
 end)
@@ -479,7 +479,7 @@ testlib.case("minimap offsets preserve Euclidean rim clearance", function()
             case.angle,
             case.width,
             case.height,
-            LAUNCHER_OUTER_RADIUS,
+            VISIBLE_RING_RADIUS,
             case.shape
         )
         assertMinimapClearance(
@@ -544,15 +544,15 @@ testlib.case("minimap dimensions fall back independently", function()
     })
 
     local x, y = addon.Minimap.CalculateMinimapOffset(0, 200, 0 / 0)
-    testlib.near(x, 127, 0.0001)
+    testlib.near(x, 116, 0.0001)
     testlib.near(y, 0, 0.0001)
 
     x, y = addon.Minimap.CalculateMinimapOffset(90, -1, 160)
     testlib.near(x, 0, 0.0001)
-    testlib.near(y, 107, 0.0001)
+    testlib.near(y, 96, 0.0001)
 
     x, y = addon.Minimap.CalculateMinimapOffset(0, nil, nil)
-    testlib.near(x, 102, 0.0001)
+    testlib.near(x, 91, 0.0001)
     testlib.near(y, 0, 0.0001)
 end)
 
@@ -588,7 +588,7 @@ testlib.case("minimap default placement uses live dimensions", function()
     })
     local button = harness.addon.Minimap.Create()
 
-    testlib.near(button.point[4], 127, 0.0001)
+    testlib.near(button.point[4], 116, 0.0001)
     testlib.near(button.point[5], 0, 0.0001)
 end)
 
@@ -600,7 +600,7 @@ testlib.case("minimap placement falls back when dimensions are invalid", functio
     })
     local button = harness.addon.Minimap.Create()
 
-    testlib.near(button.point[4], 127, 0.0001)
+    testlib.near(button.point[4], 116, 0.0001)
     testlib.near(button.point[5], 0, 0.0001)
 
     local missingHarness = newHarness({
@@ -609,7 +609,7 @@ testlib.case("minimap placement falls back when dimensions are invalid", functio
     })
     local missingButton = missingHarness.addon.Minimap.Create()
     testlib.near(missingButton.point[4], 0, 0.0001)
-    testlib.near(missingButton.point[5], 102, 0.0001)
+    testlib.near(missingButton.point[5], 91, 0.0001)
 end)
 
 testlib.case("minimap shape lookup safely defaults to round", function()
@@ -625,8 +625,8 @@ testlib.case("minimap shape lookup safely defaults to round", function()
         options.height = 140
         local harness = newHarness(options)
         local button = harness.addon.Minimap.Create()
-        testlib.near(button.point[4], 68.5894, 0.0001)
-        testlib.near(button.point[5], 68.5894, 0.0001)
+        testlib.near(button.point[4], 60.8112, 0.0001)
+        testlib.near(button.point[5], 60.8112, 0.0001)
     end
 end)
 
@@ -637,8 +637,8 @@ testlib.case("minimap live shape selects the current quadrant geometry", functio
         height = 140,
         shape = "CORNER-TOPLEFT",
     })
-    testlib.near(curvedHarness.addon.Minimap.button.point[4], -68.5894, 0.0001)
-    testlib.near(curvedHarness.addon.Minimap.button.point[5], 68.5894, 0.0001)
+    testlib.near(curvedHarness.addon.Minimap.button.point[4], -60.8112, 0.0001)
+    testlib.near(curvedHarness.addon.Minimap.button.point[5], 60.8112, 0.0001)
 
     local edgeHarness = newHarness({
         angle = 45,
@@ -646,8 +646,8 @@ testlib.case("minimap live shape selects the current quadrant geometry", functio
         height = 140,
         shape = "CORNER-TOPLEFT",
     })
-    testlib.near(edgeHarness.addon.Minimap.button.point[4], 89.0919, 0.0001)
-    testlib.near(edgeHarness.addon.Minimap.button.point[5], 89.0919, 0.0001)
+    testlib.near(edgeHarness.addon.Minimap.button.point[4], 81.3137, 0.0001)
+    testlib.near(edgeHarness.addon.Minimap.button.point[5], 81.3137, 0.0001)
 end)
 
 testlib.case("minimap normalizes angles and rejects invalid values", function()
@@ -680,7 +680,7 @@ testlib.case("minimap create is idempotent native and interactive", function()
     testlib.equal(first.width, 32)
     testlib.equal(first.height, 32)
     testlib.truthy(first.frameLevel > harness.minimapFrame:GetFrameLevel())
-    testlib.near(first.point[4], 127, 0.0001)
+    testlib.near(first.point[4], 116, 0.0001)
     testlib.near(first.point[5], 0, 0.0001)
     testlib.truthy(#first.textures >= 3)
     testlib.truthy(contains(first.textures[1].texture, "Minimap"))
@@ -688,12 +688,28 @@ testlib.case("minimap create is idempotent native and interactive", function()
         first.textures[2].texture,
         "Interface\\Icons\\Ability_Rogue_Sprint"
     )
+    local background = harness.addon.Minimap.background
+    testlib.equal(background.width, 20)
+    testlib.equal(background.height, 20)
+    testlib.equal(background.point[1], "TOPLEFT")
+    testlib.equal(background.point[2], first)
+    testlib.equal(background.point[3], "TOPLEFT")
+    testlib.equal(background.point[4], 7)
+    testlib.equal(background.point[5], -5)
+    local icon = harness.addon.Minimap.icon
+    testlib.equal(icon.width, 17)
+    testlib.equal(icon.height, 17)
+    testlib.equal(icon.point[1], "TOPLEFT")
+    testlib.equal(icon.point[2], first)
+    testlib.equal(icon.point[3], "TOPLEFT")
+    testlib.equal(icon.point[4], 7)
+    testlib.equal(icon.point[5], -6)
     local border = harness.addon.Minimap.border
     testlib.equal(border.width, 54)
     testlib.equal(border.height, 54)
-    testlib.equal(border.point[1], "CENTER")
+    testlib.equal(border.point[1], "TOPLEFT")
     testlib.equal(border.point[2], first)
-    testlib.equal(border.point[3], "CENTER")
+    testlib.equal(border.point[3], "TOPLEFT")
     testlib.equal(border.point[4], 0)
     testlib.equal(border.point[5], 0)
     testlib.truthy(type(first.scripts.OnEnter) == "function")
@@ -739,7 +755,7 @@ testlib.case("minimap drag prefers minimap effective scale", function()
     testlib.near(harness.db.settings.minimapAngle, 37.5686, 0.0001)
     testlib.near(
         math.sqrt(button.point[4] ^ 2 + button.point[5] ^ 2),
-        97,
+        86,
         0.0001
     )
 end)
@@ -848,8 +864,8 @@ testlib.case("minimap drag persists angle across recreation", function()
         shape = "SQUARE",
     })
     local recreatedButton = recreatedHarness.addon.Minimap.button
-    testlib.near(recreatedButton.point[4], 89.0919, 0.0001)
-    testlib.near(recreatedButton.point[5], 89.0919, 0.0001)
+    testlib.near(recreatedButton.point[4], 81.3137, 0.0001)
+    testlib.near(recreatedButton.point[5], 81.3137, 0.0001)
     testlib.near(
         math.deg(math.atan(recreatedButton.point[5] / recreatedButton.point[4])),
         db.settings.minimapAngle,

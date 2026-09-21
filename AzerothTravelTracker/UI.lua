@@ -18,6 +18,7 @@ local LEVEL_CONTENT_WIDTH = 348
 local LEVEL_SCROLLBAR_GAP = 4
 local LEVEL_SCROLLBAR_TOP_INSET = 14
 local LEVEL_SCROLLBAR_BOTTOM_INSET = 16
+local MAIN_FRAME_LEVEL = 100
 local HUD_REST_ALPHA = 0.45
 local HUD_HOVER_ALPHA = 0.92
 local HUD_WIDTH = 220
@@ -482,6 +483,7 @@ local function createHUD()
     local point, x, y = getHUDPosition()
     frame:SetPoint(point, UIParent, point, x, y)
     safeSetFrameStrata(frame)
+    frame:SetFrameLevel(MAIN_FRAME_LEVEL)
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
@@ -814,6 +816,7 @@ function UI.Create()
     frame:SetSize(420, 430)
     frame:SetPoint("CENTER")
     safeSetFrameStrata(frame)
+    frame:SetFrameLevel(MAIN_FRAME_LEVEL)
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")

@@ -2205,6 +2205,7 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     testlib.equal(first.width, 420)
     testlib.equal(first.height, 430)
     testlib.equal(first.strata, "MEDIUM")
+    testlib.equal(first:GetFrameLevel(), 100)
     testlib.truthy(first.backdrop ~= nil)
     testlib.equal(
         first.backdrop[1].bgFile,
@@ -2766,6 +2767,7 @@ testlib.case("ui selects only safe non-fullscreen strata for main and HUD", func
 
         harness.addon.UI.Minimize()
         testlib.equal(harness.addon.UI.hud.frame.strata, case.expected)
+        testlib.equal(harness.addon.UI.hud.frame:GetFrameLevel(), 100)
         testlib.equal(#harness.calls.hudStrataAttempts, #case.attempts)
         for index, expectedStrata in ipairs(case.attempts) do
             testlib.equal(
