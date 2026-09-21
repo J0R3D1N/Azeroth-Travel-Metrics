@@ -61,7 +61,7 @@ Match APL's lighter layered treatment:
 - `UI-DialogBox-Gold-Background` uses a subtle tint near
   `(0.80, 0.58, 0.18, 0.08)`;
 - the vertical vignette fades from 0.16 alpha to 0.03 alpha;
-- the top glow is 28 pixels high and fades from 0.14 alpha to
+- the top glow fills the 44-pixel title area and fades from 0.14 alpha to
   0.01 alpha;
 - no additional near-opaque texture covers the complete interior.
 
@@ -108,6 +108,12 @@ title region:
 
 The minimize button sits immediately left of Close and uses matching padding,
 size, border treatment, and frame level.
+
+The 44-pixel title region keeps the existing title font and 24 x 24 controls.
+Its framed sprint icon is 32 x 32, vertically centered with six pixels of
+margin above and below. The title glow fills the complete title region so the
+icon, text, minimize control, and Close control all sit within the colored
+strip without moving the tabs or content below it.
 
 The minimized HUD keeps its controls hidden at rest and reveals them while the
 HUD or either control is hovered:
@@ -166,6 +172,11 @@ dimensions.
 
 The launcher remains above the minimap border through a small relative frame
 level increase without using a globally elevated strata.
+
+The native tracking-border artwork keeps its Forever/classic alignment. The
+sprint artwork is 20 x 20 inside the visible ring, matching the 20 x 20
+background, while the corrected ring alignment and rim tangency remain
+unchanged.
 
 ## AddOns Menu Identity
 
