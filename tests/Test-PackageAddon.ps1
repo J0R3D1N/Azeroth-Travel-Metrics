@@ -448,9 +448,32 @@ Present.lua
     $snapshotRepo = Join-Path $fixtureRoot 'immutable-snapshot-repo'
     $snapshotAddonRoot = New-PackageRepoFixture -Path $snapshotRepo
     $snapshotZip = Join-Path $snapshotRepo 'snapshot.zip'
+    $repeatedSnapshotZip = Join-Path $snapshotRepo 'snapshot-repeat.zip'
     Assert-CleanAddonWorktree -RepoRoot $snapshotRepo
     $trackedSnapshotFiles = @(Get-TrackedAddonFilesAtHead -RepoRoot $snapshotRepo)
     & git -C $snapshotRepo config core.autocrlf true
+
+    Test-DoesNotThrow `
+        -Name 'git snapshot is byte-reproducible for the same commit' `
+        -Action {
+            New-GitAddonSnapshot `
+                -RepoRoot $snapshotRepo `
+                -SnapshotZipPath $snapshotZip
+            Start-Sleep -Seconds 2
+            New-GitAddonSnapshot `
+                -RepoRoot $snapshotRepo `
+                -SnapshotZipPath $repeatedSnapshotZip
+
+            $firstHash = (
+                Get-FileHash -LiteralPath $snapshotZip -Algorithm SHA256
+            ).Hash
+            $secondHash = (
+                Get-FileHash -LiteralPath $repeatedSnapshotZip -Algorithm SHA256
+            ).Hash
+            if ($firstHash -cne $secondHash) {
+                throw 'Git snapshots from the same commit were not identical.'
+            }
+        }
 
     $replacedAddonRoot = Join-Path $fixtureRoot 'validated-addon-root'
     Move-Item -LiteralPath $snapshotAddonRoot -Destination $replacedAddonRoot

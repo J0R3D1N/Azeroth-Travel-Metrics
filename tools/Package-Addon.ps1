@@ -222,9 +222,9 @@ function New-GitAddonSnapshot {
         -C $RepoRoot `
         archive `
         --format=zip `
-        '--prefix=AzerothTravelTracker/' `
         "--output=$SnapshotZipPath" `
-        "$Commit`:AzerothTravelTracker"
+        $Commit `
+        AzerothTravelTracker
     if ($LASTEXITCODE -ne 0) {
         throw "Could not create addon snapshot from Git commit $Commit."
     }
