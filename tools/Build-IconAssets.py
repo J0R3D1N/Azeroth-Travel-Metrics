@@ -1,7 +1,7 @@
 from collections import deque
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageChops, ImageDraw
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +13,8 @@ ASSETS = {
     "by_level_icon.jpg": "ByLevel.tga",
 }
 SIZE = 64
+MASK_SCALE = 4
+CORNER_RADIUS = 14
 WHITE_MINIMUM = 235
 WHITE_CHANNEL_RANGE = 24
 
@@ -65,22 +67,42 @@ def clear_edge_white(image: Image.Image) -> Image.Image:
     return rgba
 
 
+def resize_premultiplied(
+    image: Image.Image, size: tuple[int, int]
+) -> Image.Image:
+    return (
+        image.convert("RGBA")
+        .convert("RGBa")
+        .resize(size, Image.Resampling.LANCZOS)
+        .convert("RGBA")
+    )
+
+
+def apply_corner_mask(image: Image.Image) -> Image.Image:
+    rgba = image.convert("RGBA")
+    mask = Image.new("L", rgba.size, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.rounded_rectangle(
+        (0, 0, rgba.width - 1, rgba.height - 1),
+        radius=CORNER_RADIUS * MASK_SCALE,
+        fill=255,
+    )
+    rgba.putalpha(ImageChops.multiply(rgba.getchannel("A"), mask))
+    return rgba
+
+
 def build(source_name: str, target_name: str) -> None:
     with Image.open(SOURCE / source_name) as original:
         cropped = center_crop(original)
-        transparent = clear_edge_white(cropped)
-        resized = transparent.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
-        if target_name == "ATTLogo.tga":
-            # WoW does not mask minimap textures, so keep logo corners transparent.
-            corners = (
-                (0, 0),
-                (SIZE - 1, 0),
-                (0, SIZE - 1),
-                (SIZE - 1, SIZE - 1),
-            )
-            for corner in corners:
-                red, green, blue, _ = resized.getpixel(corner)
-                resized.putpixel(corner, (red, green, blue, 0))
+        prepared = (
+            clear_edge_white(cropped)
+            if target_name == "ATTLogo.tga"
+            else cropped.convert("RGBA")
+        )
+        working_size = (SIZE * MASK_SCALE, SIZE * MASK_SCALE)
+        supersampled = resize_premultiplied(prepared, working_size)
+        masked = apply_corner_mask(supersampled)
+        resized = resize_premultiplied(masked, (SIZE, SIZE))
         TARGET.mkdir(parents=True, exist_ok=True)
         resized.save(TARGET / target_name, format="TGA", compression=None)
 
