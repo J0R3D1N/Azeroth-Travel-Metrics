@@ -67,7 +67,8 @@ Match APL's lighter layered treatment:
 
 The 44-pixel title area remains part of this unified shell. It uses the subtle
 top glow plus a one-pixel warm-gold separator at its lower edge with 0.22
-alpha, and does not introduce an independent solid title bar.
+alpha, and does not introduce an independent solid title bar. The glow extends
+to the shell's inner left and right border edges without visible end gaps.
 
 The existing fallback path remains visible if `BackdropTemplate`, gradient
 APIs, or textures are unavailable. Its colors should approximate the same
@@ -92,22 +93,16 @@ client rejects it. The main window and HUD share this policy.
 
 ## Title Controls
 
-Introduce one ATT-owned title-control helper that creates a compact square
-button with:
-
-- the same dimensions and visual weight as the native close button;
-- normal, hover, and pressed feedback;
-- a clear glyph rendered above the background;
-- a visible fallback when a preferred native asset is unavailable.
-
 The regular window has two always-visible controls inside its upper-right
 title region:
 
-- minimize, represented by `_`;
+- minimize, using Blizzard's native 24 x 24
+  `MaximizeMinimizeButtonFrameTemplate` Condense control;
 - close, represented by `X`.
 
-The minimize button sits immediately left of Close and uses matching padding,
-size, border treatment, and frame level.
+The minimize control sits immediately left of Close and uses the same native
+red-button family as the World Map. If the template is unavailable, ATT keeps
+a nonfatal fallback control with the same direction and click behavior.
 
 The 44-pixel title region keeps the existing title font and 24 x 24 controls.
 Its framed ATT logo is 32 x 32, vertically centered with six pixels of margin
@@ -117,15 +112,17 @@ without moving the tabs or content below it.
 
 ## Section Spacing
 
-Overview summary sections use an 8-pixel vertical gap after Lifetime and This
-Session. By Level cards use the same 8-pixel gap before the next level heading.
+Overview summary sections use a 10-pixel vertical gap after Lifetime and This
+Session. By Level cards use the same 10-pixel gap before the next level
+heading.
 Section and card heights remain unchanged. Layout and scroll-height
 calculations include gaps only between items, never after the final item.
 
 The minimized HUD keeps its controls hidden at rest and reveals them while the
 HUD or either control is hovered:
 
-- restore uses a small diagonal up-right arrow;
+- restore uses the native 24 x 24 Expand control from
+  `MaximizeMinimizeButtonFrameTemplate`;
 - close uses `X`;
 - both controls fit entirely within the HUD border;
 - neither control overlaps the title or statistic cells;
@@ -191,14 +188,17 @@ unchanged.
 Three user-provided source images become optimized 64 x 64 TGA textures under
 `AzerothTravelTracker\Media\`:
 
-- `att_logo` is used by the title and minimap launcher;
+- `azeroth_travel_metrics` is used by the title and minimap launcher;
 - `overview_icon` is used by the Overview side tab;
 - `by_level_icon` is used by the By Level side tab.
 
 The conversion uses square crops and transparent outside corners so no white
-JPEG canvas appears in WoW. The package contains only the optimized runtime
-textures, not the multi-megabyte source JPGs or the `tab_iconography` reference
-sheet.
+or checkerboard JPEG canvas appears in WoW. The package contains only the
+optimized runtime textures, not the multi-megabyte source JPGs or the
+`tab_iconography` reference sheet.
+
+The Settings gear lives in the bottom-right footer immediately left of the
+version label. It never overlaps Overview values or By Level content.
 
 ## AddOns Menu Identity
 
