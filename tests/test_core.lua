@@ -2055,7 +2055,7 @@ testlib.case("ui diagnostics use no visible space when disabled", function()
     disabled.addon.UI.Refresh()
     testlib.equal(disabled.addon.UI.diagnosticsScrollFrame:IsShown(), false)
     testlib.equal(disabled.addon.UI.diagnosticsText:GetText(), "")
-    testlib.equal(disabled.addon.UI.overviewPanel.height, 296)
+    testlib.equal(disabled.addon.UI.overviewPanel.height, 260)
 end)
 
 testlib.case("ui diagnostics retain and scroll realistic multi-reason output", function()
@@ -2086,7 +2086,8 @@ testlib.case("ui diagnostics retain and scroll realistic multi-reason output", f
         UI.overviewPanel
     )
     testlib.equal(UI.diagnosticsScrollFrame.point[3], "TOPLEFT")
-    testlib.truthy(UI.diagnosticsScrollFrame.point[5] <= -296)
+    testlib.equal(UI.diagnosticsScrollFrame.point[5], -264)
+    testlib.equal(UI.overviewPanel.height, 286)
     testlib.truthy(UI.overviewPanel.height <= UI.contentFrame.height)
     testlib.truthy(
         UI.diagnosticsScrollChild.height > UI.diagnosticsScrollFrame.height
