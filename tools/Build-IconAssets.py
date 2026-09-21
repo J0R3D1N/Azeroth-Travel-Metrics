@@ -7,9 +7,24 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "artwork" / "source"
 TARGET = ROOT / "AzerothTravelTracker" / "Media"
 ASSETS = {
-    "azeroth_travel_metrics.jpg": ("ATTLogo.tga", "circle"),
-    "overview_icon.jpg": ("Overview.tga", "rounded"),
-    "by_level_icon.jpg": ("ByLevel.tga", "rounded"),
+    "azeroth_travel_metrics.jpg": {
+        "target": "ATTLogo.tga",
+        "mask": "circle",
+        "crop": (
+            500 / 2048,
+            1340 / 2048,
+            960 / 2048,
+            1800 / 2048,
+        ),
+    },
+    "overview_icon.jpg": {
+        "target": "Overview.tga",
+        "mask": "rounded",
+    },
+    "by_level_icon.jpg": {
+        "target": "ByLevel.tga",
+        "mask": "rounded",
+    },
 }
 SIZE = 64
 MASK_SCALE = 4
@@ -22,6 +37,20 @@ def center_crop(image: Image.Image) -> Image.Image:
     left = (image.width - edge) // 2
     top = (image.height - edge) // 2
     return image.crop((left, top, left + edge, top + edge))
+
+
+def normalized_crop(
+    image: Image.Image, box: tuple[float, float, float, float]
+) -> Image.Image:
+    left, top, right, bottom = box
+    return image.crop(
+        (
+            round(left * image.width),
+            round(top * image.height),
+            round(right * image.width),
+            round(bottom * image.height),
+        )
+    )
 
 
 def resize_premultiplied(
@@ -65,9 +94,15 @@ def apply_alpha_mask(
     return rgba
 
 
-def build(source_name: str, target_name: str, mask_kind: str) -> None:
+def build(source_name: str, config: dict) -> None:
     with Image.open(SOURCE / source_name) as original:
-        cropped = center_crop(original)
+        crop = config.get("crop")
+        cropped = (
+            normalized_crop(original, crop)
+            if crop is not None
+            else center_crop(original)
+        )
+        mask_kind = config["mask"]
         if mask_kind == "circle":
             resized = resize_premultiplied(cropped, (SIZE, SIZE))
             mask = circular_mask(SIZE)
@@ -86,12 +121,16 @@ def build(source_name: str, target_name: str, mask_kind: str) -> None:
         else:
             raise ValueError(f"unsupported mask kind: {mask_kind}")
         TARGET.mkdir(parents=True, exist_ok=True)
-        output.save(TARGET / target_name, format="TGA", compression=None)
+        output.save(
+            TARGET / config["target"],
+            format="TGA",
+            compression=None,
+        )
 
 
 def main() -> None:
-    for source_name, (target_name, mask_kind) in ASSETS.items():
-        build(source_name, target_name, mask_kind)
+    for source_name, config in ASSETS.items():
+        build(source_name, config)
 
 
 if __name__ == "__main__":

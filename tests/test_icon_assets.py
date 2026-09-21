@@ -41,16 +41,83 @@ def image_pixels(image):
 
 
 class IconAssetTests(unittest.TestCase):
-    def test_builder_uses_metrics_badge_source_and_preserves_tab_sources(self):
+    def test_builder_uses_normalized_boot_crop_and_preserves_tab_sources(self):
         builder = load_builder()
 
         self.assertEqual(
             {
-                "azeroth_travel_metrics.jpg": ("ATTLogo.tga", "circle"),
-                "overview_icon.jpg": ("Overview.tga", "rounded"),
-                "by_level_icon.jpg": ("ByLevel.tga", "rounded"),
+                "azeroth_travel_metrics.jpg": {
+                    "target": "ATTLogo.tga",
+                    "mask": "circle",
+                    "crop": (
+                        500 / 2048,
+                        1340 / 2048,
+                        960 / 2048,
+                        1800 / 2048,
+                    ),
+                },
+                "overview_icon.jpg": {
+                    "target": "Overview.tga",
+                    "mask": "rounded",
+                },
+                "by_level_icon.jpg": {
+                    "target": "ByLevel.tga",
+                    "mask": "rounded",
+                },
             },
             builder.ASSETS,
+        )
+
+    def test_att_logo_retains_boot_contrast_at_actual_minimap_size(self):
+        with Image.open(MEDIA / "ATTLogo.tga") as source:
+            image = (
+                source.convert("RGBA")
+                .convert("RGBa")
+                .resize((20, 20), Image.Resampling.LANCZOS)
+                .convert("RGBA")
+            )
+
+        opaque = {
+            (x, y): image.getpixel((x, y))
+            for y in range(image.height)
+            for x in range(image.width)
+            if image.getpixel((x, y))[3] >= 128
+        }
+        dark_outline = {
+            point
+            for point, pixel in opaque.items()
+            if max(pixel[:3]) <= 75
+        }
+        boot_brown = {
+            point
+            for point, pixel in opaque.items()
+            if pixel[0] - pixel[1] >= 24
+            and pixel[1] - pixel[2] >= 4
+            and 45 <= sum(pixel[:3]) / 3 <= 180
+        }
+        brown_next_to_outline = {
+            (x, y)
+            for x, y in boot_brown
+            if any(
+                (x + dx, y + dy) in dark_outline
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
+            )
+        }
+        adjacent_contrasts = [
+            sum(abs(pixel[channel] - opaque[neighbor][channel]) for channel in range(3))
+            / 3
+            for (x, y), pixel in opaque.items()
+            for neighbor in ((x + 1, y), (x, y + 1))
+            if neighbor in opaque
+        ]
+
+        self.assertGreaterEqual(len(dark_outline) / len(opaque), 0.15)
+        self.assertGreaterEqual(len(boot_brown) / len(opaque), 0.20)
+        self.assertGreaterEqual(len(brown_next_to_outline) / len(opaque), 0.10)
+        self.assertGreaterEqual(
+            sum(contrast >= 35 for contrast in adjacent_contrasts)
+            / len(adjacent_contrasts),
+            0.15,
         )
 
     def test_att_logo_uses_circular_alpha_mask(self):
