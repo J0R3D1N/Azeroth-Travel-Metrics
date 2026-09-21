@@ -16,14 +16,14 @@ Use a compact **Character Panel Shell**:
 - yellow stat labels and white right-aligned values;
 - subtle textured row separators;
 - right-side vertical square icon tabs;
-- built-in WoW icons for the portrait, tabs, settings, and minimap;
+- built-in WoW icons for tabs, settings, and minimap, while the native portrait container and icon remain hidden;
 - no custom image assets or imitation skins.
 
 ## Native Forever Assets
 
 Prefer the templates and atlases present in the Interface 16001 source:
 
-- main shell: `PortraitFrameBaseTemplate`, with the existing safe frame fallback;
+- main shell: `PortraitFrameBaseTemplate`, retaining its native frame chrome while hiding its portrait container and icon, with the existing safe frame fallback;
 - side navigation: `LargeSideTabButtonTemplate`;
 - side-tab art: `common-sidetab`, `common-sidetab-selected`, and its native icon mask supplied by the template;
 - section heading: `UI-Character-Info-Title`;
@@ -42,7 +42,7 @@ Every template or atlas use requires a protected fallback. A missing native asse
 - Target a very compact footprint of approximately **420 x 430 pixels**. The right-side tabs sit outside that footprint and must not force a wider content area.
 - Use 24-pixel section headers, 18-pixel statistic rows, and no more than 6 pixels between stacked sections.
 - Do not reserve permanent blank space for settings, diagnostics, or controls that are currently hidden.
-- Use the built-in map icon `Interface\Icons\INV_Misc_Map_01` as the portrait.
+- Hide the native portrait container and portrait icon in the main shell so they cannot overlap the upper-left frame ornament.
 - Keep the title centered in the native title bar.
 - Keep the settings panel collapsed by default.
 
@@ -156,7 +156,7 @@ Automated tests must verify:
 - preferred `LargeSideTabButtonTemplate` and visible fallback;
 - tab icons, tooltips, selected state, and right-side placement;
 - no deprecated top-tab templates are requested;
-- map portrait and sprint minimap icons;
+- hidden main-shell portrait container and icon, plus the sprint minimap icon;
 - exactly three stacked overview sections with four rows each;
 - character-stat atlases are requested with visible fallback shading;
 - By Level exposes all levels in the scrollable character-stat layout;

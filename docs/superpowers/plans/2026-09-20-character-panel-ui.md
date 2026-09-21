@@ -256,7 +256,7 @@ git commit -m "feat: add character panel UI theme" -m "Co-authored-by: Copilot <
 - Modify: `AzerothTravelTracker\UI.lua`
 - Modify: `tests\test_core.lua`
 
-- [ ] **Step 1: Update the UI test harness for textures and portrait helpers**
+- [ ] **Step 1: Update the UI test harness for textures and portrait visibility**
 
 Extend the fake region/frame objects in `tests\test_core.lua` with:
 
@@ -278,7 +278,7 @@ function region:SetTextColor(red, green, blue, alpha)
 end
 ```
 
-Provide `SetPortraitToTexture(frame, texture)` in the fake globals and record the texture.
+Expose the native `PortraitContainer` and portrait icon on the fake portrait-frame template, and record their `Hide()` calls.
 
 - [ ] **Step 2: Replace old-layout assertions with failing shell assertions**
 
@@ -288,7 +288,7 @@ Update the lazy-creation test to require:
 testlib.equal(first.template, "PortraitFrameBaseTemplate")
 testlib.equal(first.strata, "DIALOG")
 testlib.equal(first.movable, true)
-testlib.equal(first.portraitTexture, harness.addon.UITheme.Icons.PORTRAIT)
+testlib.truthy(first.PortraitContainer.hideCalls > 0)
 testlib.equal(harness.addon.UI.overviewTab.template, "LargeSideTabButtonTemplate")
 testlib.equal(harness.addon.UI.overviewTab.point[1], "TOPLEFT")
 testlib.equal(harness.addon.UI.overviewTab.point[3], "TOPRIGHT")
@@ -341,13 +341,13 @@ local templates = {
 }
 ```
 
-then fall back to a bare frame. Set the frame to approximately `420 x 430`, preserve drag scripts, register `AzerothTravelTrackerFrame` exactly once in a valid `UISpecialFrames` table, and use only the `DIALOG`, `HIGH`, `MEDIUM` strata fallback order for both the main frame and HUD. Never request `FULLSCREEN` or `FULLSCREEN_DIALOG`. Set the portrait through:
+then fall back to a bare frame. Set the frame to approximately `420 x 430`, preserve drag scripts, register `AzerothTravelTrackerFrame` exactly once in a valid `UISpecialFrames` table, and use only the `DIALOG`, `HIGH`, `MEDIUM` strata fallback order for both the main frame and HUD. Never request `FULLSCREEN` or `FULLSCREEN_DIALOG`. Retain the native `PortraitFrameBaseTemplate` frame chrome, but hide its portrait container and icon so they cannot overlap the upper-left ornament:
 
 ```lua
-if type(SetPortraitToTexture) == "function" then
-    pcall(SetPortraitToTexture, frame, ATT.UITheme.Icons.PORTRAIT)
-elseif frame.PortraitContainer and frame.PortraitContainer.portrait then
-    frame.PortraitContainer.portrait:SetTexture(ATT.UITheme.Icons.PORTRAIT)
+if frame.PortraitContainer and type(frame.PortraitContainer.Hide) == "function" then
+    frame.PortraitContainer:Hide()
+elseif frame.portrait and type(frame.portrait.Hide) == "function" then
+    frame.portrait:Hide()
 end
 ```
 
@@ -574,7 +574,7 @@ Change the minimap click handler to call `ATT.UI.ShowMain()` so clicking it alwa
 Add or update rows in `docs\BETA-SMOKE-TESTS.md` for:
 
 - login or `/reload` does not print `Tracking unavailable: unsupported state`;
-- portrait frame, bronze trim, and brown inset visually match the character panel;
+- portrait-frame template chrome, bronze trim, and brown inset visually match the character panel, while the portrait container and icon remain hidden with no upper-left ornament overlap;
 - Overview and By Level are right-side icon tabs with correct tooltips and selected state;
 - all three Overview sections and all four rows are readable at 80%, 100%, and 120% UI scale;
 - By Level scrolling exposes every level;
