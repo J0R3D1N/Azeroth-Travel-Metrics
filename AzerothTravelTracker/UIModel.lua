@@ -35,6 +35,7 @@ local function isValidTotals(totals)
         and totals.swimming >= 0
         and isFiniteNumber(totals.taxi)
         and totals.taxi >= 0
+        and isFiniteNumber(totals.onFoot + totals.swimming + totals.taxi)
 end
 
 local function isValidIdentity(character)

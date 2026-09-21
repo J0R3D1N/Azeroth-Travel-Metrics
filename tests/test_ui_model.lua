@@ -302,6 +302,30 @@ testlib.case("ui model reports malformed totals without throwing", function()
     end
 end)
 
+testlib.case("ui overview rejects category totals whose sum overflows", function()
+    local addon = loadUIModel()
+    local character = newCharacter()
+    character.lifetime.onFoot = 1e308
+    character.lifetime.swimming = 1e308
+    character.lifetime.taxi = 1e308
+
+    assertInvalidStatistics(function()
+        return addon.UIModel.BuildOverview(character, 20, "metric")
+    end, "overflowing lifetime total")
+end)
+
+testlib.case("ui level rows reject category totals whose sum overflows", function()
+    local addon = loadUIModel()
+    local character = newCharacter()
+    character.levels[20].onFoot = 1e308
+    character.levels[20].swimming = 1e308
+    character.levels[20].taxi = 1e308
+
+    assertInvalidStatistics(function()
+        return addon.UIModel.BuildLevelRows(character, "metric")
+    end, "overflowing level total")
+end)
+
 testlib.case("ui model reports malformed levels and timestamps without throwing", function()
     local addon = loadUIModel()
     local malformedLevels = {
