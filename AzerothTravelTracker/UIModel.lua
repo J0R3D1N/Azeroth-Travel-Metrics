@@ -53,6 +53,7 @@ end
 
 local function buildSummary(totals, raceFile, units)
     local rawSteps = ATT.Stride.EstimateSteps(totals.onFoot, raceFile)
+    local totalYards = totals.onFoot + totals.swimming + totals.taxi
 
     return {
         rawSteps = rawSteps,
@@ -60,9 +61,11 @@ local function buildSummary(totals, raceFile, units)
         onFootYards = totals.onFoot,
         swimmingYards = totals.swimming,
         taxiYards = totals.taxi,
+        totalYards = totalYards,
         onFoot = ATT.Distance.Format(totals.onFoot, units),
         swimming = ATT.Distance.Format(totals.swimming, units),
         taxi = ATT.Distance.Format(totals.taxi, units),
+        total = ATT.Distance.Format(totalYards, units),
     }
 end
 
