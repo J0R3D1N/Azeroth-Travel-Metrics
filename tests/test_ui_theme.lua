@@ -402,8 +402,8 @@ testlib.case("ui theme creates character stat sections and assigns values", func
     local addon, parent = newHarness()
     local section = addon.UITheme.CreateSection(parent, "Lifetime", 4)
 
-    testlib.equal(section.frame.height, 96)
-    testlib.equal(section.header.height, 24)
+    testlib.equal(section.frame.height, 84)
+    testlib.equal(section.header.height, 20)
     testlib.equal(section.header.atlas, addon.UITheme.Atlases.SECTION)
     testlib.equal(section.title.text, "Lifetime")
     testlib.equal(section.title.fontTemplate, "GameFontNormalSmall")
@@ -422,8 +422,9 @@ testlib.case("ui theme creates character stat sections and assigns values", func
     testlib.equal(section.title.nonSpaceWrap, false)
     testlib.equal(section.title.maxLines, 1)
     testlib.equal(#section.rows, 4)
+    testlib.equal(section.footer, nil)
     for index, row in ipairs(section.rows) do
-        testlib.equal(row.frame.height, 18)
+        testlib.equal(row.frame.height, 16)
         testlib.equal(row.background.atlas, addon.UITheme.Atlases.ROW)
         testlib.equal(row.label.textColor[1], 1)
         testlib.equal(row.label.textColor[2], 0.82)
@@ -453,13 +454,67 @@ testlib.case("ui theme creates character stat sections and assigns values", func
     testlib.equal(section.rows[4].value.text, "2.5 km")
 end)
 
+testlib.case("ui theme creates an emphasized optional footer row", function()
+    local addon, parent = newHarness()
+    local section = addon.UITheme.CreateSection(
+        parent,
+        "This Session",
+        5,
+        { footerIndex = 5 }
+    )
+
+    testlib.equal(section.frame.height, 100)
+    testlib.equal(section.header.height, 20)
+    testlib.equal(#section.rows, 5)
+    for _, row in ipairs(section.rows) do
+        testlib.equal(row.frame.height, 16)
+    end
+
+    testlib.equal(section.footer, section.rows[5])
+    testlib.equal(section.footer.label.textColor[1], 1)
+    testlib.equal(section.footer.label.textColor[2], 0.82)
+    testlib.equal(section.footer.label.textColor[3], 0)
+    testlib.equal(section.footer.label.textColor[4], 1)
+    testlib.equal(section.footer.value.textColor[1], 1)
+    testlib.equal(section.footer.value.textColor[2], 0.82)
+    testlib.equal(section.footer.value.textColor[3], 0)
+    testlib.equal(section.footer.value.textColor[4], 1)
+    testlib.truthy(section.footer.separator)
+    testlib.equal(section.footer.separator.height, 1)
+    testlib.equal(section.footer.separator.color[1], 0.72)
+    testlib.equal(section.footer.separator.color[2], 0.43)
+    testlib.equal(section.footer.separator.color[3], 0.16)
+    testlib.equal(section.footer.separator.color[4], 0.95)
+    testlib.equal(section.footer.separator.shown, true)
+    testlib.equal(section.footer.separator.points[1][1], "TOPLEFT")
+    testlib.equal(section.footer.separator.points[1][2], section.footer.frame)
+    testlib.equal(section.footer.separator.points[1][3], "TOPLEFT")
+    testlib.equal(section.footer.separator.points[1][4], 4)
+    testlib.equal(section.footer.separator.points[1][5], 0)
+    testlib.equal(section.footer.separator.points[2][1], "TOPRIGHT")
+    testlib.equal(section.footer.separator.points[2][2], section.footer.frame)
+    testlib.equal(section.footer.separator.points[2][3], "TOPRIGHT")
+    testlib.equal(section.footer.separator.points[2][4], -4)
+    testlib.equal(section.footer.separator.points[2][5], 0)
+
+    addon.UITheme.SetSectionValues(section, {
+        { label = "Estimated Steps", value = "1.2K" },
+        { label = "On Foot", value = "900 m" },
+        { label = "Swimming", value = "25 m" },
+        { label = "Flight Path", value = "2.5 km" },
+        { label = "Total Distance", value = "3.53 km" },
+    })
+    testlib.equal(section.rows[5].label.text, "Total Distance")
+    testlib.equal(section.rows[5].value.text, "3.53 km")
+end)
+
 testlib.case("ui theme section keeps visible fallback shading", function()
     local addon, parent = newHarness({
         rejectAtlases = true,
     })
     local section = addon.UITheme.CreateSection(parent, "Travel by Level", 2)
 
-    testlib.equal(section.frame.height, 60)
+    testlib.equal(section.frame.height, 52)
     testlib.truthy(section.header.color)
     testlib.equal(section.header.shown, true)
     testlib.equal(#section.rows, 2)

@@ -18,8 +18,8 @@ local Theme = {
 ATT.UITheme = Theme
 
 local SIDE_TAB_SIZE = 50
-local SECTION_HEADER_HEIGHT = 24
-local SECTION_ROW_HEIGHT = 18
+local SECTION_HEADER_HEIGHT = 20
+local SECTION_ROW_HEIGHT = 16
 
 local function setTooltip(frame, text)
     frame:SetScript("OnEnter", function(self)
@@ -176,8 +176,9 @@ function Theme.SetSideTabSelected(tab, selected)
     end
 end
 
-function Theme.CreateSection(parent, title, rowCount)
+function Theme.CreateSection(parent, title, rowCount, options)
     rowCount = rowCount or 4
+    options = options or {}
 
     local frame = CreateFrame("Frame", nil, parent)
     frame:SetSize(1, SECTION_HEADER_HEIGHT + (rowCount * SECTION_ROW_HEIGHT))
@@ -250,12 +251,27 @@ function Theme.CreateSection(parent, title, rowCount)
         value:SetTextColor(1, 1, 1, 1)
         value:SetJustifyH("RIGHT")
 
-        table.insert(section.rows, {
+        local row = {
             frame = rowFrame,
             background = background,
             label = label,
             value = value,
-        })
+        }
+        table.insert(section.rows, row)
+
+        if index == options.footerIndex then
+            label:SetTextColor(1, 0.82, 0, 1)
+            value:SetTextColor(1, 0.82, 0, 1)
+
+            local separator = rowFrame:CreateTexture(nil, "OVERLAY")
+            separator:SetHeight(1)
+            separator:SetPoint("TOPLEFT", rowFrame, "TOPLEFT", 4, 0)
+            separator:SetPoint("TOPRIGHT", rowFrame, "TOPRIGHT", -4, 0)
+            separator:SetColorTexture(0.72, 0.43, 0.16, 0.95)
+
+            row.separator = separator
+            section.footer = row
+        end
         previous = rowFrame
     end
 
