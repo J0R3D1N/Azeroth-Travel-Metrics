@@ -188,8 +188,24 @@ function Theme.CreateSection(parent, title, rowCount)
     header:SetHeight(SECTION_HEADER_HEIGHT)
     Theme.SetAtlasOrColor(header, Theme.Atlases.SECTION, 0.24, 0.13, 0.05, 1)
 
-    local titleText = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    titleText:SetPoint("LEFT", header, "LEFT", 10, 0)
+    local titleText = frame:CreateFontString(
+        nil,
+        "ARTWORK",
+        "GameFontNormalSmall"
+    )
+    titleText:SetPoint("LEFT", header, "LEFT", 13, 0)
+    titleText:SetPoint("RIGHT", header, "RIGHT", -13, 0)
+    titleText:SetJustifyH("CENTER")
+    titleText:SetJustifyV("MIDDLE")
+    if type(titleText.SetWordWrap) == "function" then
+        titleText:SetWordWrap(false)
+    end
+    if type(titleText.SetNonSpaceWrap) == "function" then
+        titleText:SetNonSpaceWrap(false)
+    end
+    if type(titleText.SetMaxLines) == "function" then
+        titleText:SetMaxLines(1)
+    end
     titleText:SetText(title)
 
     local section = {

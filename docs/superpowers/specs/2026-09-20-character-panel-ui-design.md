@@ -2,7 +2,7 @@
 
 ## Goal
 
-Restyle Azeroth Travel Tracker so it visually belongs beside World of Warcraft: Forever's default character panel while preserving the addon's compact layout, movable window, top-layer behavior, statistics, settings, and reset workflow.
+Restyle Azeroth Travel Tracker so it visually belongs beside World of Warcraft: Forever's default character panel while preserving the addon's compact layout, movable window, statistics, settings, and reset workflow.
 
 The supplied character-panel screenshot is the visual source of truth. The existing addon screenshot identifies the problems to remove: flat black space, bright top text tabs, oversized red utility buttons, weak grouping, and sparse three-column statistics.
 
@@ -37,7 +37,8 @@ Every template or atlas use requires a protected fallback. A missing native asse
 ## Window Structure
 
 - Keep the window movable by left-button drag.
-- Keep `FULLSCREEN_DIALOG` as the preferred strata, followed by `FULLSCREEN`, `DIALOG`, and `HIGH`.
+- Keep both the regular window and HUD behind fullscreen surfaces by selecting only `DIALOG`, then `HIGH`, then `MEDIUM`. Never request `FULLSCREEN` or `FULLSCREEN_DIALOG`.
+- Register only the regular window in `UISpecialFrames` so Escape closes it without changing HUD behavior.
 - Target a very compact footprint of approximately **420 x 430 pixels**. The right-side tabs sit outside that footprint and must not force a wider content area.
 - Use 24-pixel section headers, 18-pixel statistic rows, and no more than 6 pixels between stacked sections.
 - Do not reserve permanent blank space for settings, diagnostics, or controls that are currently hidden.
@@ -160,7 +161,8 @@ Automated tests must verify:
 - By Level exposes all levels in the scrollable character-stat layout;
 - settings remains collapsed;
 - reset remains confirmed;
-- movable frame and strata order remain unchanged;
+- the regular frame is registered exactly once for Escape closing, with missing or malformed `UISpecialFrames` handled safely;
+- main and HUD strata use the exact `DIALOG`, `HIGH`, `MEDIUM` fallback order and never request fullscreen strata;
 - nil WoW predicate results normalize to false and permit on-foot tracking;
 - all prior tests remain green.
 

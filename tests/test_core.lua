@@ -729,6 +729,8 @@ local function newFrame(frameType, name, parent, template, options)
 
     function frame:SetPoint(...)
         self.point = { ... }
+        self.points = self.points or {}
+        table.insert(self.points, self.point)
     end
 
     function frame:GetPoint()
@@ -850,6 +852,18 @@ local function newFrame(frameType, name, parent, template, options)
         self.justifyV = value
     end
 
+    function frame:SetWordWrap(value)
+        self.wordWrap = value
+    end
+
+    function frame:SetNonSpaceWrap(value)
+        self.nonSpaceWrap = value
+    end
+
+    function frame:SetMaxLines(value)
+        self.maxLines = value
+    end
+
     function frame:SetTextColor(...)
         self.textColor = { ... }
     end
@@ -966,6 +980,7 @@ local function newUIHarness(options)
         protected = 0,
         order = order,
         templates = {},
+        hudStrataAttempts = {},
     }
     local globals = {
         UIParent = {
@@ -975,6 +990,11 @@ local function newUIHarness(options)
         YES = "Yes",
         NO = "No",
     }
+    if options.uispecialframes == nil then
+        globals.UISpecialFrames = {}
+    elseif options.uispecialframes ~= false then
+        globals.UISpecialFrames = options.uispecialframes
+    end
 
     globals.CreateFrame = function(frameType, name, parent, template)
         table.insert(calls.templates, template or false)
@@ -1013,13 +1033,16 @@ local function newUIHarness(options)
             frame.Icon = newFrame("Texture", nil, frame, nil, options)
             frame.SelectedTexture = newFrame("Texture", nil, frame, nil, options)
         end
-        if name == "AzerothTravelTrackerFrame" then
+        if name == "AzerothTravelTrackerFrame"
+            or name == "AzerothTravelTrackerHUD"
+        then
             local original = frame.SetFrameStrata
             frame.SetFrameStrata = function(self, strata)
-                table.insert(strataAttempts, strata)
-                if (options.rejectFullscreen and strata == "FULLSCREEN_DIALOG")
-                    or (options.rejectStrata and options.rejectStrata[strata])
-                then
+                local attempts = name == "AzerothTravelTrackerFrame"
+                    and strataAttempts
+                    or calls.hudStrataAttempts
+                table.insert(attempts, strata)
+                if options.rejectStrata and options.rejectStrata[strata] then
                     error("strata unavailable")
                 end
                 original(self, strata)
@@ -1224,6 +1247,7 @@ local function newUIHarness(options)
         db = db,
         tracker = tracker,
         strataAttempts = strataAttempts,
+        hudStrataAttempts = calls.hudStrataAttempts,
     }
 end
 
@@ -1240,7 +1264,7 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
     testlib.equal(first.template, "PortraitFrameBaseTemplate")
     testlib.equal(first.width, 420)
     testlib.equal(first.height, 430)
-    testlib.equal(first.strata, "FULLSCREEN_DIALOG")
+    testlib.equal(first.strata, "DIALOG")
     testlib.equal(first.movable, true)
     testlib.equal(first.mouseEnabled, true)
     testlib.equal(first.dragButton, "LeftButton")
@@ -1263,8 +1287,23 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
     }
     for sectionIndex, section in ipairs(harness.addon.UI.summarySections) do
         testlib.equal(section.title:GetText(), expectedTitles[sectionIndex])
+        testlib.equal(section.title.template, "GameFontNormalSmall")
+        testlib.equal(section.title.justifyH, "CENTER")
+        testlib.equal(section.title.justifyV, "MIDDLE")
+        testlib.equal(section.title.wordWrap, false)
+        testlib.equal(section.title.nonSpaceWrap, false)
+        testlib.equal(section.title.maxLines, 1)
+        testlib.equal(#section.title.points, 2)
+        testlib.equal(section.title.points[1][2], section.header)
+        testlib.equal(section.title.points[1][4], 13)
+        testlib.equal(section.title.points[2][2], section.header)
+        testlib.equal(section.title.points[2][4], -13)
         testlib.equal(#section.rows, 4)
         testlib.equal(section.frame.height, 96)
+        testlib.equal(section.rows[1].frame.points[1][2], section.header)
+        testlib.equal(section.rows[1].frame.points[1][3], "BOTTOMLEFT")
+        testlib.equal(section.rows[1].frame.points[2][2], section.header)
+        testlib.equal(section.rows[1].frame.points[2][3], "BOTTOMRIGHT")
         for index, label in ipairs(expectedLabels) do
             testlib.equal(section.rows[index].label:GetText(), label)
             testlib.equal(section.rows[index].value.justifyH, "RIGHT")
@@ -1430,36 +1469,96 @@ testlib.case("ui remains visible when all shell side-tab and atlas assets fail",
     testlib.equal(noTemplate.addon.UI.title:GetText(), "Azeroth Travel Tracker")
 end)
 
-testlib.case("ui selects the highest accepted non-tooltip strata", function()
+testlib.case("ui registers the regular frame once for Escape handling", function()
+    local harness = newUIHarness()
+
+    harness.addon.UI.Create()
+    harness.addon.UI.Create()
+
+    testlib.equal(#harness.environment.UISpecialFrames, 1)
+    testlib.equal(
+        harness.environment.UISpecialFrames[1],
+        "AzerothTravelTrackerFrame"
+    )
+end)
+
+testlib.case("ui does not duplicate an existing Escape registration", function()
+    local harness = newUIHarness({
+        uispecialframes = {
+            "OtherFrame",
+            "AzerothTravelTrackerFrame",
+        },
+    })
+
+    harness.addon.UI.Create()
+
+    testlib.equal(#harness.environment.UISpecialFrames, 2)
+    testlib.equal(
+        harness.environment.UISpecialFrames[2],
+        "AzerothTravelTrackerFrame"
+    )
+end)
+
+testlib.case("ui finds an existing Escape registration after sparse entries", function()
+    local specialFrames = {
+        [1] = "OtherFrame",
+        [3] = "AzerothTravelTrackerFrame",
+    }
+    local harness = newUIHarness({
+        uispecialframes = specialFrames,
+    })
+
+    harness.addon.UI.Create()
+
+    local registrations = 0
+    for _, frameName in pairs(harness.environment.UISpecialFrames) do
+        if frameName == "AzerothTravelTrackerFrame" then
+            registrations = registrations + 1
+        end
+    end
+    testlib.equal(registrations, 1)
+end)
+
+testlib.case("ui safely ignores missing or malformed Escape globals", function()
+    for _, value in ipairs({ false, "not-a-table", 17 }) do
+        local harness = newUIHarness({
+            uispecialframes = value,
+        })
+        local succeeded = pcall(harness.addon.UI.Create)
+        testlib.equal(succeeded, true)
+    end
+end)
+
+testlib.case("ui selects only safe non-fullscreen strata for main and HUD", function()
     local cases = {
         {
             rejected = {},
-            expected = "FULLSCREEN_DIALOG",
+            expected = "DIALOG",
             attempts = 1,
         },
         {
             rejected = {
-                FULLSCREEN_DIALOG = true,
+                DIALOG = true,
             },
-            expected = "FULLSCREEN",
+            expected = "HIGH",
             attempts = 2,
         },
         {
             rejected = {
-                FULLSCREEN_DIALOG = true,
-                FULLSCREEN = true,
+                DIALOG = true,
+                HIGH = true,
             },
-            expected = "DIALOG",
+            expected = "MEDIUM",
             attempts = 3,
         },
         {
             rejected = {
-                FULLSCREEN_DIALOG = true,
-                FULLSCREEN = true,
                 DIALOG = true,
+                HIGH = true,
+                MEDIUM = true,
             },
-            expected = "HIGH",
-            attempts = 4,
+            expected = nil,
+            attempts = 3,
         },
     }
 
@@ -1470,6 +1569,36 @@ testlib.case("ui selects the highest accepted non-tooltip strata", function()
         local frame = harness.addon.UI.Create()
         testlib.equal(frame.strata, case.expected)
         testlib.equal(#harness.strataAttempts, case.attempts)
+        testlib.equal(harness.strataAttempts[1], "DIALOG")
+        testlib.equal(
+            harness.strataAttempts[2],
+            case.attempts >= 2 and "HIGH" or nil
+        )
+        testlib.equal(
+            harness.strataAttempts[3],
+            case.attempts >= 3 and "MEDIUM" or nil
+        )
+        for _, strata in ipairs(harness.strataAttempts) do
+            testlib.truthy(strata ~= "FULLSCREEN")
+            testlib.truthy(strata ~= "FULLSCREEN_DIALOG")
+        end
+
+        harness.addon.UI.Minimize()
+        testlib.equal(harness.addon.UI.hud.frame.strata, case.expected)
+        testlib.equal(#harness.calls.hudStrataAttempts, case.attempts)
+        testlib.equal(harness.calls.hudStrataAttempts[1], "DIALOG")
+        testlib.equal(
+            harness.calls.hudStrataAttempts[2],
+            case.attempts >= 2 and "HIGH" or nil
+        )
+        testlib.equal(
+            harness.calls.hudStrataAttempts[3],
+            case.attempts >= 3 and "MEDIUM" or nil
+        )
+        for _, strata in ipairs(harness.calls.hudStrataAttempts) do
+            testlib.truthy(strata ~= "FULLSCREEN")
+            testlib.truthy(strata ~= "FULLSCREEN_DIALOG")
+        end
     end
 end)
 

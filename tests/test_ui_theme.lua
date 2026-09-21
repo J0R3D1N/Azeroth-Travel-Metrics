@@ -66,6 +66,22 @@ local function newRegion(kind, parent, options)
         self.justifyH = justification
     end
 
+    function region:SetJustifyV(justification)
+        self.justifyV = justification
+    end
+
+    function region:SetWordWrap(enabled)
+        self.wordWrap = enabled
+    end
+
+    function region:SetNonSpaceWrap(enabled)
+        self.nonSpaceWrap = enabled
+    end
+
+    function region:SetMaxLines(count)
+        self.maxLines = count
+    end
+
     function region:Show()
         self.shown = true
     end
@@ -390,6 +406,21 @@ testlib.case("ui theme creates character stat sections and assigns values", func
     testlib.equal(section.header.height, 24)
     testlib.equal(section.header.atlas, addon.UITheme.Atlases.SECTION)
     testlib.equal(section.title.text, "Lifetime")
+    testlib.equal(section.title.fontTemplate, "GameFontNormalSmall")
+    testlib.equal(#section.title.points, 2)
+    testlib.equal(section.title.points[1][1], "LEFT")
+    testlib.equal(section.title.points[1][2], section.header)
+    testlib.equal(section.title.points[1][3], "LEFT")
+    testlib.equal(section.title.points[1][4], 13)
+    testlib.equal(section.title.points[2][1], "RIGHT")
+    testlib.equal(section.title.points[2][2], section.header)
+    testlib.equal(section.title.points[2][3], "RIGHT")
+    testlib.equal(section.title.points[2][4], -13)
+    testlib.equal(section.title.justifyH, "CENTER")
+    testlib.equal(section.title.justifyV, "MIDDLE")
+    testlib.equal(section.title.wordWrap, false)
+    testlib.equal(section.title.nonSpaceWrap, false)
+    testlib.equal(section.title.maxLines, 1)
     testlib.equal(#section.rows, 4)
     for index, row in ipairs(section.rows) do
         testlib.equal(row.frame.height, 18)
@@ -402,6 +433,12 @@ testlib.case("ui theme creates character stat sections and assigns values", func
         testlib.equal(row.value.textColor[3], 1)
         testlib.equal(row.value.justifyH, "RIGHT")
         testlib.equal(row.frame.points[1][1], "TOPLEFT")
+        if index == 1 then
+            testlib.equal(row.frame.points[1][2], section.header)
+            testlib.equal(row.frame.points[1][3], "BOTTOMLEFT")
+            testlib.equal(row.frame.points[2][2], section.header)
+            testlib.equal(row.frame.points[2][3], "BOTTOMRIGHT")
+        end
     end
 
     addon.UITheme.SetSectionValues(section, {

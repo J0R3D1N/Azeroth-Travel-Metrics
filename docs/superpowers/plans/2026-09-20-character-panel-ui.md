@@ -4,7 +4,7 @@
 
 **Goal:** Replace Azeroth Travel Tracker's flat black window with a compact, movable World of Warcraft: Forever character-panel shell using native portrait, stat-row, side-tab, and minimap assets.
 
-**Architecture:** Add a focused `UITheme` module that owns native asset names, protected atlas/texture application, icon-tab construction, section construction, and visible fallbacks. Keep `UI.lua` responsible for interaction and model binding while changing its layout from top tabs and text blobs to right-side icon tabs and reusable stat sections. Preserve all tracking, storage, settings, reset, strata, and minimap-position behavior.
+**Architecture:** Add a focused `UITheme` module that owns native asset names, protected atlas/texture application, icon-tab construction, section construction, and visible fallbacks. Keep `UI.lua` responsible for interaction and model binding while changing its layout from top tabs and text blobs to right-side icon tabs and reusable stat sections. Preserve all tracking, storage, settings, reset, and minimap-position behavior while keeping the UI below fullscreen surfaces.
 
 **Tech Stack:** World of Warcraft Interface 16001 Lua, Blizzard frame templates and atlases, dependency-free Lua test harness, PowerShell packaging tests.
 
@@ -286,7 +286,7 @@ Update the lazy-creation test to require:
 
 ```lua
 testlib.equal(first.template, "PortraitFrameBaseTemplate")
-testlib.equal(first.strata, "FULLSCREEN_DIALOG")
+testlib.equal(first.strata, "DIALOG")
 testlib.equal(first.movable, true)
 testlib.equal(first.portraitTexture, harness.addon.UITheme.Icons.PORTRAIT)
 testlib.equal(harness.addon.UI.overviewTab.template, "LargeSideTabButtonTemplate")
@@ -341,7 +341,7 @@ local templates = {
 }
 ```
 
-then fall back to a bare frame. Set the frame to approximately `420 x 430`, preserve drag scripts and strata order, and set the portrait through:
+then fall back to a bare frame. Set the frame to approximately `420 x 430`, preserve drag scripts, register `AzerothTravelTrackerFrame` exactly once in a valid `UISpecialFrames` table, and use only the `DIALOG`, `HIGH`, `MEDIUM` strata fallback order for both the main frame and HUD. Never request `FULLSCREEN` or `FULLSCREEN_DIALOG`. Set the portrait through:
 
 ```lua
 if type(SetPortraitToTexture) == "function" then
@@ -633,7 +633,7 @@ git commit -m "feat: finish character panel visual refresh" -m "Co-authored-by: 
 6. The minimap icon always opens the regular panel and uses `Ability_Rogue_Sprint`.
 7. Meter values switch to kilometers at 1,000 meters and oversized values use deterministic K/M/B formatting.
 8. Settings remains collapsed and Reset Session remains confirmed.
-9. Movability and strata fallback behavior are unchanged.
+9. Movability is unchanged; Escape closes the regular frame, and both UI surfaces remain behind fullscreen maps and cinematics through the exact `DIALOG`, `HIGH`, `MEDIUM` fallback order.
 10. Login does not report unsupported state solely because false WoW predicates returned nil.
 11. All Lua and packaging tests pass.
 12. The packaged snapshot is installed in the Forever beta AddOns folder and is ready for `/reload`.

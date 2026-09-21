@@ -45,10 +45,9 @@ local activeTab = "overview"
 
 local function safeSetFrameStrata(frame)
     local strataOptions = {
-        "FULLSCREEN_DIALOG",
-        "FULLSCREEN",
         "DIALOG",
         "HIGH",
+        "MEDIUM",
     }
 
     for _, strata in ipairs(strataOptions) do
@@ -59,6 +58,22 @@ local function safeSetFrameStrata(frame)
     end
 
     return nil
+end
+
+local function registerEscapeFrame(frameName)
+    if type(UISpecialFrames) ~= "table" then
+        return false
+    end
+
+    local succeeded = pcall(function()
+        for _, registeredName in pairs(UISpecialFrames) do
+            if registeredName == frameName then
+                return
+            end
+        end
+        table.insert(UISpecialFrames, frameName)
+    end)
+    return succeeded
 end
 
 local function createMainFrame()
@@ -585,6 +600,7 @@ function UI.Create()
 
     local frame = createMainFrame()
     UI.frame = frame
+    registerEscapeFrame("AzerothTravelTrackerFrame")
     frame:SetSize(420, 430)
     frame:SetPoint("CENTER")
     safeSetFrameStrata(frame)

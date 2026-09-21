@@ -11,7 +11,8 @@ This repository produces a beta candidate. Automated validation does not replace
 - Lifetime, current-session, and per-level statistics.
 - Metric display by default, with an imperial option.
 - Compact, movable native UI with Overview and By Level tabs.
-- The highest safe non-tooltip frame strata available, preferring `FULLSCREEN_DIALOG`.
+- Regular and HUD windows stay above ordinary world/HUD content but behind fullscreen maps and cinematics.
+- Escape closes the regular addon window.
 - A draggable minimap launcher and a compact settings panel hidden until requested.
 
 Mounted distance is intentionally excluded. A route map or breadcrumb trail is deferred and is not part of this beta.
