@@ -301,6 +301,74 @@ testlib.case("storage uniquely rekeys a normalized identity without losing data"
     testlib.equal(character.diagnostics.samples, 9)
 end)
 
+testlib.case("storage does not recover whitespace-only normalized names", function()
+    local addon = loadStorage()
+    local malformed = {
+        identity = {
+            name = " \t ",
+            realm = "Area 52",
+            firstSeenAt = 500,
+        },
+        lifetime = { onFoot = 10, swimming = 20, taxi = 30 },
+        levels = {},
+        diagnostics = {},
+    }
+    local db = addon.Storage.Initialize({
+        schemaVersion = addon.SCHEMA_VERSION,
+        characters = {
+            ["Legacy-BlankName"] = malformed,
+        },
+    })
+
+    local character, resolution = addon.Storage.GetCharacter(db, "Canonical-Area52", {
+        name = "\t \n",
+        realm = "area52",
+        raceFile = "Orc",
+        level = 12,
+        now = 1000,
+    })
+
+    testlib.equal(resolution, "created")
+    testlib.equal(db.characters["Legacy-BlankName"], malformed)
+    testlib.equal(db.characters["Canonical-Area52"], character)
+    testlib.truthy(character ~= malformed)
+    assertTotals(character.lifetime, 0, 0, 0)
+end)
+
+testlib.case("storage does not recover whitespace-only normalized realms", function()
+    local addon = loadStorage()
+    local malformed = {
+        identity = {
+            name = "Thrall",
+            realm = " \t ",
+            firstSeenAt = 500,
+        },
+        lifetime = { onFoot = 10, swimming = 20, taxi = 30 },
+        levels = {},
+        diagnostics = {},
+    }
+    local db = addon.Storage.Initialize({
+        schemaVersion = addon.SCHEMA_VERSION,
+        characters = {
+            ["Legacy-BlankRealm"] = malformed,
+        },
+    })
+
+    local character, resolution = addon.Storage.GetCharacter(db, "Thrall-Canonical", {
+        name = "thrall",
+        realm = "\t \n",
+        raceFile = "Orc",
+        level = 12,
+        now = 1000,
+    })
+
+    testlib.equal(resolution, "created")
+    testlib.equal(db.characters["Legacy-BlankRealm"], malformed)
+    testlib.equal(db.characters["Thrall-Canonical"], character)
+    testlib.truthy(character ~= malformed)
+    assertTotals(character.lifetime, 0, 0, 0)
+end)
+
 testlib.case("storage leaves ambiguous identity matches separate", function()
     local addon = loadStorage()
     local first = {

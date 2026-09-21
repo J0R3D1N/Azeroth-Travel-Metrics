@@ -63,7 +63,12 @@ local function normalizeIdentityPart(value)
         return nil
     end
 
-    return string.lower((value:match("^%s*(.-)%s*$"):gsub("%s+", "")))
+    local normalized = string.lower((value:match("^%s*(.-)%s*$"):gsub("%s+", "")))
+    if normalized == "" then
+        return nil
+    end
+
+    return normalized
 end
 
 local function identityMatches(character, identity)
