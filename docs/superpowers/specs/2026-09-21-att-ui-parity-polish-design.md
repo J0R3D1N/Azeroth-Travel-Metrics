@@ -164,14 +164,15 @@ The selected placement is **rim-kiss**:
 - there is no floating gap;
 - the launcher does not sink below or behind the minimap border.
 
-Center the decorative tracking border on the 32 x 32 button rather than
-anchoring a larger border from the button's top-left corner.
+Use Blizzard's Forever/classic tracking-border layout: the asymmetric 54 x 54
+texture is anchored from the 32 x 32 button's top-left corner so the texture's
+visible circular ring is centered on the button and its icon.
 
-Replace the fixed magic padding with geometry derived from the launcher's
-actual decorative radius. `CalculateMinimapOffset` continues to find the
-shape-aware minimap perimeter for round, square, side, corner, and tri-corner
-shapes, then adds the distance required for tangency between the minimap rim
-and launcher ring.
+Placement uses the visible ring radius of 16 pixels rather than the full
+texture bounds. `CalculateMinimapOffset` continues to find the shape-aware
+minimap perimeter for round, square, side, corner, and tri-corner shapes, then
+adds the Euclidean clearance required for tangency between the minimap rim and
+visible launcher ring.
 
 Dragging continues to persist only the polar angle. Repositioning at another
 UI scale or minimap size recomputes the tangent position from current
