@@ -99,9 +99,10 @@ Use the same character-stat visual language:
 
 ## Live Session HUD
 
-The minimized state is a separate, movable, translucent **220 x 74 pixel** frame:
+The minimized state is a separate, movable, translucent **220 x 96 pixel** frame:
 
-- arranged as a dense 2 x 2 grid;
+- uses a dedicated top control row so Restore and Close never cover statistics;
+- arranges statistics as a dense 2 x 2 grid below that row;
 - shows current-session Estimated Steps, On Foot, Swimming, and Flight Path;
 - updates whenever live tracking updates the regular UI;
 - uses short labels, built-in icons, yellow labels, and white values;
@@ -172,6 +173,9 @@ Automated tests must verify:
 - Overview and By Level use right-side icon tabs, not top text tabs.
 - Coloring, shading, borders, labels, values, and row treatment mirror the supplied character panel.
 - The approximately 420 x 430 layout is dense, readable, and contains no large unused black area.
+- The shell has an opaque interior backing; game models and scenery do not show through the statistics.
+- The portrait container is hidden so it cannot cover the upper-left frame ornament.
+- Minimize and settings controls sit fully inside the frame chrome and above border artwork.
 - The minimap button uses a built-in movement icon.
 - The regular frame can minimize to a draggable 2 x 2 live current-session HUD and be restored without losing state.
 - Meter values become kilometers at 1,000 meters and oversized values abbreviate without clipping.

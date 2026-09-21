@@ -395,7 +395,7 @@ UI.ShowMain()
 UI.CloseHUD()
 ```
 
-Create the HUD lazily as a 220-by-74 movable frame with a translucent brown background and bronze border. Build a 2 x 2 grid for Steps, On Foot, Swimming, and Flight Path using the session model. Store its anchor point and offsets in `db.settings.hudPoint`, `hudX`, and `hudY`.
+Create the HUD lazily as a 220-by-96 movable frame with a translucent brown background and bronze border. Reserve a top control row for Restore and Close, then build a 2 x 2 grid for Steps, On Foot, Swimming, and Flight Path below it. Store its anchor point and offsets in `db.settings.hudPoint`, `hudX`, and `hudY`.
 
 At rest use approximately `0.45` alpha. On mouse enter, increase alpha and show Restore/Close controls; on mouse leave, restore resting alpha and hide controls.
 
@@ -579,7 +579,7 @@ Add or update rows in `docs\BETA-SMOKE-TESTS.md` for:
 - all three Overview sections and all four rows are readable at 80%, 100%, and 120% UI scale;
 - By Level scrolling exposes every level;
 - settings starts collapsed and the footer controls do not overlap content;
-- minimize opens a translucent 220 x 74 live HUD with a 2 x 2 current-session grid;
+- minimize opens a translucent 220 x 96 live HUD with a dedicated control row and a 2 x 2 current-session grid;
 - HUD values update while walking, swimming, and taking a flight path;
 - HUD drag position persists, hover controls restore/close correctly, and minimap click restores the regular panel;
 - meters switch to kilometers at 1,000 m and large steps/distances abbreviate with K/M/B suffixes;

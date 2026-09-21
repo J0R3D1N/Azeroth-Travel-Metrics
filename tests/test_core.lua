@@ -915,6 +915,7 @@ local function newFrame(frameType, name, parent, template, options)
 
     function frame:Hide()
         self.shown = false
+        self.hideCalls = (self.hideCalls or 0) + 1
     end
 
     function frame:IsShown()
@@ -1024,9 +1025,20 @@ local function newUIHarness(options)
                 "GameFontNormal",
                 options
             )
-            frame.PortraitContainer = {
-                portrait = newFrame("Texture", nil, frame, nil, options),
-            }
+            frame.PortraitContainer = newFrame(
+                "Frame",
+                nil,
+                frame,
+                nil,
+                options
+            )
+            frame.PortraitContainer.portrait = newFrame(
+                "Texture",
+                nil,
+                frame.PortraitContainer,
+                nil,
+                options
+            )
             frame.CloseButton = newFrame("Button", nil, frame, nil, options)
         end
         if template == "LargeSideTabButtonTemplate" then
@@ -1271,6 +1283,10 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
     testlib.equal(type(first.scripts.OnDragStart), "function")
     testlib.equal(type(first.scripts.OnDragStop), "function")
     testlib.equal(first.portraitTexture, harness.addon.UITheme.Icons.PORTRAIT)
+    testlib.truthy(first.PortraitContainer.hideCalls > 0)
+    testlib.equal(harness.addon.UI.mainBackground.color[4], 1)
+    testlib.equal(harness.addon.UI.mainBackground.points[1][1], "TOPLEFT")
+    testlib.equal(harness.addon.UI.mainBackground.points[2][1], "BOTTOMRIGHT")
     testlib.equal(harness.addon.UI.title, first.TitleText)
     testlib.equal(harness.addon.UI.summaryGroups, nil)
     testlib.equal(#harness.addon.UI.summarySections, 3)
@@ -1327,6 +1343,14 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
     testlib.equal(harness.addon.UI.resetButton.template, "UIPanelButtonTemplate")
     testlib.equal(harness.addon.UI.settingsButton.width, 24)
     testlib.equal(harness.addon.UI.settingsButton.height, 24)
+    testlib.truthy(harness.addon.UI.settingsButton.frameLevel > first:GetFrameLevel())
+    testlib.truthy(harness.addon.UI.minimizeButton.frameLevel > first:GetFrameLevel())
+    testlib.equal(harness.addon.UI.minimizeButton.width, 20)
+    testlib.equal(harness.addon.UI.minimizeButton.height, 18)
+    testlib.equal(harness.addon.UI.minimizeButton.point[4], -32)
+    testlib.equal(harness.addon.UI.minimizeButton.point[5], -7)
+    testlib.equal(harness.addon.UI.settingsButton.point[4], -22)
+    testlib.equal(harness.addon.UI.settingsButton.point[5], 20)
     testlib.equal(
         harness.addon.UI.settingsButton.Icon.texture,
         harness.addon.UITheme.Icons.SETTINGS
@@ -1698,6 +1722,15 @@ testlib.case("ui action buttons remain visible and interactive without panel tem
     testlib.truthy(UI.hud.closeButton.Background.color ~= nil)
     testlib.truthy(#UI.hud.closeButton.Border == 4)
     testlib.truthy(UI.hud.closeButton.Highlight.color ~= nil)
+    testlib.truthy(
+        UI.hud.restoreButton.frameLevel > UI.hud.frame:GetFrameLevel()
+    )
+    testlib.truthy(
+        UI.hud.closeButton.frameLevel > UI.hud.frame:GetFrameLevel()
+    )
+    testlib.equal(UI.hud.restoreButton.point[5], -3)
+    testlib.equal(UI.hud.closeButton.point[5], -2)
+    testlib.truthy(UI.hud.cells[1].point[5] <= -29)
 
     UI.hud.frame.scripts.OnEnter()
     testlib.equal(UI.hud.restoreButton:IsShown(), true)
@@ -1726,10 +1759,14 @@ testlib.case("ui minimize restore close and toggle coordinate both surfaces", fu
     testlib.equal(UI.frame:IsShown(), false)
     testlib.equal(UI.hud.frame:IsShown(), true)
     testlib.equal(UI.hud.frame.width, 220)
-    testlib.equal(UI.hud.frame.height, 74)
+    testlib.equal(UI.hud.frame.height, 96)
     testlib.equal(UI.hud.frame.movable, true)
     testlib.equal(UI.hud.frame.dragButton, "LeftButton")
     testlib.equal(#UI.hud.cells, 4)
+    testlib.equal(UI.hud.title:GetText(), "Session")
+    testlib.truthy(UI.hud.restoreButton.frameLevel > UI.hud.frame:GetFrameLevel())
+    testlib.truthy(UI.hud.closeButton.frameLevel > UI.hud.frame:GetFrameLevel())
+    testlib.truthy(UI.hud.cells[1].point[5] <= -29)
     testlib.truthy(UI.hud.cells[1].icon)
     testlib.equal(
         UI.hud.cells[1].icon.texture,

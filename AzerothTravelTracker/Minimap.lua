@@ -6,6 +6,7 @@ local MinimapLauncher = ATT.Minimap
 local DEFAULT_ANGLE = 225
 local BUTTON_RADIUS = 80
 local DEFAULT_OUTER_PADDING = 5
+local BUTTON_OUTER_PADDING = 18
 local DEFAULT_MINIMAP_DIAMETER = (BUTTON_RADIUS - DEFAULT_OUTER_PADDING) * 2
 local DEFAULT_MINIMAP_SHAPE = "ROUND"
 local MINIMAP_SHAPE_QUADRANTS = {
@@ -182,7 +183,7 @@ local function positionButton(angle)
         angle,
         width,
         height,
-        nil,
+        BUTTON_OUTER_PADDING,
         getMinimapShape()
     )
     if not isFiniteNumber(x) or not isFiniteNumber(y) then
@@ -279,6 +280,14 @@ function MinimapLauncher.Create()
     )
     MinimapLauncher.button = button
     button:SetSize(32, 32)
+    if type(button.SetFrameLevel) == "function"
+        and type(Minimap.GetFrameLevel) == "function"
+    then
+        local succeeded, level = pcall(Minimap.GetFrameLevel, Minimap)
+        if succeeded and isFiniteNumber(level) then
+            button:SetFrameLevel(level + 10)
+        end
+    end
     button:RegisterForClicks("LeftButtonUp")
     button:RegisterForDrag("LeftButton")
 

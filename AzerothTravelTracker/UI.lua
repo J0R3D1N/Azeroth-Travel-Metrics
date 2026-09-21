@@ -16,6 +16,8 @@ local LEVEL_VIEW_HEIGHT = 282
 local LEVEL_CONTENT_WIDTH = 348
 local HUD_REST_ALPHA = 0.45
 local HUD_HOVER_ALPHA = 0.92
+local HUD_WIDTH = 220
+local HUD_HEIGHT = 96
 local SUMMARY_ROWS = {
     { key = "steps", label = "Estimated Steps" },
     { key = "onFoot", label = "On Foot" },
@@ -250,6 +252,14 @@ local function createColorTexture(parent, layer, red, green, blue, alpha)
     return texture
 end
 
+local function raiseAboveParent(frame, parent, amount)
+    if type(frame.SetFrameLevel) == "function"
+        and type(parent.GetFrameLevel) == "function"
+    then
+        frame:SetFrameLevel(parent:GetFrameLevel() + (amount or 10))
+    end
+end
+
 local function createSafeButton(
     parent,
     template,
@@ -324,8 +334,9 @@ end
 
 local function createMinimizeButton(parent)
     local button = CreateFrame("Button", nil, parent)
-    button:SetSize(24, 24)
-    button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -30, -4)
+    button:SetSize(20, 18)
+    button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -32, -7)
+    raiseAboveParent(button, parent, 20)
 
     button.Background = createColorTexture(
         button,
@@ -335,10 +346,14 @@ local function createMinimizeButton(parent)
         0.04,
         0.95
     )
-    button.Icon = button:CreateTexture(nil, "ARTWORK")
-    button.Icon:SetTexture("Interface\\Buttons\\UI-Panel-HideButton-Up")
-    button.Icon:SetPoint("TOPLEFT", button, "TOPLEFT", 2, -2)
-    button.Icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
+    button.Highlight = createColorTexture(
+        button,
+        "HIGHLIGHT",
+        0.55,
+        0.30,
+        0.08,
+        0.7
+    )
 
     button.FallbackText = createLabel(
         button,
@@ -346,6 +361,7 @@ local function createMinimizeButton(parent)
         "GameFontNormalLarge"
     )
     button.FallbackText:SetPoint("CENTER", button, "CENTER", 0, 1)
+    button.FallbackText:SetTextColor(1, 0.82, 0, 1)
     return button
 end
 
@@ -396,7 +412,7 @@ local function createHUDCell(parent, index, labelText, iconTexture)
         parent,
         "TOPLEFT",
         4 + (column * 106),
-        -5 - (row * 31)
+        -29 - (row * 31)
     )
 
     cell.background = createColorTexture(
@@ -431,7 +447,7 @@ local function createHUD()
         "AzerothTravelTrackerHUD",
         UIParent
     )
-    frame:SetSize(220, 74)
+    frame:SetSize(HUD_WIDTH, HUD_HEIGHT)
     local point, x, y = getHUDPosition()
     frame:SetPoint(point, UIParent, point, x, y)
     safeSetFrameStrata(frame)
@@ -450,10 +466,10 @@ local function createHUD()
     )
     local border = {}
     local edges = {
-        { "TOPLEFT", "TOPRIGHT", 220, 2 },
-        { "BOTTOMLEFT", "BOTTOMRIGHT", 220, 2 },
-        { "TOPLEFT", "BOTTOMLEFT", 2, 70 },
-        { "TOPRIGHT", "BOTTOMRIGHT", 2, 70 },
+        { "TOPLEFT", "TOPRIGHT", HUD_WIDTH, 2 },
+        { "BOTTOMLEFT", "BOTTOMRIGHT", HUD_WIDTH, 2 },
+        { "TOPLEFT", "BOTTOMLEFT", 2, HUD_HEIGHT - 4 },
+        { "TOPRIGHT", "BOTTOMRIGHT", 2, HUD_HEIGHT - 4 },
     }
     for _, edge in ipairs(edges) do
         local texture = frame:CreateTexture(nil, "OVERLAY")
@@ -463,6 +479,10 @@ local function createHUD()
         texture:SetPoint(edge[2], frame, edge[2], 0, 0)
         table.insert(border, texture)
     end
+
+    local title = createLabel(frame, "Session", "GameFontNormalSmall")
+    title:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -7)
+    title:SetTextColor(1, 0.82, 0, 1)
 
     local cells = {
         createHUDCell(
@@ -498,7 +518,8 @@ local function createHUD()
         18,
         "Restore"
     )
-    restoreButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -2)
+    restoreButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -22, -3)
+    raiseAboveParent(restoreButton, frame, 20)
     restoreButton:SetScript("OnClick", function()
         UI.ShowMain()
     end)
@@ -516,7 +537,8 @@ local function createHUD()
         nil,
         "x"
     )
-    closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+    closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -2, -2)
+    raiseAboveParent(closeButton, frame, 20)
     closeButton:SetScript("OnClick", function()
         UI.CloseHUD()
     end)
@@ -542,6 +564,7 @@ local function createHUD()
         frame = frame,
         background = background,
         border = border,
+        title = title,
         cells = cells,
         restoreButton = restoreButton,
         closeButton = closeButton,
@@ -614,6 +637,11 @@ function UI.Create()
         self:StopMovingOrSizing()
     end)
 
+    UI.mainBackground = frame:CreateTexture(nil, "BACKGROUND")
+    UI.mainBackground:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -28)
+    UI.mainBackground:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 8)
+    UI.mainBackground:SetColorTexture(0.035, 0.025, 0.018, 1)
+
     UI.closeButton = frame.CloseButton
     if not UI.closeButton then
         UI.closeButton = createSafeButton(
@@ -646,6 +674,11 @@ function UI.Create()
         frame.PortraitContainer.portrait:SetTexture(
             ATT.UITheme.Icons.PORTRAIT
         )
+    end
+    if frame.PortraitContainer
+        and type(frame.PortraitContainer.Hide) == "function"
+    then
+        frame.PortraitContainer:Hide()
     end
 
     UI.title = frame.TitleText
@@ -716,9 +749,10 @@ function UI.Create()
         "BOTTOMRIGHT",
         frame,
         "BOTTOMRIGHT",
-        -18,
-        12
+        -22,
+        20
     )
+    raiseAboveParent(UI.settingsButton, frame, 20)
 
     local settingsPanelSucceeded, settingsPanel = pcall(
         CreateFrame,
