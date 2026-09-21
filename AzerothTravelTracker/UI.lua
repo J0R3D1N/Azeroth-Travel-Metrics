@@ -13,7 +13,9 @@ local DIAGNOSTICS_LINE_HEIGHT = 12
 local DIAGNOSTICS_CONTENT_WIDTH = 348
 local LEVEL_CARD_HEIGHT = 104
 local LEVEL_VIEW_HEIGHT = 282
+local LEVEL_PANEL_WIDTH = 376
 local LEVEL_CONTENT_WIDTH = 348
+local LEVEL_SCROLLBAR_GAP = 4
 local HUD_REST_ALPHA = 0.45
 local HUD_HOVER_ALPHA = 0.92
 local HUD_WIDTH = 220
@@ -615,6 +617,163 @@ local function refreshHUD(session)
     end
 end
 
+local function setRegionShown(region, shown)
+    if not region then
+        return
+    end
+
+    local method = shown and region.Show or region.Hide
+    if type(method) == "function" then
+        pcall(method, region)
+    end
+end
+
+local function collectLevelScrollbarChrome(scrollFrame)
+    if scrollFrame.levelScrollbarChrome then
+        return scrollFrame.levelScrollbarChrome
+    end
+
+    local chrome = {
+        regions = {},
+    }
+    local seen = {}
+    local function addRegion(region)
+        if region and not seen[region] then
+            seen[region] = true
+            table.insert(chrome.regions, region)
+        end
+        return region
+    end
+    local function getField(region, field)
+        if not region then
+            return nil
+        end
+        local succeeded, value = pcall(function()
+            return region[field]
+        end)
+        if succeeded then
+            return value
+        end
+        return nil
+    end
+    local function getRegionName(region)
+        if not region or type(region.GetName) ~= "function" then
+            return nil
+        end
+        local succeeded, value = pcall(region.GetName, region)
+        if succeeded and type(value) == "string" then
+            return value
+        end
+        return nil
+    end
+    local function addScrollBar(scrollBar)
+        if not scrollBar then
+            return
+        end
+        addRegion(scrollBar)
+        addRegion(getField(scrollBar, "ScrollUpButton"))
+        addRegion(getField(scrollBar, "ScrollDownButton"))
+        addRegion(getField(scrollBar, "ThumbTexture"))
+    end
+
+    chrome.scrollBar = addRegion(getField(scrollFrame, "ScrollBar"))
+
+    local frameName
+    if type(scrollFrame.GetName) == "function" then
+        local succeeded, value = pcall(scrollFrame.GetName, scrollFrame)
+        if succeeded and type(value) == "string" and value ~= "" then
+            frameName = value
+        end
+    end
+    if not chrome.scrollBar and frameName and type(_G) == "table" then
+        chrome.scrollBar = addRegion(_G[frameName .. "ScrollBar"])
+    end
+
+    if type(scrollFrame.GetChildren) == "function" then
+        local children = {
+            pcall(scrollFrame.GetChildren, scrollFrame),
+        }
+        if children[1] then
+            for index = 2, #children do
+                local child = children[index]
+                local childName = getRegionName(child)
+                local hasScrollbarPieces =
+                    getField(child, "ScrollUpButton")
+                    or getField(child, "ScrollDownButton")
+                    or getField(child, "ThumbTexture")
+                if not chrome.scrollBar
+                    and (hasScrollbarPieces
+                        or (frameName
+                            and childName == frameName .. "ScrollBar"))
+                then
+                    chrome.scrollBar = child
+                end
+                addRegion(child)
+            end
+        end
+    end
+
+    addScrollBar(chrome.scrollBar)
+
+    if frameName and type(_G) == "table" then
+        local scrollBarName = frameName .. "ScrollBar"
+        addRegion(_G[scrollBarName .. "ScrollUpButton"])
+        addRegion(_G[scrollBarName .. "ScrollDownButton"])
+        addRegion(_G[scrollBarName .. "ThumbTexture"])
+    end
+
+    scrollFrame.levelScrollbarChrome = chrome
+    return chrome
+end
+
+local function getVerticalScrollRange(scrollFrame)
+    if not scrollFrame
+        or type(scrollFrame.GetVerticalScrollRange) ~= "function"
+    then
+        return nil
+    end
+
+    local succeeded, value = pcall(
+        scrollFrame.GetVerticalScrollRange,
+        scrollFrame
+    )
+    if succeeded and isFiniteNumber(value) and value >= 0 then
+        return value
+    end
+    return nil
+end
+
+local function updateLevelScrollbar()
+    local scrollFrame = UI.levelScrollFrame
+    if not scrollFrame then
+        return
+    end
+
+    local scrollRange = getVerticalScrollRange(scrollFrame)
+    local chrome = collectLevelScrollbarChrome(scrollFrame)
+    for _, region in ipairs(chrome.regions) do
+        setRegionShown(region, scrollRange ~= nil and scrollRange > 0)
+    end
+
+    if scrollRange == nil
+        or type(scrollFrame.GetVerticalScroll) ~= "function"
+        or type(scrollFrame.SetVerticalScroll) ~= "function"
+    then
+        return
+    end
+
+    local succeeded, current = pcall(
+        scrollFrame.GetVerticalScroll,
+        scrollFrame
+    )
+    if succeeded
+        and isFiniteNumber(current)
+        and current > scrollRange
+    then
+        pcall(scrollFrame.SetVerticalScroll, scrollFrame, scrollRange)
+    end
+end
+
 local function ensureLevelRows(count)
     while #UI.levelRows < count do
         local index = #UI.levelRows + 1
@@ -1036,7 +1195,7 @@ function UI.Create()
 
     UI.levelPanel = CreateFrame("Frame", nil, frame)
     UI.levelPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -54)
-    UI.levelPanel:SetSize(376, 310)
+    UI.levelPanel:SetSize(LEVEL_PANEL_WIDTH, 310)
     UI.levelHeadingSection = ATT.UITheme.CreateSection(
         UI.levelPanel,
         "Travel by Level",
@@ -1049,7 +1208,7 @@ function UI.Create()
         0,
         0
     )
-    UI.levelHeadingSection.frame:SetWidth(376)
+    UI.levelHeadingSection.frame:SetWidth(LEVEL_PANEL_WIDTH)
     UI.levelHeader = UI.levelHeadingSection.title
 
     local scrollSucceeded, levelScrollFrame = pcall(
@@ -1070,8 +1229,36 @@ function UI.Create()
         0,
         -28
     )
-    levelScrollFrame:SetSize(376, LEVEL_VIEW_HEIGHT)
+    levelScrollFrame:SetSize(LEVEL_CONTENT_WIDTH, LEVEL_VIEW_HEIGHT)
     levelScrollFrame:EnableMouseWheel(true)
+
+    local scrollbarChrome = collectLevelScrollbarChrome(levelScrollFrame)
+    if scrollbarChrome.scrollBar then
+        local scrollBar = scrollbarChrome.scrollBar
+        if type(scrollBar.ClearAllPoints) == "function" then
+            pcall(scrollBar.ClearAllPoints, scrollBar)
+        end
+        if type(scrollBar.SetPoint) == "function" then
+            pcall(
+                scrollBar.SetPoint,
+                scrollBar,
+                "TOPLEFT",
+                levelScrollFrame,
+                "TOPRIGHT",
+                LEVEL_SCROLLBAR_GAP,
+                -14
+            )
+            pcall(
+                scrollBar.SetPoint,
+                scrollBar,
+                "BOTTOMLEFT",
+                levelScrollFrame,
+                "BOTTOMRIGHT",
+                LEVEL_SCROLLBAR_GAP,
+                14
+            )
+        end
+    end
 
     UI.levelScrollChild = CreateFrame("Frame", nil, levelScrollFrame)
     UI.levelScrollChild:SetSize(
@@ -1084,7 +1271,7 @@ function UI.Create()
         if type(self.GetVerticalScroll) == "function" then
             current = self:GetVerticalScroll()
         end
-        local scrollRange = self:GetVerticalScrollRange()
+        local scrollRange = getVerticalScrollRange(self) or 0
         self:SetVerticalScroll(math.max(
             0,
             math.min(
@@ -1159,6 +1346,7 @@ function UI.Refresh()
         LEVEL_VIEW_HEIGHT,
         #levelRows * LEVEL_CARD_HEIGHT
     ))
+    updateLevelScrollbar()
 
     for index, card in ipairs(UI.levelRows) do
         local row = levelRows[index]

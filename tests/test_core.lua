@@ -1620,6 +1620,11 @@ local function newFrame(frameType, name, parent, template, options)
     end
 
     function frame:GetVerticalScrollRange()
+        if options.rejectLevelScrollRange
+            and self.template == "UIPanelScrollFrameTemplate"
+        then
+            error("vertical scroll range unavailable")
+        end
         if not self.scrollChild then
             return 0
         end
@@ -1737,6 +1742,10 @@ local function newFrame(frameType, name, parent, template, options)
         table.insert(self.children, child)
         table.insert(self.textures, child)
         return child
+    end
+
+    function frame:GetChildren()
+        return table.unpack(self.children)
     end
 
     function frame:SetAtlas(atlas, useAtlasSize)
@@ -1909,6 +1918,19 @@ local function newUIHarness(options)
         if template == "LargeSideTabButtonTemplate" then
             frame.Icon = newFrame("Texture", nil, frame, nil, options)
             frame.SelectedTexture = newFrame("Texture", nil, frame, nil, options)
+        end
+        if template == "UIPanelScrollFrameTemplate" then
+            local scrollBar = newFrame("Slider", nil, frame, nil, options)
+            scrollBar.ScrollUpButton =
+                newFrame("Button", nil, scrollBar, nil, options)
+            scrollBar.ScrollDownButton =
+                newFrame("Button", nil, scrollBar, nil, options)
+            scrollBar.ThumbTexture =
+                newFrame("Texture", nil, scrollBar, nil, options)
+            table.insert(frame.children, scrollBar)
+            if not options.levelScrollbarDirectChildOnly then
+                frame.ScrollBar = scrollBar
+            end
         end
         if name == "AzerothTravelTrackerFrame"
             or name == "AzerothTravelTrackerHUD"
@@ -3349,6 +3371,42 @@ testlib.case("ui refresh consumes overview levels and diagnostics models", funct
     testlib.equal(harness.addon.UI.errorText:IsShown(), false)
 end)
 
+testlib.case("ui hides level scrollbar chrome when content fits", function()
+    local harness = newUIHarness({
+        levelRows = {
+            {
+                level = 5,
+                steps = "5",
+                onFoot = "5 m",
+                swimming = "0 m",
+                taxi = "0 m",
+            },
+        },
+    })
+    local UI = harness.addon.UI
+    UI.Create()
+    UI.Refresh()
+
+    testlib.equal(UI.levelPanel.width, 376)
+    testlib.equal(UI.levelPanel.height, 310)
+    testlib.equal(UI.levelScrollFrame.width, 348)
+    testlib.equal(UI.levelScrollChild.width, 348)
+    testlib.equal(UI.levelRows[1].frame.width, 348)
+    testlib.equal(UI.levelScrollFrame.ScrollBar:IsShown(), false)
+    testlib.equal(
+        UI.levelScrollFrame.ScrollBar.ScrollUpButton:IsShown(),
+        false
+    )
+    testlib.equal(
+        UI.levelScrollFrame.ScrollBar.ScrollDownButton:IsShown(),
+        false
+    )
+    testlib.equal(
+        UI.levelScrollFrame.ScrollBar.ThumbTexture:IsShown(),
+        false
+    )
+end)
+
 testlib.case("ui level list exposes every row through scrollable content", function()
     local rows = {}
     for level = 16, 1, -1 do
@@ -3385,6 +3443,124 @@ testlib.case("ui level list exposes every row through scrollable content", funct
     testlib.truthy(
         harness.addon.UI.levelScrollFrame:GetVerticalScrollRange() > 0
     )
+    testlib.equal(harness.addon.UI.levelScrollFrame.width, 348)
+    testlib.equal(harness.addon.UI.levelScrollChild.width, 348)
+    testlib.equal(harness.addon.UI.levelRows[1].frame.width, 348)
+    local scrollBar = harness.addon.UI.levelScrollFrame.ScrollBar
+    testlib.equal(scrollBar:IsShown(), true)
+    testlib.equal(scrollBar.points[1][1], "TOPLEFT")
+    testlib.equal(scrollBar.points[1][2], harness.addon.UI.levelScrollFrame)
+    testlib.equal(scrollBar.points[1][3], "TOPRIGHT")
+    testlib.truthy(scrollBar.points[1][4] >= 2)
+    testlib.equal(scrollBar.points[1][4], 4)
+    testlib.equal(scrollBar.points[1][5], -14)
+    testlib.equal(scrollBar.points[2][1], "BOTTOMLEFT")
+    testlib.equal(scrollBar.points[2][2], harness.addon.UI.levelScrollFrame)
+    testlib.equal(scrollBar.points[2][3], "BOTTOMRIGHT")
+    testlib.equal(scrollBar.points[2][4], 4)
+    testlib.equal(scrollBar.points[2][5], 14)
+    testlib.equal(scrollBar.ScrollUpButton:IsShown(), true)
+    testlib.equal(scrollBar.ScrollDownButton:IsShown(), true)
+    testlib.equal(scrollBar.ThumbTexture:IsShown(), true)
+end)
+
+testlib.case("ui falls back when the native level scroll template is rejected", function()
+    local harness = newUIHarness({
+        rejectTemplates = {
+            UIPanelScrollFrameTemplate = true,
+        },
+    })
+    local UI = harness.addon.UI
+
+    testlib.equal(pcall(UI.Create), true)
+    testlib.equal(pcall(UI.Refresh), true)
+    testlib.equal(UI.levelScrollFrame.ScrollBar, nil)
+    testlib.equal(UI.levelScrollFrame.width, 348)
+end)
+
+testlib.case("ui protects level scrollbar range checks", function()
+    local harness = newUIHarness({
+        rejectLevelScrollRange = true,
+    })
+    local UI = harness.addon.UI
+
+    UI.Create()
+    UI.levelScrollFrame:SetVerticalScroll(100)
+    testlib.equal(pcall(UI.Refresh), true)
+    testlib.equal(UI.levelScrollFrame.ScrollBar:IsShown(), false)
+    testlib.equal(UI.levelScrollFrame:GetVerticalScroll(), 100)
+end)
+
+testlib.case("ui manages a level scrollbar exposed only as a direct child", function()
+    local rows = {}
+    for level = 16, 1, -1 do
+        table.insert(rows, {
+            level = level,
+            steps = level,
+            onFoot = level .. " m",
+            swimming = level .. " m",
+            taxi = level .. " m",
+        })
+    end
+    local harness = newUIHarness({
+        levelRows = rows,
+        levelScrollbarDirectChildOnly = true,
+    })
+    local UI = harness.addon.UI
+
+    UI.Create()
+    UI.Refresh()
+
+    local scrollBar = UI.levelScrollFrame.children[1]
+    testlib.equal(UI.levelScrollFrame.ScrollBar, nil)
+    testlib.equal(scrollBar:IsShown(), true)
+    testlib.equal(scrollBar.points[1][1], "TOPLEFT")
+    testlib.equal(scrollBar.points[1][2], UI.levelScrollFrame)
+    testlib.equal(scrollBar.ScrollUpButton:IsShown(), true)
+    testlib.equal(scrollBar.ScrollDownButton:IsShown(), true)
+    testlib.equal(scrollBar.ThumbTexture:IsShown(), true)
+end)
+
+testlib.case("ui preserves valid level scroll offsets and clamps after shrinking", function()
+    local overflowRows = {}
+    local shorterRows = {}
+    for level = 16, 1, -1 do
+        table.insert(overflowRows, {
+            level = level,
+            steps = level,
+            onFoot = level .. " m",
+            swimming = level .. " m",
+            taxi = level .. " m",
+        })
+        if level > 8 then
+            table.insert(shorterRows, overflowRows[#overflowRows])
+        end
+    end
+    local harness = newUIHarness({
+        levelRowsSequence = {
+            overflowRows,
+            shorterRows,
+            {
+                {
+                    level = 1,
+                    steps = "1",
+                    onFoot = "1 m",
+                    swimming = "0 m",
+                    taxi = "0 m",
+                },
+            },
+        },
+    })
+    local UI = harness.addon.UI
+    UI.Create()
+    UI.Refresh()
+    UI.levelScrollFrame:SetVerticalScroll(200)
+
+    UI.Refresh()
+    testlib.equal(UI.levelScrollFrame:GetVerticalScroll(), 200)
+
+    UI.Refresh()
+    testlib.equal(UI.levelScrollFrame:GetVerticalScroll(), 0)
 end)
 
 testlib.case("ui level cards reuse frames and hide stale data after shrinking", function()
