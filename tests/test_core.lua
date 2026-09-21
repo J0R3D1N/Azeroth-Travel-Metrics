@@ -76,6 +76,7 @@ local function newCoreHarness(options)
         levelCalls = {},
         order = {},
         initializationOrder = {},
+        characterKeys = {},
     }
     local initializedDB = options.initializedDB or {
         settings = {
@@ -139,6 +140,7 @@ local function newCoreHarness(options)
         GetCharacter = function(db, key, receivedIdentity)
             calls.getCharacter = calls.getCharacter + 1
             table.insert(calls.initializationOrder, "getCharacter")
+            table.insert(calls.characterKeys, key)
             calls.characterArguments = {
                 db = db,
                 key = key,
@@ -146,6 +148,30 @@ local function newCoreHarness(options)
             }
             if options.getCharacterThrows then
                 error("character exploded")
+            end
+            if options.realisticCharacterLookup then
+                local existingCharacter = db.characters[key]
+                if existingCharacter then
+                    return existingCharacter
+                end
+
+                local createdCharacter = {
+                    identity = {
+                        name = receivedIdentity.name,
+                        realm = receivedIdentity.realm,
+                        raceFile = receivedIdentity.raceFile,
+                        firstSeenAt = receivedIdentity.now,
+                    },
+                    lifetime = {
+                        onFoot = 0,
+                        swimming = 0,
+                        taxi = 0,
+                    },
+                    levels = {},
+                    diagnostics = {},
+                }
+                db.characters[key] = createdCharacter
+                return createdCharacter
             end
             return character
         end,
@@ -495,10 +521,14 @@ testlib.case("relog initialization recovers existing character and resets only o
     local currentLevel = levels[42]
     local diagnostics = character.diagnostics
     local storedIdentity = character.identity
+    local storedName = storedIdentity.name
+    local storedRealm = storedIdentity.realm
+    local storedRaceFile = storedIdentity.raceFile
+    local storedFirstSeenAt = storedIdentity.firstSeenAt
     local harness = newCoreHarness({
         initializedDB = db,
-        character = character,
         identity = identity,
+        realisticCharacterLookup = true,
     })
 
     initialize(harness)
@@ -509,8 +539,17 @@ testlib.case("relog initialization recovers existing character and resets only o
     testlib.equal(harness.calls.getCharacter, 1)
     testlib.equal(harness.calls.startSession, 1)
     testlib.equal(harness.calls.characterArguments.db, db)
+    testlib.equal(harness.calls.characterArguments.key, "Traveler-TestRealm")
+    testlib.equal(#harness.calls.characterKeys, 1)
+    testlib.equal(harness.calls.characterKeys[1], "Traveler-TestRealm")
     testlib.equal(db.characters["Traveler-TestRealm"], character)
     testlib.equal(countKeys(db.characters), 1)
+    testlib.equal(db.characters[""], nil)
+    testlib.equal(db.characters["Traveler-"], nil)
+    for key, storedCharacter in pairs(db.characters) do
+        testlib.equal(key, "Traveler-TestRealm")
+        testlib.equal(storedCharacter, character)
+    end
     testlib.equal(state.character, character)
     testlib.equal(harness.calls.sessionArguments.character, character)
     testlib.equal(character.lifetime, lifetime)
@@ -518,7 +557,10 @@ testlib.case("relog initialization recovers existing character and resets only o
     testlib.equal(character.levels[42], currentLevel)
     testlib.equal(character.diagnostics, diagnostics)
     testlib.equal(character.identity, storedIdentity)
-    testlib.equal(character.identity.firstSeenAt, 1000)
+    testlib.equal(character.identity.name, storedName)
+    testlib.equal(character.identity.realm, storedRealm)
+    testlib.equal(character.identity.raceFile, storedRaceFile)
+    testlib.equal(character.identity.firstSeenAt, storedFirstSeenAt)
     testlib.equal(character.lifetime.onFoot, 111)
     testlib.equal(character.lifetime.swimming, 222)
     testlib.equal(character.lifetime.taxi, 333)
@@ -538,6 +580,7 @@ testlib.case("relog initialization recovers existing character and resets only o
 
     testlib.equal(harness.calls.getCharacter, 1)
     testlib.equal(harness.calls.startSession, 1)
+    testlib.equal(#harness.calls.characterKeys, 1)
     testlib.equal(countKeys(db.characters), 1)
     testlib.equal(db.characters["Traveler-TestRealm"], character)
     testlib.equal(character.session, freshSession)
@@ -1599,7 +1642,7 @@ local function newUIHarness(options)
         end
     end
 
-    addon.UI.Initialize({
+    local context = {
         db = db,
         character = character,
         tracker = tracker,
@@ -1609,7 +1652,8 @@ local function newUIHarness(options)
         getCurrentLevel = function()
             return 42
         end,
-    })
+    }
+    addon.UI.Initialize(context)
 
     return {
         addon = addon,
@@ -1619,6 +1663,7 @@ local function newUIHarness(options)
         character = character,
         db = db,
         tracker = tracker,
+        context = context,
         strataAttempts = strataAttempts,
         hudStrataAttempts = calls.hudStrataAttempts,
     }
@@ -2396,6 +2441,10 @@ testlib.case("ui regular close hides only the window and reopens without state m
     local currentLevel = levels[42]
     local diagnostics = character.diagnostics
     local previous = tracker.previous
+    local runtimeTracker = harness.tracker
+    local context = harness.context
+    local capabilities = context.capabilities
+    local getCurrentLevel = context.getCurrentLevel
     local expectedSummaryValues = {
         { "111", "1.11 km", "2.22 km", "3.33 km", "6.66 km" },
         { "11", "110 m", "220 m", "330 m", "660 m" },
@@ -2429,6 +2478,14 @@ testlib.case("ui regular close hides only the window and reopens without state m
     testlib.equal(UI.IsShown(), false)
     testlib.equal(harness.db, db)
     testlib.equal(harness.db.settings, settings)
+    testlib.equal(runtimeTracker, tracker)
+    testlib.equal(harness.tracker, runtimeTracker)
+    testlib.equal(harness.context, context)
+    testlib.equal(harness.context.db, db)
+    testlib.equal(harness.context.character, character)
+    testlib.equal(harness.context.tracker, runtimeTracker)
+    testlib.equal(harness.context.capabilities, capabilities)
+    testlib.equal(harness.context.getCurrentLevel, getCurrentLevel)
     testlib.equal(harness.character, character)
     testlib.equal(harness.character.lifetime, lifetime)
     testlib.equal(harness.character.session, session)
@@ -2454,6 +2511,13 @@ testlib.case("ui regular close hides only the window and reopens without state m
     UI.ShowMain()
     testlib.equal(frame:IsShown(), true)
     testlib.equal(UI.IsShown(), true)
+    testlib.equal(harness.tracker, runtimeTracker)
+    testlib.equal(harness.context, context)
+    testlib.equal(harness.context.db, db)
+    testlib.equal(harness.context.character, character)
+    testlib.equal(harness.context.tracker, runtimeTracker)
+    testlib.equal(harness.context.capabilities, capabilities)
+    testlib.equal(harness.context.getCurrentLevel, getCurrentLevel)
     testlib.equal(harness.character, character)
     testlib.equal(harness.character.lifetime, lifetime)
     testlib.equal(harness.character.session, session)
