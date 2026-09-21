@@ -1315,7 +1315,7 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
         testlib.equal(section.title.points[2][2], section.header)
         testlib.equal(section.title.points[2][4], -13)
         testlib.equal(#section.rows, 4)
-        testlib.equal(section.frame.height, 96)
+        testlib.equal(section.frame.height, 84)
         testlib.equal(section.rows[1].frame.points[1][2], section.header)
         testlib.equal(section.rows[1].frame.points[1][3], "BOTTOMLEFT")
         testlib.equal(section.rows[1].frame.points[2][2], section.header)
