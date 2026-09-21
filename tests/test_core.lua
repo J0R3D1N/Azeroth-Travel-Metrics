@@ -1891,6 +1891,30 @@ local function newUIHarness(options)
         end
 
         local frame = newFrame(frameType, name, parent, template, options)
+        if template == "MaximizeMinimizeButtonFrameTemplate" then
+            frame.MaximizeButton = newFrame(
+                "Button",
+                nil,
+                frame,
+                nil,
+                options
+            )
+            frame.MinimizeButton = newFrame(
+                "Button",
+                nil,
+                frame,
+                nil,
+                options
+            )
+            function frame:SetMinimizedLook()
+                self.MaximizeButton:Hide()
+                self.MinimizeButton:Show()
+            end
+            function frame:SetMaximizedLook()
+                self.MaximizeButton:Show()
+                self.MinimizeButton:Hide()
+            end
+        end
         if template == "PortraitFrameBaseTemplate" then
             frame.TitleText = newFrame(
                 "FontString",
@@ -2372,19 +2396,19 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     )
     testlib.equal(
         harness.addon.UI.summarySections[2].frame.point[5],
-        -8
+        -10
     )
     testlib.equal(
         harness.addon.UI.summarySections[3].frame.point[5],
-        -8
+        -10
     )
-    testlib.equal(harness.addon.UI.overviewPanel.height, 316)
+    testlib.equal(harness.addon.UI.overviewPanel.height, 320)
     testlib.equal(harness.addon.UI.resetButton.template, "UIPanelButtonTemplate")
     testlib.equal(harness.addon.UI.settingsButton.width, 24)
     testlib.equal(harness.addon.UI.settingsButton.height, 24)
     testlib.truthy(harness.addon.UI.settingsButton.frameLevel > first:GetFrameLevel())
     testlib.truthy(harness.addon.UI.closeButton.frameLevel > first:GetFrameLevel())
-    testlib.truthy(harness.addon.UI.minimizeButton.frameLevel > first:GetFrameLevel())
+    testlib.truthy(harness.addon.UI.minimizeControl.frameLevel > first:GetFrameLevel())
     testlib.equal(harness.addon.UI.closeButton:IsShown(), true)
     testlib.equal(harness.addon.UI.minimizeButton:IsShown(), true)
     testlib.equal(harness.addon.UI.closeButton.width, 24)
@@ -2395,22 +2419,40 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
         harness.addon.UI.titleRegion
     )
     testlib.equal(harness.addon.UI.closeButton.point[5], 0)
-    testlib.equal(harness.addon.UI.minimizeButton.point[1], "RIGHT")
+    testlib.equal(harness.addon.UI.minimizeControl.point[1], "RIGHT")
     testlib.equal(
-        harness.addon.UI.minimizeButton.point[2],
+        harness.addon.UI.minimizeControl.point[2],
         harness.addon.UI.closeButton
     )
-    testlib.equal(harness.addon.UI.minimizeButton.point[3], "LEFT")
-    testlib.equal(harness.addon.UI.minimizeButton.point[5], 0)
-    testlib.equal(harness.addon.UI.minimizeButton.controlKind, "minimize")
+    testlib.equal(harness.addon.UI.minimizeControl.point[3], "LEFT")
+    testlib.equal(harness.addon.UI.minimizeControl.point[5], 0)
+    testlib.equal(
+        harness.addon.UI.minimizeControl.template,
+        "MaximizeMinimizeButtonFrameTemplate"
+    )
+    testlib.equal(
+        harness.addon.UI.minimizeButton,
+        harness.addon.UI.minimizeControl.MinimizeButton
+    )
+    testlib.equal(harness.addon.UI.minimizeControl.width, 24)
+    testlib.equal(harness.addon.UI.minimizeControl.height, 24)
     testlib.equal(harness.addon.UI.minimizeButton.width, 24)
     testlib.equal(harness.addon.UI.minimizeButton.height, 24)
-    testlib.equal(harness.addon.UI.settingsButton.point[4], -22)
-    testlib.truthy(harness.addon.UI.settingsButton.point[5] >= 36)
+    testlib.equal(harness.addon.UI.settingsButton.point[1], "RIGHT")
+    testlib.equal(
+        harness.addon.UI.settingsButton.point[2],
+        harness.addon.UI.versionLabel
+    )
+    testlib.equal(harness.addon.UI.settingsButton.point[3], "LEFT")
+    testlib.equal(harness.addon.UI.settingsButton.point[4], -8)
+    testlib.equal(harness.addon.UI.settingsButton.point[5], 0)
     testlib.equal(harness.addon.UI.versionLabel:GetText(), "ATT v0.1.0-beta")
     testlib.equal(harness.addon.UI.versionLabel.template, "GameFontDisableSmall")
     testlib.equal(harness.addon.UI.versionLabel.justifyH, "RIGHT")
     testlib.equal(harness.addon.UI.versionLabel.point[1], "BOTTOMRIGHT")
+    testlib.equal(harness.addon.UI.shell.topGlow.points[1][4], 7)
+    testlib.equal(harness.addon.UI.shell.topGlow.points[2][4], -7)
+    testlib.equal(harness.addon.UI.shell.topGlow.height, 44)
     testlib.equal(harness.calls.modernMetadata, 1)
     testlib.equal(harness.calls.legacyMetadata, 0)
     testlib.equal(harness.calls.metadataAddonName, "AzerothTravelTracker")
@@ -2858,6 +2900,7 @@ testlib.case("ui action buttons remain visible and interactive without panel tem
             BackdropTemplate = true,
             UIPanelButtonTemplate = true,
             UIPanelCloseButton = true,
+            MaximizeMinimizeButtonFrameTemplate = true,
         },
     })
     local UI = harness.addon.UI
@@ -2897,8 +2940,8 @@ testlib.case("ui action buttons remain visible and interactive without panel tem
     testlib.truthy(UI.hud.frame ~= nil)
     testlib.equal(UI.hud.restoreButton.template, nil)
     testlib.equal(UI.hud.restoreButton.controlKind, "restore")
-    testlib.equal(UI.hud.restoreButton.width, 20)
-    testlib.equal(UI.hud.restoreButton.height, 20)
+    testlib.equal(UI.hud.restoreButton.width, 24)
+    testlib.equal(UI.hud.restoreButton.height, 24)
     testlib.equal(UI.hud.restoreButton:GetText(), nil)
     testlib.truthy(UI.hud.restoreButton.Background.color ~= nil)
     testlib.truthy(UI.hud.restoreButton.HighlightTexture.color ~= nil)
@@ -3168,14 +3211,18 @@ testlib.case("ui minimize restore close and toggle coordinate both surfaces", fu
     testlib.equal(UI.hud.frame.dragButton, "LeftButton")
     testlib.equal(#UI.hud.cells, 4)
     testlib.equal(UI.hud.title:GetText(), "Session")
-    testlib.equal(UI.hud.restoreButton.controlKind, "restore")
-    testlib.equal(UI.hud.restoreButton.width, 20)
-    testlib.equal(UI.hud.restoreButton.height, 20)
+    testlib.equal(
+        UI.hud.restoreControl.template,
+        "MaximizeMinimizeButtonFrameTemplate"
+    )
+    testlib.equal(UI.hud.restoreButton, UI.hud.restoreControl.MaximizeButton)
+    testlib.equal(UI.hud.restoreButton.width, 24)
+    testlib.equal(UI.hud.restoreButton.height, 24)
     testlib.equal(UI.hud.restoreButton:GetText(), nil)
-    testlib.equal(UI.hud.restoreButton.point[1], "RIGHT")
-    testlib.equal(UI.hud.restoreButton.point[2], UI.hud.closeButton)
-    testlib.equal(UI.hud.restoreButton.point[3], "LEFT")
-    testlib.truthy(UI.hud.restoreButton.frameLevel > UI.hud.frame:GetFrameLevel())
+    testlib.equal(UI.hud.restoreControl.point[1], "RIGHT")
+    testlib.equal(UI.hud.restoreControl.point[2], UI.hud.closeButton)
+    testlib.equal(UI.hud.restoreControl.point[3], "LEFT")
+    testlib.truthy(UI.hud.restoreControl.frameLevel > UI.hud.frame:GetFrameLevel())
     testlib.truthy(UI.hud.closeButton.frameLevel > UI.hud.frame:GetFrameLevel())
     testlib.truthy(UI.hud.cells[1].point[5] <= -29)
     testlib.truthy(UI.hud.cells[1].icon)
@@ -3245,6 +3292,7 @@ testlib.case("ui HUD hover reveals controls and refreshes current session values
     UI.Minimize()
 
     testlib.equal(UI.hud.frame:GetAlpha(), 0.45)
+    testlib.equal(UI.hud.restoreControl:IsShown(), false)
     testlib.equal(UI.hud.restoreButton:IsShown(), false)
     testlib.equal(UI.hud.closeButton:IsShown(), false)
     testlib.equal(UI.hud.cells[1].value:GetText(), "12.5K")
@@ -3254,6 +3302,7 @@ testlib.case("ui HUD hover reveals controls and refreshes current session values
 
     UI.hud.frame.scripts.OnEnter()
     testlib.truthy(UI.hud.frame:GetAlpha() > 0.45)
+    testlib.equal(UI.hud.restoreControl:IsShown(), true)
     testlib.equal(UI.hud.restoreButton:IsShown(), true)
     testlib.equal(UI.hud.closeButton:IsShown(), true)
 
@@ -3272,6 +3321,7 @@ testlib.case("ui HUD hover reveals controls and refreshes current session values
 
     UI.hud.frame.scripts.OnLeave()
     testlib.equal(UI.hud.frame:GetAlpha(), 0.45)
+    testlib.equal(UI.hud.restoreControl:IsShown(), false)
     testlib.equal(UI.hud.restoreButton:IsShown(), false)
     testlib.equal(UI.hud.closeButton:IsShown(), false)
 end)
@@ -3397,7 +3447,7 @@ testlib.case("ui refresh consumes overview levels and diagnostics models", funct
     testlib.equal(UI.levelRows[1].footer, UI.levelRows[1].rows[5])
     testlib.equal(UI.levelRows[1].footer.separator.color[4], 0.95)
     testlib.equal(UI.levelRows[2].title:GetText(), "Level 41")
-    testlib.equal(UI.levelRows[2].frame.point[5], -112)
+    testlib.equal(UI.levelRows[2].frame.point[5], -114)
     local expectedLabels = {
         "Estimated Steps",
         "On Foot",
@@ -3447,9 +3497,9 @@ testlib.case("ui level cards use exact gaps without trailing space", function()
     UI.Refresh()
 
     testlib.equal(UI.levelRows[1].frame.point[5], 0)
-    testlib.equal(UI.levelRows[2].frame.point[5], -112)
-    testlib.equal(UI.levelRows[3].frame.point[5], -224)
-    testlib.equal(UI.levelScrollChild.height, 328)
+    testlib.equal(UI.levelRows[2].frame.point[5], -114)
+    testlib.equal(UI.levelRows[3].frame.point[5], -228)
+    testlib.equal(UI.levelScrollChild.height, 332)
 end)
 
 testlib.case("ui level content keeps its minimum without a trailing gap", function()
@@ -3818,7 +3868,7 @@ testlib.case("ui diagnostics use no visible space when disabled", function()
     disabled.addon.UI.Refresh()
     testlib.equal(disabled.addon.UI.diagnosticsScrollFrame:IsShown(), false)
     testlib.equal(disabled.addon.UI.diagnosticsText:GetText(), "")
-    testlib.equal(disabled.addon.UI.overviewPanel.height, 316)
+    testlib.equal(disabled.addon.UI.overviewPanel.height, 320)
 end)
 
 testlib.case("ui diagnostics retain and scroll realistic multi-reason output", function()
@@ -3849,8 +3899,8 @@ testlib.case("ui diagnostics retain and scroll realistic multi-reason output", f
         UI.overviewPanel
     )
     testlib.equal(UI.diagnosticsScrollFrame.point[3], "TOPLEFT")
-    testlib.equal(UI.diagnosticsScrollFrame.point[5], -320)
-    testlib.equal(UI.overviewPanel.height, 342)
+    testlib.equal(UI.diagnosticsScrollFrame.point[5], -324)
+    testlib.equal(UI.overviewPanel.height, 346)
     local overviewTopOffset =
         UI.contentFrame.point[5] - UI.overviewPanel.point[5]
     testlib.truthy(

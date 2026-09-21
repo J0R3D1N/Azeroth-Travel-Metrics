@@ -204,6 +204,11 @@ local function newHarness(options)
             then
                 error("template unavailable")
             end
+            if template == "MaximizeMinimizeButtonFrameTemplate"
+                and options.rejectWindowSizeTemplate
+            then
+                error("template unavailable")
+            end
 
             local frame = newFrame(
                 frameType,
@@ -228,6 +233,36 @@ local function newHarness(options)
                 frame.Icon.points = { frame.Icon.point }
                 frame.SelectedTexture = newRegion("Texture", frame, options)
                 frame.SelectedTexture:Hide()
+            end
+            if template == "MaximizeMinimizeButtonFrameTemplate" then
+                frame.MaximizeButton = newFrame(
+                    "Button",
+                    nil,
+                    frame,
+                    nil,
+                    options
+                )
+                frame.MinimizeButton = newFrame(
+                    "Button",
+                    nil,
+                    frame,
+                    nil,
+                    options
+                )
+                function frame:SetMinimizedLook()
+                    if options.rejectWindowSizeSetup then
+                        error("window size setup unavailable")
+                    end
+                    self.MaximizeButton:Hide()
+                    self.MinimizeButton:Show()
+                end
+                function frame:SetMaximizedLook()
+                    if options.rejectWindowSizeSetup then
+                        error("window size setup unavailable")
+                    end
+                    self.MaximizeButton:Show()
+                    self.MinimizeButton:Hide()
+                end
             end
             table.insert(calls.frames, frame)
             return frame
@@ -587,11 +622,11 @@ testlib.case("title controls expose compact minimize and restore glyphs", functi
     testlib.equal(minimize.width, 24)
     testlib.equal(minimize.height, 24)
     testlib.equal(minimize.controlKind, "minimize")
-    testlib.equal(#minimize.GlyphTextures, 1)
-    testlib.equal(minimize.GlyphTextures[1].width, 9)
+    testlib.equal(#minimize.GlyphTextures, 3)
+    testlib.equal(minimize.GlyphTextures[1].width, 10)
     testlib.equal(minimize.GlyphTextures[1].height, 2)
     testlib.equal(minimize.GlyphTextures[1].point[1], "CENTER")
-    testlib.equal(minimize.GlyphTextures[1].point[5], -4)
+    testlib.near(minimize.GlyphTextures[1].rotation, math.rad(45), 0.001)
 
     testlib.equal(restore.width, 20)
     testlib.equal(restore.height, 20)
@@ -618,6 +653,86 @@ testlib.case("title controls expose compact minimize and restore glyphs", functi
     testlib.equal(restore.GlyphTextures[3].point[4], 5)
     testlib.equal(restore.GlyphTextures[3].point[5], 2)
     testlib.near(restore.GlyphTextures[3].rotation, math.rad(90), 0.001)
+end)
+
+testlib.case("window size controls use Blizzard native template children", function()
+    local addon, parent = newHarness()
+
+    local minimizeControl, minimizeButton =
+        addon.UITheme.CreateWindowSizeControl(
+            parent,
+            "minimize",
+            "Minimize"
+        )
+    local restoreControl, restoreButton =
+        addon.UITheme.CreateWindowSizeControl(
+            parent,
+            "restore",
+            "Restore"
+        )
+
+    testlib.equal(
+        minimizeControl.template,
+        "MaximizeMinimizeButtonFrameTemplate"
+    )
+    testlib.equal(minimizeControl.width, 24)
+    testlib.equal(minimizeControl.height, 24)
+    testlib.equal(minimizeButton, minimizeControl.MinimizeButton)
+    testlib.equal(minimizeControl.MinimizeButton:IsShown(), true)
+    testlib.equal(minimizeControl.MaximizeButton:IsShown(), false)
+
+    testlib.equal(
+        restoreControl.template,
+        "MaximizeMinimizeButtonFrameTemplate"
+    )
+    testlib.equal(restoreControl.width, 24)
+    testlib.equal(restoreControl.height, 24)
+    testlib.equal(restoreButton, restoreControl.MaximizeButton)
+    testlib.equal(restoreControl.MaximizeButton:IsShown(), true)
+    testlib.equal(restoreControl.MinimizeButton:IsShown(), false)
+end)
+
+testlib.case("window size controls fall back to directional arrows", function()
+    local addon, parent = newHarness({
+        rejectWindowSizeTemplate = true,
+    })
+
+    local minimizeControl, minimizeButton =
+        addon.UITheme.CreateWindowSizeControl(
+            parent,
+            "minimize",
+            "Minimize"
+        )
+    local restoreControl, restoreButton =
+        addon.UITheme.CreateWindowSizeControl(
+            parent,
+            "restore",
+            "Restore"
+        )
+
+    testlib.equal(minimizeControl, minimizeButton)
+    testlib.equal(minimizeButton.controlKind, "minimize")
+    testlib.equal(#minimizeButton.GlyphTextures, 3)
+    testlib.equal(restoreControl, restoreButton)
+    testlib.equal(restoreButton.controlKind, "restore")
+    testlib.equal(#restoreButton.GlyphTextures, 3)
+end)
+
+testlib.case("window size controls hide rejected native setup", function()
+    local addon, parent, calls = newHarness({
+        rejectWindowSizeSetup = true,
+    })
+
+    local control, button = addon.UITheme.CreateWindowSizeControl(
+        parent,
+        "minimize",
+        "Minimize"
+    )
+
+    testlib.equal(control, button)
+    testlib.equal(button.controlKind, "minimize")
+    testlib.equal(calls.frames[1].template, "MaximizeMinimizeButtonFrameTemplate")
+    testlib.equal(calls.frames[1]:IsShown(), false)
 end)
 
 local function assertRestoreFallbackGeometry(restore)

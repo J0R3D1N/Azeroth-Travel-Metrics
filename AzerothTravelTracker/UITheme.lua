@@ -173,8 +173,8 @@ function Theme.ApplyWindowShell(frame, useBackdrop)
     end
 
     shell.topGlow = frame:CreateTexture(nil, "BORDER")
-    shell.topGlow:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -8)
-    shell.topGlow:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, -8)
+    shell.topGlow:SetPoint("TOPLEFT", frame, "TOPLEFT", 7, -8)
+    shell.topGlow:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -7, -8)
     shell.topGlow:SetHeight(44)
     shell.topGlow:SetColorTexture(0.95, 0.72, 0.22, 0.14)
 
@@ -519,6 +519,17 @@ local function replaceWithRestoreFallback(button)
     addGlyphLine(button, 2, 5, 5, 2)
 end
 
+local function replaceWithMinimizeFallback(button)
+    for _, texture in ipairs(button.GlyphTextures) do
+        texture:Hide()
+    end
+    button.GlyphTextures = {}
+
+    addGlyphLine(button, 10, 2, -1, 0)
+    addGlyphLine(button, 5, 2, -3, -4)
+    addGlyphLine(button, 2, 5, -5, -2)
+end
+
 function Theme.CreateTitleControl(parent, kind, tooltip, size)
     local button = CreateFrame("Button", nil, parent)
     size = size or 20
@@ -544,7 +555,30 @@ function Theme.CreateTitleControl(parent, kind, tooltip, size)
     )
 
     if kind == "minimize" then
-        addGlyphLine(button, 9, 2, 0, -4)
+        local minimizeRotated = false
+        local _, shaftRotated = addGlyphLine(
+            button,
+            10,
+            2,
+            -1,
+            0,
+            math.rad(45)
+        )
+        if shaftRotated then
+            local _, bottomRotated = addGlyphLine(button, 5, 2, -3, -4, 0)
+            local _, leftRotated = addGlyphLine(
+                button,
+                5,
+                2,
+                -5,
+                -2,
+                math.rad(90)
+            )
+            minimizeRotated = bottomRotated and leftRotated
+        end
+        if not minimizeRotated then
+            replaceWithMinimizeFallback(button)
+        end
     elseif kind == "restore" then
         local restoreRotated = false
         local _, shaftRotated = addGlyphLine(
@@ -576,4 +610,50 @@ function Theme.CreateTitleControl(parent, kind, tooltip, size)
 
     setTooltip(button, tooltip or "")
     return button
+end
+
+function Theme.CreateWindowSizeControl(parent, mode, tooltip)
+    if mode ~= "minimize" and mode ~= "restore" then
+        error("unsupported window size control: " .. tostring(mode))
+    end
+
+    local created, control = pcall(
+        CreateFrame,
+        "Frame",
+        nil,
+        parent,
+        "MaximizeMinimizeButtonFrameTemplate"
+    )
+    if created
+        and control
+        and control.MaximizeButton
+        and control.MinimizeButton
+    then
+        local setupSucceeded, setupAccepted = pcall(function()
+            control:SetSize(24, 24)
+            control.MaximizeButton:SetSize(24, 24)
+            control.MinimizeButton:SetSize(24, 24)
+            if mode == "minimize" then
+                control:SetMinimizedLook()
+            else
+                control:SetMaximizedLook()
+            end
+        end)
+        if setupSucceeded and setupAccepted ~= false then
+            local button = mode == "minimize"
+                and control.MinimizeButton
+                or control.MaximizeButton
+            setTooltip(button, tooltip or (
+                mode == "minimize" and "Minimize" or "Restore"
+            ))
+            return control, button
+        end
+
+        if type(control.Hide) == "function" then
+            control:Hide()
+        end
+    end
+
+    local button = Theme.CreateTitleControl(parent, mode, tooltip, 24)
+    return button, button
 end

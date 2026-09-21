@@ -5,14 +5,14 @@ ATT.UI = {}
 local UI = ATT.UI
 local RESET_DIALOG_KEY = "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
 local SECTION_HEIGHT = 100
-local SECTION_GAP = 8
+local SECTION_GAP = 10
 local SUMMARY_CONTENT_HEIGHT = (SECTION_HEIGHT * 3) + (SECTION_GAP * 2)
 local DIAGNOSTICS_GAP = 4
 local DIAGNOSTICS_VIEW_HEIGHT = 22
 local DIAGNOSTICS_LINE_HEIGHT = 12
 local DIAGNOSTICS_CONTENT_WIDTH = 348
 local LEVEL_CARD_HEIGHT = 104
-local LEVEL_CARD_GAP = 8
+local LEVEL_CARD_GAP = 10
 local LEVEL_VIEW_HEIGHT = 282
 local LEVEL_PANEL_WIDTH = 376
 local LEVEL_CONTENT_WIDTH = 348
@@ -372,9 +372,11 @@ local function setHUDHovering(hovering)
 
     UI.hud.frame:SetAlpha(hovering and HUD_HOVER_ALPHA or HUD_REST_ALPHA)
     if hovering then
+        UI.hud.restoreControl:Show()
         UI.hud.restoreButton:Show()
         UI.hud.closeButton:Show()
     else
+        UI.hud.restoreControl:Hide()
         UI.hud.restoreButton:Hide()
         UI.hud.closeButton:Hide()
     end
@@ -396,6 +398,7 @@ local function updateHUDHover()
 
     setHUDHovering(
         isMouseOver(UI.hud.frame)
+            or isMouseOver(UI.hud.restoreControl)
             or isMouseOver(UI.hud.restoreButton)
             or isMouseOver(UI.hud.closeButton)
     )
@@ -564,14 +567,14 @@ local function createHUD()
     closeButton:SetScript("OnLeave", updateHUDHover)
     closeButton:Hide()
 
-    local restoreButton = ATT.UITheme.CreateTitleControl(
-        frame,
-        "restore",
-        "Restore",
-        20
-    )
-    restoreButton:SetPoint("RIGHT", closeButton, "LEFT", -2, 0)
-    raiseAboveParent(restoreButton, frame, 20)
+    local restoreControl, restoreButton =
+        ATT.UITheme.CreateWindowSizeControl(
+            frame,
+            "restore",
+            "Restore"
+        )
+    restoreControl:SetPoint("RIGHT", closeButton, "LEFT", -2, 0)
+    raiseAboveParent(restoreControl, frame, 20)
     restoreButton:SetScript("OnClick", function()
         UI.ShowMain()
     end)
@@ -579,6 +582,7 @@ local function createHUD()
         setHUDHovering(true)
     end)
     composeScript(restoreButton, "OnLeave", updateHUDHover)
+    restoreControl:Hide()
     restoreButton:Hide()
 
     frame:SetScript("OnDragStart", function(self)
@@ -599,6 +603,7 @@ local function createHUD()
         border = border,
         title = title,
         cells = cells,
+        restoreControl = restoreControl,
         restoreButton = restoreButton,
         closeButton = closeButton,
     }
@@ -876,20 +881,21 @@ function UI.Create()
     UI.title:SetTextColor(1, 0.82, 0.32, 1)
     UI.title:SetText("Azeroth Travel Tracker")
 
-    UI.minimizeButton = ATT.UITheme.CreateTitleControl(
-        UI.titleRegion,
-        "minimize",
-        "Minimize",
-        24
-    )
-    UI.minimizeButton:SetPoint(
+    UI.minimizeControl, UI.minimizeButton =
+        ATT.UITheme.CreateWindowSizeControl(
+            UI.titleRegion,
+            "minimize",
+            "Minimize"
+        )
+    UI.minimizeControl:SetPoint(
         "RIGHT",
         UI.closeButton,
         "LEFT",
-        -4,
+        -1,
         0
     )
-    raiseAboveParent(UI.minimizeButton, UI.titleRegion, 3)
+    raiseAboveParent(UI.minimizeControl, UI.titleRegion, 3)
+    UI.minimizeControl:Show()
     UI.minimizeButton:Show()
     UI.minimizeButton:SetScript("OnClick", function()
         UI.Minimize()
@@ -937,17 +943,34 @@ function UI.Create()
         UI.ConfirmResetSession()
     end)
 
+    UI.versionLabel = createLabel(
+        frame,
+        "ATT v" .. getVersion(),
+        "GameFontDisableSmall"
+    )
+    UI.versionLabel:SetPoint(
+        "BOTTOMRIGHT",
+        frame,
+        "BOTTOMRIGHT",
+        -18,
+        13
+    )
+    UI.versionLabel:SetWidth(160)
+    UI.versionLabel:SetJustifyH("RIGHT")
+    UI.versionLabel:SetJustifyV("BOTTOM")
+    UI.versionLabel:SetTextColor(0.58, 0.50, 0.38, 1)
+
     UI.settingsButton = ATT.UITheme.CreateIconButton(
         frame,
         ATT.UITheme.Icons.SETTINGS,
         "Settings"
     )
     UI.settingsButton:SetPoint(
-        "BOTTOMRIGHT",
-        frame,
-        "BOTTOMRIGHT",
-        -22,
-        38
+        "RIGHT",
+        UI.versionLabel,
+        "LEFT",
+        -8,
+        0
     )
     raiseAboveParent(UI.settingsButton, frame, 20)
 
@@ -1065,25 +1088,8 @@ function UI.Create()
     syncSettingsControls()
     settingsPanel:Hide()
 
-    UI.versionLabel = createLabel(
-        frame,
-        "ATT v" .. getVersion(),
-        "GameFontDisableSmall"
-    )
-    UI.versionLabel:SetPoint(
-        "BOTTOMRIGHT",
-        frame,
-        "BOTTOMRIGHT",
-        -18,
-        13
-    )
-    UI.versionLabel:SetWidth(160)
-    UI.versionLabel:SetJustifyH("RIGHT")
-    UI.versionLabel:SetJustifyV("BOTTOM")
-    UI.versionLabel:SetTextColor(0.58, 0.50, 0.38, 1)
-
     UI.contentFrame = CreateFrame("Frame", nil, frame)
-    UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -46)
+    UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -50)
     UI.contentFrame:SetSize(388, 350)
 
     UI.errorPanel = CreateFrame("Frame", nil, UI.contentFrame)
