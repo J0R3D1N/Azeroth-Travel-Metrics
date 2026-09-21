@@ -134,7 +134,7 @@ Replace the riding-horse icon with `Interface\Icons\Ability_Rogue_Sprint`.
 Keep:
 
 - native minimap background and tracking border;
-- click to toggle;
+- click always opens the regular panel and hides/replaces the minimized session HUD; it does not toggle the regular panel closed;
 - drag to reposition;
 - persisted angle;
 - drag-release click suppression;
