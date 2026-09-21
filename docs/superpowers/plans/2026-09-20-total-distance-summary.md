@@ -486,27 +486,91 @@ Remove-Item -LiteralPath $temp -Recurse -Force
 
 - [ ] **Step 6: Verify source, package, and install parity**
 
-Compare SHA-256 hashes for every addon file:
+Extract the immutable release to a specifically named verification directory,
+compare every packaged file directly to the installed copy by SHA-256, and then
+compare each packaged file's unfiltered Git object ID to the blob committed at
+`HEAD`:
 
 ```powershell
-$source = 'D:\_projects\wow-forever-step-tracker\AzerothTravelTracker'
+$root = & git rev-parse --show-toplevel
+if ($LASTEXITCODE -ne 0) {
+    throw 'Could not resolve the repository root.'
+}
+$root = $root.Trim()
+$zip = Join-Path $root 'artifacts\AzerothTravelTracker-0.1.0-beta.zip'
+$temp = Join-Path $root 'artifacts\verify-0.1.0-beta'
+$package = Join-Path $temp 'AzerothTravelTracker'
 $installed = 'D:\Games\World of Warcraft\_classic_beta_\Interface\AddOns\AzerothTravelTracker'
-$sourceHashes = Get-ChildItem -LiteralPath $source -File | ForEach-Object {
-    [pscustomobject]@{
-        Name = $_.Name
-        Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+
+if (Test-Path -LiteralPath $temp) {
+    Remove-Item -LiteralPath $temp -Recurse -Force
+}
+
+try {
+    Expand-Archive -LiteralPath $zip -DestinationPath $temp
+
+    $packageHashes = Get-ChildItem -LiteralPath $package -File -Recurse |
+        ForEach-Object {
+            [pscustomobject]@{
+                Path = $_.FullName.Substring($package.Length + 1)
+                Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+            }
+        }
+    $installedHashes = Get-ChildItem -LiteralPath $installed -File -Recurse |
+        ForEach-Object {
+            [pscustomobject]@{
+                Path = $_.FullName.Substring($installed.Length + 1)
+                Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+            }
+        }
+
+    $parityDifferences = Compare-Object $packageHashes $installedHashes `
+        -Property Path, Hash
+    if ($parityDifferences) {
+        $parityDifferences | Format-Table -AutoSize
+        throw 'Installed addon differs from the packaged release.'
+    }
+
+    $headMismatches = Get-ChildItem -LiteralPath $package -File -Recurse |
+        ForEach-Object {
+            $relativePath = $_.FullName.Substring($package.Length + 1)
+            $gitPath = 'AzerothTravelTracker/' + ($relativePath -replace '\\', '/')
+            $packageObject = & git -C $root hash-object --no-filters -- $_.FullName
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not hash packaged file: $relativePath"
+            }
+            $packageObject = $packageObject.Trim()
+            $headObject = & git -C $root rev-parse --verify "HEAD:$gitPath"
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not resolve committed file: $gitPath"
+            }
+            $headObject = $headObject.Trim()
+            if ($packageObject -ne $headObject) {
+                [pscustomobject]@{
+                    Path = $relativePath
+                    PackageObject = $packageObject
+                    HeadObject = $headObject
+                }
+            }
+        }
+    if ($headMismatches) {
+        $headMismatches | Format-Table -AutoSize
+        throw 'Packaged release differs from committed HEAD content.'
+    }
+
+    'Package, install, and committed HEAD content match.'
+}
+finally {
+    if (Test-Path -LiteralPath $temp) {
+        Remove-Item -LiteralPath $temp -Recurse -Force
     }
 }
-$installedHashes = Get-ChildItem -LiteralPath $installed -File | ForEach-Object {
-    [pscustomobject]@{
-        Name = $_.Name
-        Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
-    }
-}
-Compare-Object $sourceHashes $installedHashes -Property Name, Hash
 ```
 
-Expected: no comparison output.
+Expected: no difference or mismatch tables, followed by
+`Package, install, and committed HEAD content match.` The exact
+`artifacts\verify-0.1.0-beta` temporary directory is removed even if a
+verification fails.
 
 - [ ] **Step 7: Perform the in-client check**
 
