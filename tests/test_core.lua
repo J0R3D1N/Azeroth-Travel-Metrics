@@ -2196,11 +2196,20 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     testlib.near(harness.addon.UI.shell.goldTexture.vertexColor[4], 0.08, 0.001)
     testlib.truthy(harness.addon.UI.shell.vignette.gradient ~= nil)
     testlib.equal(harness.addon.UI.shell.vignette.layer, "BORDER")
-    testlib.near(harness.addon.UI.shell.vignette.gradient[5], 0.16, 0.001)
-    testlib.near(harness.addon.UI.shell.vignette.gradient[9], 0.03, 0.001)
+    testlib.equal(harness.addon.UI.shell.vignette.gradient[2], 0.02)
+    testlib.equal(harness.addon.UI.shell.vignette.gradient[3], 0.01)
+    testlib.equal(harness.addon.UI.shell.vignette.gradient[4], 0.00)
+    testlib.equal(harness.addon.UI.shell.vignette.gradient[5], 0.16)
+    testlib.equal(harness.addon.UI.shell.vignette.gradient[6], 0.00)
+    testlib.equal(harness.addon.UI.shell.vignette.gradient[7], 0.00)
+    testlib.equal(harness.addon.UI.shell.vignette.gradient[8], 0.00)
+    testlib.equal(harness.addon.UI.shell.vignette.gradient[9], 0.03)
     testlib.truthy(harness.addon.UI.shell.topGlow.color ~= nil)
     testlib.equal(harness.addon.UI.shell.topGlow.height, 28)
-    testlib.near(harness.addon.UI.shell.topGlow.color[4], 0.14, 0.001)
+    testlib.equal(harness.addon.UI.shell.topGlow.color[1], 0.95)
+    testlib.equal(harness.addon.UI.shell.topGlow.color[2], 0.72)
+    testlib.equal(harness.addon.UI.shell.topGlow.color[3], 0.22)
+    testlib.equal(harness.addon.UI.shell.topGlow.color[4], 0.14)
     testlib.equal(harness.addon.UI.shell.topGlow.layer, "BORDER")
     testlib.truthy(harness.addon.UI.shell.titleSeparator ~= nil)
     testlib.equal(harness.addon.UI.shell.titleSeparator.height, 1)
@@ -2345,8 +2354,9 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     )
     testlib.equal(harness.addon.UI.settingsPanel:IsShown(), false)
     testlib.equal(harness.addon.UI.settingsPanel.strata, "DIALOG")
-    testlib.truthy(
-        harness.addon.UI.settingsPanel:GetFrameLevel() > first:GetFrameLevel()
+    testlib.equal(
+        harness.addon.UI.settingsPanel:GetFrameLevel(),
+        first:GetFrameLevel() + 100
     )
     testlib.equal(
         harness.addon.UI.overviewTab.template,
@@ -2433,11 +2443,10 @@ testlib.case("ui falls back from BackdropTemplate to a visible bare shell", func
 
     testlib.equal(frame.template, nil)
     testlib.truthy(harness.addon.UI.shell.fallbackBackground.color ~= nil)
-    testlib.near(
-        harness.addon.UI.shell.fallbackBackground.color[4],
-        0.95,
-        0.001
-    )
+    testlib.equal(harness.addon.UI.shell.fallbackBackground.color[1], 0.08)
+    testlib.equal(harness.addon.UI.shell.fallbackBackground.color[2], 0.06)
+    testlib.equal(harness.addon.UI.shell.fallbackBackground.color[3], 0.035)
+    testlib.equal(harness.addon.UI.shell.fallbackBackground.color[4], 0.95)
     testlib.equal(#harness.addon.UI.shell.fallbackBorder, 4)
     for _, edge in ipairs(harness.addon.UI.shell.fallbackBorder) do
         testlib.truthy(edge.color ~= nil)
