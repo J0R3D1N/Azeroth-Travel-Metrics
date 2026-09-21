@@ -104,7 +104,7 @@ function New-PackageRepoFixture {
     )
     @'
 ## Interface: 16001
-## Title: Azeroth Travel Tracker
+## Title: Azeroth Travel Tracker - WoW: Forever (beta)
 ## Version: 0.1.0-beta
 ## SavedVariables: AzerothTravelTrackerDB
 
@@ -161,7 +161,7 @@ try {
     $missingFileToc = Join-Path $addonRoot 'MissingFile.toc'
     @'
 ## Interface: 16001
-## Title: Azeroth Travel Tracker
+## Title: Azeroth Travel Tracker - WoW: Forever (beta)
 ## Version: 0.1.0-beta
 ## SavedVariables: AzerothTravelTrackerDB
 
@@ -177,7 +177,7 @@ Missing.lua
     $nonnumericToc = Join-Path $addonRoot 'Nonnumeric.toc'
     @'
 ## Interface: beta
-## Title: Azeroth Travel Tracker
+## Title: Azeroth Travel Tracker - WoW: Forever (beta)
 ## Version: 0.1.0-beta
 ## SavedVariables: AzerothTravelTrackerDB
 
@@ -189,10 +189,29 @@ Present.lua
         -MessagePattern 'numeric Interface' `
         -Action { Assert-AddonManifest -TocPath $nonnumericToc -AddonRoot $addonRoot }
 
-    $duplicateMetadataToc = Join-Path $addonRoot 'DuplicateMetadata.toc'
+    $oldTitleToc = Join-Path $addonRoot 'OldTitle.toc'
     @'
 ## Interface: 16001
 ## Title: Azeroth Travel Tracker
+## Version: 0.1.0-beta
+## SavedVariables: AzerothTravelTrackerDB
+
+Present.lua
+'@ | Set-Content -LiteralPath $oldTitleToc
+
+    Test-Throws `
+        -Name 'manifest rejects the ambiguous pre-Forever title' `
+        -MessagePattern 'WoW: Forever \(beta\)' `
+        -Action {
+            Assert-AddonManifest `
+                -TocPath $oldTitleToc `
+                -AddonRoot $addonRoot
+        }
+
+    $duplicateMetadataToc = Join-Path $addonRoot 'DuplicateMetadata.toc'
+    @'
+## Interface: 16001
+## Title: Azeroth Travel Tracker - WoW: Forever (beta)
 ## Version: 0.1.0-beta
 ## Version: conflicting
 ## SavedVariables: AzerothTravelTrackerDB

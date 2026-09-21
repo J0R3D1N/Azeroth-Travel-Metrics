@@ -38,7 +38,7 @@ function Assert-AddonManifest {
     }
 
     $expectedMetadata = @{
-        Title = 'Azeroth Travel Tracker'
+        Title = 'Azeroth Travel Tracker - WoW: Forever (beta)'
         Version = $ExpectedVersion
         SavedVariables = 'AzerothTravelTrackerDB'
     }

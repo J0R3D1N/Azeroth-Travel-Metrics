@@ -2,6 +2,8 @@
 
 Azeroth Travel Tracker is a dependency-free addon for the **World of Warcraft: Forever beta**. It records travel distance and estimates race-scaled on-foot steps while keeping the underlying totals authoritative in yards.
 
+The WoW AddOns menu lists this build as **Azeroth Travel Tracker - WoW: Forever (beta)** so it cannot be confused with a release for another client.
+
 This repository produces a beta candidate. Automated validation does not replace the pending in-game checks in [`docs/BETA-SMOKE-TESTS.md`](docs/BETA-SMOKE-TESTS.md).
 
 ## Features
@@ -56,9 +58,11 @@ The beta may omit or change movement-state and position APIs. The addon probes r
    ```
 
 4. Confirm that folder directly contains `AzerothTravelTracker.toc`; do not leave an extra archive directory level.
-5. Enable **Azeroth Travel Tracker** in the character-select AddOns list.
+5. Enable **Azeroth Travel Tracker - WoW: Forever (beta)** in the character-select AddOns list.
 
 Do not overwrite an existing `AzerothTravelTracker` directory without first preserving or intentionally replacing it.
+
+After replacing the installed addon folder or TOC, keep WoW closed, reapply ForeverSVFix, and then run its `doctor` command before launching WoW.
 
 ## Controls
 
@@ -114,6 +118,8 @@ Or specify another TOC/package version:
 ```
 
 Packaging reruns the Lua tests, validates required TOC metadata and file entries, recreates only `artifacts\AzerothTravelTracker`, writes `artifacts\AzerothTravelTracker-<version>.zip`, and verifies that every archive entry is beneath one `AzerothTravelTracker` top-level directory.
+
+The clean package intentionally excludes `X-ForeverSVFix` markers, `ForeverSVFixData`, generated files, and account-specific junctions. After replacing an installed addon folder or TOC during development, keep WoW closed, reapply ForeverSVFix, and run its `doctor` command before launching WoW.
 
 ## Beta limitations and direction
 

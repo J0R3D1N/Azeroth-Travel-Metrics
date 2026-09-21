@@ -1,5 +1,5 @@
 ## Interface: 16001
-## Title: Azeroth Travel Tracker
+## Title: Azeroth Travel Tracker - WoW: Forever (beta)
 ## Notes: Tracks estimated steps and travel distance.
 ## Author: Jason Parker
 ## Version: 0.1.0-beta
