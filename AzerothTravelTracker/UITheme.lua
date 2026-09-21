@@ -175,7 +175,7 @@ function Theme.ApplyWindowShell(frame, useBackdrop)
     shell.topGlow = frame:CreateTexture(nil, "BORDER")
     shell.topGlow:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -8)
     shell.topGlow:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, -8)
-    shell.topGlow:SetHeight(28)
+    shell.topGlow:SetHeight(44)
     shell.topGlow:SetColorTexture(0.95, 0.72, 0.22, 0.14)
 
     shell.titleSeparator = frame:CreateTexture(nil, "BORDER")

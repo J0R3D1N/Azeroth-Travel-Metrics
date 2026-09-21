@@ -2257,7 +2257,7 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     testlib.equal(harness.addon.UI.shell.vignette.gradient[8], 0.00)
     testlib.equal(harness.addon.UI.shell.vignette.gradient[9], 0.03)
     testlib.truthy(harness.addon.UI.shell.topGlow.color ~= nil)
-    testlib.equal(harness.addon.UI.shell.topGlow.height, 28)
+    testlib.equal(harness.addon.UI.shell.topGlow.height, 44)
     testlib.equal(harness.addon.UI.shell.topGlow.color[1], 0.95)
     testlib.equal(harness.addon.UI.shell.topGlow.color[2], 0.72)
     testlib.equal(harness.addon.UI.shell.topGlow.color[3], 0.22)
@@ -2282,11 +2282,13 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     testlib.equal(harness.addon.UI.titleRegion.point[4], 8)
     testlib.equal(harness.addon.UI.titleRegion.point[5], -8)
     testlib.equal(harness.addon.UI.titleRegion:IsShown(), true)
-    testlib.equal(harness.addon.UI.titleIconFrame.width, 36)
-    testlib.equal(harness.addon.UI.titleIconFrame.height, 36)
+    testlib.equal(harness.addon.UI.titleIconFrame.width, 32)
+    testlib.equal(harness.addon.UI.titleIconFrame.height, 32)
     testlib.equal(harness.addon.UI.titleIconFrame:IsShown(), true)
     testlib.equal(harness.addon.UI.titleIcon:IsShown(), true)
     testlib.equal(harness.addon.UI.titleIconFrame.point[1], "LEFT")
+    testlib.equal(harness.addon.UI.titleIconFrame.point[4], 4)
+    testlib.equal(harness.addon.UI.titleIconFrame.point[5], 0)
     testlib.equal(
         harness.addon.UI.titleIconFrame.point[2],
         harness.addon.UI.titleRegion
@@ -2368,9 +2370,15 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
         harness.addon.UI.summarySections[2].frame.point[3],
         "BOTTOMLEFT"
     )
-    testlib.truthy(
-        math.abs(harness.addon.UI.summarySections[2].frame.point[5]) <= 6
+    testlib.equal(
+        harness.addon.UI.summarySections[2].frame.point[5],
+        -8
     )
+    testlib.equal(
+        harness.addon.UI.summarySections[3].frame.point[5],
+        -8
+    )
+    testlib.equal(harness.addon.UI.overviewPanel.height, 316)
     testlib.equal(harness.addon.UI.resetButton.template, "UIPanelButtonTemplate")
     testlib.equal(harness.addon.UI.settingsButton.width, 24)
     testlib.equal(harness.addon.UI.settingsButton.height, 24)
@@ -2379,17 +2387,21 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     testlib.truthy(harness.addon.UI.minimizeButton.frameLevel > first:GetFrameLevel())
     testlib.equal(harness.addon.UI.closeButton:IsShown(), true)
     testlib.equal(harness.addon.UI.minimizeButton:IsShown(), true)
+    testlib.equal(harness.addon.UI.closeButton.width, 24)
+    testlib.equal(harness.addon.UI.closeButton.height, 24)
     testlib.equal(harness.addon.UI.closeButton.point[1], "RIGHT")
     testlib.equal(
         harness.addon.UI.closeButton.point[2],
         harness.addon.UI.titleRegion
     )
+    testlib.equal(harness.addon.UI.closeButton.point[5], 0)
     testlib.equal(harness.addon.UI.minimizeButton.point[1], "RIGHT")
     testlib.equal(
         harness.addon.UI.minimizeButton.point[2],
         harness.addon.UI.closeButton
     )
     testlib.equal(harness.addon.UI.minimizeButton.point[3], "LEFT")
+    testlib.equal(harness.addon.UI.minimizeButton.point[5], 0)
     testlib.equal(harness.addon.UI.minimizeButton.controlKind, "minimize")
     testlib.equal(harness.addon.UI.minimizeButton.width, 24)
     testlib.equal(harness.addon.UI.minimizeButton.height, 24)
@@ -3385,7 +3397,7 @@ testlib.case("ui refresh consumes overview levels and diagnostics models", funct
     testlib.equal(UI.levelRows[1].footer, UI.levelRows[1].rows[5])
     testlib.equal(UI.levelRows[1].footer.separator.color[4], 0.95)
     testlib.equal(UI.levelRows[2].title:GetText(), "Level 41")
-    testlib.equal(UI.levelRows[2].frame.point[5], -104)
+    testlib.equal(UI.levelRows[2].frame.point[5], -112)
     local expectedLabels = {
         "Estimated Steps",
         "On Foot",
@@ -3402,6 +3414,91 @@ testlib.case("ui refresh consumes overview levels and diagnostics models", funct
     testlib.truthy(contains(harness.addon.UI.diagnosticsText:GetText(), "alpha: 2"))
     testlib.equal(harness.addon.UI.diagnosticsText:IsShown(), true)
     testlib.equal(harness.addon.UI.errorText:IsShown(), false)
+end)
+
+testlib.case("ui level cards use exact gaps without trailing space", function()
+    local harness = newUIHarness({
+        levelRows = {
+            {
+                level = 3,
+                steps = "3",
+                onFoot = "3 m",
+                swimming = "0 m",
+                taxi = "0 m",
+            },
+            {
+                level = 2,
+                steps = "2",
+                onFoot = "2 m",
+                swimming = "0 m",
+                taxi = "0 m",
+            },
+            {
+                level = 1,
+                steps = "1",
+                onFoot = "1 m",
+                swimming = "0 m",
+                taxi = "0 m",
+            },
+        },
+    })
+    local UI = harness.addon.UI
+    UI.Create()
+    UI.Refresh()
+
+    testlib.equal(UI.levelRows[1].frame.point[5], 0)
+    testlib.equal(UI.levelRows[2].frame.point[5], -112)
+    testlib.equal(UI.levelRows[3].frame.point[5], -224)
+    testlib.equal(UI.levelScrollChild.height, 328)
+end)
+
+testlib.case("ui level content keeps its minimum without a trailing gap", function()
+    local cases = {
+        { rows = {}, expectedHeight = 282 },
+        {
+            rows = {
+                {
+                    level = 1,
+                    steps = "1",
+                    onFoot = "1 m",
+                    swimming = "0 m",
+                    taxi = "0 m",
+                },
+            },
+            expectedHeight = 282,
+        },
+        {
+            rows = {
+                {
+                    level = 2,
+                    steps = "2",
+                    onFoot = "2 m",
+                    swimming = "0 m",
+                    taxi = "0 m",
+                },
+                {
+                    level = 1,
+                    steps = "1",
+                    onFoot = "1 m",
+                    swimming = "0 m",
+                    taxi = "0 m",
+                },
+            },
+            expectedHeight = 282,
+        },
+    }
+
+    for _, case in ipairs(cases) do
+        local harness = newUIHarness({
+            levelRows = case.rows,
+        })
+        harness.addon.UI.Create()
+        harness.addon.UI.Refresh()
+        testlib.equal(
+            harness.addon.UI.levelScrollChild.height,
+            case.expectedHeight
+        )
+    end
 end)
 
 testlib.case("ui hides level scrollbar chrome when content fits", function()
@@ -3721,7 +3818,7 @@ testlib.case("ui diagnostics use no visible space when disabled", function()
     disabled.addon.UI.Refresh()
     testlib.equal(disabled.addon.UI.diagnosticsScrollFrame:IsShown(), false)
     testlib.equal(disabled.addon.UI.diagnosticsText:GetText(), "")
-    testlib.equal(disabled.addon.UI.overviewPanel.height, 306)
+    testlib.equal(disabled.addon.UI.overviewPanel.height, 316)
 end)
 
 testlib.case("ui diagnostics retain and scroll realistic multi-reason output", function()
@@ -3752,8 +3849,8 @@ testlib.case("ui diagnostics retain and scroll realistic multi-reason output", f
         UI.overviewPanel
     )
     testlib.equal(UI.diagnosticsScrollFrame.point[3], "TOPLEFT")
-    testlib.equal(UI.diagnosticsScrollFrame.point[5], -310)
-    testlib.equal(UI.overviewPanel.height, 332)
+    testlib.equal(UI.diagnosticsScrollFrame.point[5], -320)
+    testlib.equal(UI.overviewPanel.height, 342)
     local overviewTopOffset =
         UI.contentFrame.point[5] - UI.overviewPanel.point[5]
     testlib.truthy(

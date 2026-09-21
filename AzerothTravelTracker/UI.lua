@@ -5,13 +5,14 @@ ATT.UI = {}
 local UI = ATT.UI
 local RESET_DIALOG_KEY = "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
 local SECTION_HEIGHT = 100
-local SECTION_GAP = 3
+local SECTION_GAP = 8
 local SUMMARY_CONTENT_HEIGHT = (SECTION_HEIGHT * 3) + (SECTION_GAP * 2)
 local DIAGNOSTICS_GAP = 4
 local DIAGNOSTICS_VIEW_HEIGHT = 22
 local DIAGNOSTICS_LINE_HEIGHT = 12
 local DIAGNOSTICS_CONTENT_WIDTH = 348
 local LEVEL_CARD_HEIGHT = 104
+local LEVEL_CARD_GAP = 8
 local LEVEL_VIEW_HEIGHT = 282
 local LEVEL_PANEL_WIDTH = 376
 local LEVEL_CONTENT_WIDTH = 348
@@ -787,12 +788,14 @@ local function ensureLevelRows(count)
             { footerIndex = #SUMMARY_ROWS }
         )
         card.frame:SetHeight(LEVEL_CARD_HEIGHT)
+        local topOffset = (index - 1)
+            * (LEVEL_CARD_HEIGHT + LEVEL_CARD_GAP)
         card.frame:SetPoint(
             "TOPLEFT",
             UI.levelScrollChild,
             "TOPLEFT",
             0,
-            -((index - 1) * LEVEL_CARD_HEIGHT)
+            -topOffset
         )
         card.frame:SetWidth(LEVEL_CONTENT_WIDTH)
         ATT.UITheme.SetSectionValues(card, sectionValues({}))
@@ -841,7 +844,7 @@ function UI.Create()
         UI.titleIconBorder = ATT.UITheme.CreateFramedIcon(
             UI.titleRegion,
             ATT.UITheme.Icons.TITLE,
-            36
+            32
         )
     UI.titleIconFrame:SetPoint("LEFT", UI.titleRegion, "LEFT", 4, 0)
     raiseAboveParent(UI.titleIconFrame, UI.titleRegion, 2)
@@ -1081,7 +1084,7 @@ function UI.Create()
 
     UI.contentFrame = CreateFrame("Frame", nil, frame)
     UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -46)
-    UI.contentFrame:SetSize(388, 340)
+    UI.contentFrame:SetSize(388, 350)
 
     UI.errorPanel = CreateFrame("Frame", nil, UI.contentFrame)
     UI.errorPanel:SetPoint(
@@ -1091,7 +1094,7 @@ function UI.Create()
         6,
         -8
     )
-    UI.errorPanel:SetSize(376, 332)
+    UI.errorPanel:SetSize(376, 342)
     UI.errorInset = ATT.UITheme.CreateInset(UI.errorPanel)
 
     UI.errorText = createLabel(
@@ -1346,9 +1349,14 @@ function UI.Refresh()
     refreshHUD(overview.session)
 
     ensureLevelRows(#levelRows)
+    local levelContentHeight = 0
+    if #levelRows > 0 then
+        levelContentHeight = (#levelRows * LEVEL_CARD_HEIGHT)
+            + ((#levelRows - 1) * LEVEL_CARD_GAP)
+    end
     UI.levelScrollChild:SetHeight(math.max(
         LEVEL_VIEW_HEIGHT,
-        #levelRows * LEVEL_CARD_HEIGHT
+        levelContentHeight
     ))
     updateLevelScrollbar()
 
