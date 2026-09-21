@@ -2753,12 +2753,12 @@ testlib.case("ui regular close hides only the window and reopens without state m
         local overviewArguments = harness.calls.overviewArguments[callIndex]
         local rowArguments = harness.calls.rowArguments[callIndex]
         local diagnosticArguments = harness.calls.diagnosticArguments[callIndex]
-        local receivedCharacters = {
-            overviewArguments.character,
-            rowArguments.character,
-            diagnosticArguments.character,
-        }
-        for _, receivedCharacter in ipairs(receivedCharacters) do
+
+        testlib.equal(overviewArguments.character, character)
+        testlib.equal(rowArguments.character, character)
+        testlib.equal(diagnosticArguments.character, character)
+
+        local function assertCharacterValues(receivedCharacter)
             testlib.equal(receivedCharacter, character)
             testlib.equal(receivedCharacter.lifetime, lifetime)
             testlib.equal(receivedCharacter.session, session)
@@ -2776,6 +2776,10 @@ testlib.case("ui regular close hides only the window and reopens without state m
             testlib.equal(receivedCharacter.levels[42].taxi, 66)
             testlib.equal(receivedCharacter.levels[42].reachedAt, 3000)
         end
+
+        assertCharacterValues(overviewArguments.character)
+        assertCharacterValues(rowArguments.character)
+        assertCharacterValues(diagnosticArguments.character)
         testlib.equal(overviewArguments.currentLevel, 42)
         testlib.equal(overviewArguments.units, "metric")
         testlib.equal(rowArguments.units, "metric")
