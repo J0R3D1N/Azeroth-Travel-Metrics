@@ -1,4 +1,6 @@
 artifacts/
+.superpowers/
+.worktrees/
 
 .idea/
 .vscode/
