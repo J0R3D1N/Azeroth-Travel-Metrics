@@ -5,6 +5,12 @@ local CORE_FILES = {
     "AzerothTravelTracker\\Core.lua",
 }
 
+local RELOG_INTEGRATION_FILES = {
+    "AzerothTravelTracker\\Namespace.lua",
+    "AzerothTravelTracker\\Storage.lua",
+    "AzerothTravelTracker\\Core.lua",
+}
+
 local UI_FILES = {
     "AzerothTravelTracker\\Namespace.lua",
     "AzerothTravelTracker\\UITheme.lua",
@@ -354,6 +360,176 @@ local function newCoreHarness(options)
     }
 end
 
+local function newRelogIntegrationHarness()
+    local globals, eventFrame = newEventGlobals()
+    local identity = {
+        name = "Traveler",
+        realm = "TestRealm",
+        raceFile = "Human",
+        level = 42,
+        now = 9000,
+    }
+    local character = {
+        identity = {
+            name = "Traveler",
+            realm = "TestRealm",
+            raceFile = "Human",
+            firstSeenAt = 1000,
+        },
+        lifetime = {
+            onFoot = 111,
+            swimming = 222,
+            taxi = 333,
+        },
+        session = {
+            startedAt = 7000,
+            onFoot = 11,
+            swimming = 22,
+            taxi = 33,
+        },
+        levels = {
+            [42] = {
+                onFoot = 44,
+                swimming = 55,
+                taxi = 66,
+                reachedAt = 8000,
+            },
+        },
+        diagnostics = {
+            samples = 77,
+            rejected = 8,
+        },
+    }
+    local db = {
+        schemaVersion = 1,
+        settings = {
+            units = "imperial",
+            showMinimap = true,
+            minimapAngle = 225,
+            showDiagnostics = true,
+            hudPoint = "CENTER",
+            hudX = 0,
+            hudY = 0,
+        },
+        characters = {
+            ["Traveler-TestRealm"] = character,
+        },
+    }
+    globals.AzerothTravelTrackerDB = db
+
+    local addon, environment = testlib.loadAddon(
+        RELOG_INTEGRATION_FILES,
+        globals
+    )
+    local calls = {
+        identity = 0,
+        capabilities = 0,
+        trackerNew = 0,
+        trackerDependencies = {},
+        resets = 0,
+        uiInitialize = 0,
+        uiContexts = {},
+        uiErrors = {},
+        minimapInitialize = 0,
+        minimapContexts = {},
+        tickers = {},
+    }
+    local tracker = {}
+
+    function tracker:ResetBaseline()
+        calls.resets = calls.resets + 1
+        calls.resetReceiver = self
+    end
+
+    function tracker:Sample()
+        return nil, "baseline"
+    end
+
+    addon.Compat = {
+        GetCharacterIdentity = function()
+            calls.identity = calls.identity + 1
+            return identity
+        end,
+        GetCapabilities = function()
+            calls.capabilities = calls.capabilities + 1
+            return {
+                position = true,
+                map = true,
+                time = true,
+                taxi = true,
+                swimming = true,
+                mounted = true,
+                grounded = true,
+                taxiReady = true,
+                swimmingReady = true,
+                onFootReady = true,
+            }
+        end,
+        Print = function()
+        end,
+    }
+    addon.Movement = {}
+    addon.Tracker = {
+        New = function(dependencies)
+            calls.trackerNew = calls.trackerNew + 1
+            table.insert(calls.trackerDependencies, dependencies)
+            return tracker
+        end,
+    }
+    addon.UI = {
+        Initialize = function(context)
+            calls.uiInitialize = calls.uiInitialize + 1
+            table.insert(calls.uiContexts, context)
+        end,
+        Refresh = function()
+        end,
+        Toggle = function()
+        end,
+        IsShown = function()
+            return false
+        end,
+        ShowError = function(message)
+            table.insert(calls.uiErrors, message)
+        end,
+        ConfirmResetSession = function()
+        end,
+    }
+    addon.Minimap = {
+        Initialize = function(context)
+            calls.minimapInitialize = calls.minimapInitialize + 1
+            table.insert(calls.minimapContexts, context)
+        end,
+    }
+    environment.C_Timer = {
+        NewTicker = function(interval, callback)
+            local ticker = {
+                interval = interval,
+                callback = callback,
+                cancelled = false,
+            }
+            function ticker:Cancel()
+                self.cancelled = true
+            end
+            table.insert(calls.tickers, ticker)
+            return ticker
+        end,
+    }
+
+    return {
+        addon = addon,
+        environment = environment,
+        eventFrame = eventFrame,
+        calls = calls,
+        db = db,
+        character = character,
+        identity = identity,
+        tracker = tracker,
+        fire = function(eventName, ...)
+            eventFrame.scripts.OnEvent(eventFrame, eventName, ...)
+        end,
+    }
+end
+
 local function initialize(harness)
     harness.fire("ADDON_LOADED", "AzerothTravelTracker")
 end
@@ -465,6 +641,81 @@ testlib.case("first entering world binds runtime and starts one fresh session", 
     testlib.equal(harness.calls.uiContext.getCurrentLevel(), 42)
     testlib.equal(harness.calls.uiContext.capabilities.position, true)
     testlib.equal(harness.addon.Core.GetState().ready, true)
+end)
+
+testlib.case("production storage lifecycle recovers canonical relog character", function()
+    local harness = newRelogIntegrationHarness()
+    local character = harness.character
+    local storedIdentity = character.identity
+    local lifetime = character.lifetime
+    local priorSession = character.session
+    local levels = character.levels
+    local currentLevel = levels[42]
+    local diagnostics = character.diagnostics
+
+    initialize(harness)
+    enterWorld(harness)
+
+    local state = harness.addon.Core.GetState()
+    local freshSession = character.session
+    testlib.equal(harness.environment.AzerothTravelTrackerDB, harness.db)
+    testlib.equal(state.db, harness.db)
+    testlib.equal(
+        harness.db.characters["Traveler-TestRealm"],
+        character
+    )
+    testlib.equal(countKeys(harness.db.characters), 1)
+    testlib.equal(harness.db.characters[""], nil)
+    for key, storedCharacter in pairs(harness.db.characters) do
+        testlib.equal(key, "Traveler-TestRealm")
+        testlib.equal(storedCharacter, character)
+    end
+    testlib.equal(state.character, character)
+    testlib.equal(character.identity, storedIdentity)
+    testlib.equal(character.identity.name, "Traveler")
+    testlib.equal(character.identity.realm, "TestRealm")
+    testlib.equal(character.identity.raceFile, "Human")
+    testlib.equal(character.identity.firstSeenAt, 1000)
+    testlib.equal(character.lifetime, lifetime)
+    testlib.equal(character.lifetime.onFoot, 111)
+    testlib.equal(character.lifetime.swimming, 222)
+    testlib.equal(character.lifetime.taxi, 333)
+    testlib.equal(character.levels, levels)
+    testlib.equal(character.levels[42], currentLevel)
+    testlib.equal(currentLevel.onFoot, 44)
+    testlib.equal(currentLevel.swimming, 55)
+    testlib.equal(currentLevel.taxi, 66)
+    testlib.equal(currentLevel.reachedAt, 8000)
+    testlib.equal(character.diagnostics, diagnostics)
+    testlib.equal(character.diagnostics.samples, 77)
+    testlib.equal(character.diagnostics.rejected, 8)
+    testlib.truthy(freshSession ~= priorSession)
+    testlib.equal(freshSession.startedAt, harness.identity.now)
+    testlib.equal(freshSession.onFoot, 0)
+    testlib.equal(freshSession.swimming, 0)
+    testlib.equal(freshSession.taxi, 0)
+    testlib.equal(harness.calls.trackerNew, 1)
+    testlib.equal(
+        harness.calls.trackerDependencies[1].character,
+        character
+    )
+    testlib.equal(harness.calls.uiInitialize, 1)
+    testlib.equal(harness.calls.uiContexts[1].character, character)
+    testlib.equal(harness.calls.minimapInitialize, 1)
+    testlib.equal(harness.calls.minimapContexts[1].character, character)
+    testlib.equal(#harness.calls.tickers, 1)
+
+    enterWorld(harness)
+
+    testlib.equal(character.session, freshSession)
+    testlib.equal(character.session.startedAt, harness.identity.now)
+    testlib.equal(harness.calls.identity, 1)
+    testlib.equal(harness.calls.trackerNew, 1)
+    testlib.equal(harness.calls.uiInitialize, 1)
+    testlib.equal(harness.calls.minimapInitialize, 1)
+    testlib.equal(#harness.calls.tickers, 1)
+    testlib.equal(harness.calls.resets, 2)
+    testlib.equal(harness.calls.resetReceiver, harness.tracker)
 end)
 
 testlib.case("relog initialization recovers existing character and resets only one session", function()
@@ -1340,10 +1591,13 @@ local function newUIHarness(options)
     local calls = {
         overview = 0,
         overviewCharacters = {},
+        overviewArguments = {},
         rows = 0,
         rowCharacters = {},
+        rowArguments = {},
         diagnostics = 0,
         diagnosticCharacters = {},
+        diagnosticArguments = {},
         uiInitialize = 0,
         modernMetadata = 0,
         legacyMetadata = 0,
@@ -1525,9 +1779,14 @@ local function newUIHarness(options)
     }
 
     addon.UIModel = {
-        BuildOverview = function(receivedCharacter)
+        BuildOverview = function(receivedCharacter, currentLevel, units)
             calls.overview = calls.overview + 1
             table.insert(calls.overviewCharacters, receivedCharacter)
+            table.insert(calls.overviewArguments, {
+                character = receivedCharacter,
+                currentLevel = currentLevel,
+                units = units,
+            })
             table.insert(order, "refresh")
             if options.overviewSequence then
                 local result = options.overviewSequence[
@@ -1562,9 +1821,13 @@ local function newUIHarness(options)
                 },
             }
         end,
-        BuildLevelRows = function(receivedCharacter)
+        BuildLevelRows = function(receivedCharacter, units)
             calls.rows = calls.rows + 1
             table.insert(calls.rowCharacters, receivedCharacter)
+            table.insert(calls.rowArguments, {
+                character = receivedCharacter,
+                units = units,
+            })
             if options.levelRowsSequence then
                 return options.levelRowsSequence[
                     math.min(calls.rows, #options.levelRowsSequence)
@@ -1589,9 +1852,13 @@ local function newUIHarness(options)
                 },
             }
         end,
-        BuildDiagnostics = function(receivedCharacter)
+        BuildDiagnostics = function(receivedCharacter, enabled)
             calls.diagnostics = calls.diagnostics + 1
             table.insert(calls.diagnosticCharacters, receivedCharacter)
+            table.insert(calls.diagnosticArguments, {
+                character = receivedCharacter,
+                enabled = enabled,
+            })
             return options.diagnostics or {
                 {
                     reason = "alpha",
@@ -2458,9 +2725,6 @@ testlib.case("ui regular close hides only the window and reopens without state m
     local diagnostics = character.diagnostics
     local previous = tracker.previous
     local runtimeTracker = harness.tracker
-    local context = harness.context
-    local capabilities = context.capabilities
-    local getCurrentLevel = context.getCurrentLevel
     local expectedSummaryValues = {
         { "111", "1.11 km", "2.22 km", "3.33 km", "6.66 km" },
         { "11", "110 m", "220 m", "330 m", "660 m" },
@@ -2485,11 +2749,14 @@ testlib.case("ui regular close hides only the window and reopens without state m
         end
     end
 
-    local function assertRefreshUsedOriginalCharacter(callIndex)
+    local function assertRefreshUsedOriginalValues(callIndex)
+        local overviewArguments = harness.calls.overviewArguments[callIndex]
+        local rowArguments = harness.calls.rowArguments[callIndex]
+        local diagnosticArguments = harness.calls.diagnosticArguments[callIndex]
         local receivedCharacters = {
-            harness.calls.overviewCharacters[callIndex],
-            harness.calls.rowCharacters[callIndex],
-            harness.calls.diagnosticCharacters[callIndex],
+            overviewArguments.character,
+            rowArguments.character,
+            diagnosticArguments.character,
         }
         for _, receivedCharacter in ipairs(receivedCharacters) do
             testlib.equal(receivedCharacter, character)
@@ -2509,10 +2776,14 @@ testlib.case("ui regular close hides only the window and reopens without state m
             testlib.equal(receivedCharacter.levels[42].taxi, 66)
             testlib.equal(receivedCharacter.levels[42].reachedAt, 3000)
         end
+        testlib.equal(overviewArguments.currentLevel, 42)
+        testlib.equal(overviewArguments.units, "metric")
+        testlib.equal(rowArguments.units, "metric")
+        testlib.equal(diagnosticArguments.enabled, true)
     end
 
     UI.ShowMain()
-    assertRefreshUsedOriginalCharacter(1)
+    assertRefreshUsedOriginalValues(1)
     assertVisibleValues()
     UI.closeButton.scripts.OnClick()
 
@@ -2523,12 +2794,6 @@ testlib.case("ui regular close hides only the window and reopens without state m
     testlib.equal(harness.db.settings, settings)
     testlib.equal(runtimeTracker, tracker)
     testlib.equal(harness.tracker, runtimeTracker)
-    testlib.equal(harness.context, context)
-    testlib.equal(harness.context.db, db)
-    testlib.equal(harness.context.character, character)
-    testlib.equal(harness.context.tracker, runtimeTracker)
-    testlib.equal(harness.context.capabilities, capabilities)
-    testlib.equal(harness.context.getCurrentLevel, getCurrentLevel)
     testlib.equal(harness.character, character)
     testlib.equal(harness.character.lifetime, lifetime)
     testlib.equal(harness.character.session, session)
@@ -2556,12 +2821,6 @@ testlib.case("ui regular close hides only the window and reopens without state m
     testlib.equal(frame:IsShown(), true)
     testlib.equal(UI.IsShown(), true)
     testlib.equal(harness.tracker, runtimeTracker)
-    testlib.equal(harness.context, context)
-    testlib.equal(harness.context.db, db)
-    testlib.equal(harness.context.character, character)
-    testlib.equal(harness.context.tracker, runtimeTracker)
-    testlib.equal(harness.context.capabilities, capabilities)
-    testlib.equal(harness.context.getCurrentLevel, getCurrentLevel)
     testlib.equal(harness.character, character)
     testlib.equal(harness.character.lifetime, lifetime)
     testlib.equal(harness.character.session, session)
@@ -2572,7 +2831,7 @@ testlib.case("ui regular close hides only the window and reopens without state m
     testlib.equal(harness.tracker.acceptedSegments, 9)
     testlib.equal(harness.calls.reset, 0)
     testlib.equal(harness.calls.baselineReset, 0)
-    assertRefreshUsedOriginalCharacter(2)
+    assertRefreshUsedOriginalValues(2)
     assertVisibleValues()
 
     UI.ConfirmResetSession()
