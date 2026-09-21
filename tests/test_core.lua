@@ -943,6 +943,11 @@ local function newFrame(frameType, name, parent, template, options)
         return self.frameLevel or 1
     end
 
+    function frame:SetDrawLayer(layer, sublevel)
+        self.layer = layer
+        self.sublevel = sublevel
+    end
+
     function frame:SetID(id)
         self.id = id
     end
@@ -1192,6 +1197,8 @@ local function newUIHarness(options)
         overview = 0,
         rows = 0,
         diagnostics = 0,
+        modernMetadata = 0,
+        legacyMetadata = 0,
         reset = 0,
         baselineReset = 0,
         now = 0,
@@ -1208,6 +1215,37 @@ local function newUIHarness(options)
         YES = "Yes",
         NO = "No",
     }
+    if not options.legacyMetadataOnly then
+        globals.C_AddOns = {
+            GetAddOnMetadata = function(receivedAddonName, field)
+                calls.modernMetadata = calls.modernMetadata + 1
+                calls.metadataAddonName = receivedAddonName
+                calls.metadataField = field
+                if options.metadataThrows then
+                    error("metadata exploded")
+                end
+                if options.metadataReturnsNil then
+                    return nil
+                end
+                if options.metadataValue ~= nil then
+                    return options.metadataValue
+                end
+                return "0.1.0-beta"
+            end,
+        }
+    end
+    globals.GetAddOnMetadata = function(receivedAddonName, field)
+        calls.legacyMetadata = calls.legacyMetadata + 1
+        calls.metadataAddonName = receivedAddonName
+        calls.metadataField = field
+        if options.legacyMetadataThrows then
+            error("legacy metadata exploded")
+        end
+        if options.legacyMetadataValue ~= nil then
+            return options.legacyMetadataValue
+        end
+        return nil
+    end
     if options.uispecialframes == nil then
         globals.UISpecialFrames = {}
     elseif options.uispecialframes ~= false then
@@ -1537,7 +1575,47 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     testlib.truthy(harness.addon.UI.shell.topGlow.color ~= nil)
     testlib.near(harness.addon.UI.shell.topGlow.color[4], 0.14, 0.001)
     testlib.equal(harness.addon.UI.shell.topGlow.layer, "BORDER")
+    testlib.equal(harness.addon.UITheme.Icons.TITLE,
+        "Interface\\Icons\\Ability_Rogue_Sprint")
+    testlib.equal(harness.addon.UI.titleRegion.height, 44)
+    testlib.equal(harness.addon.UI.titleRegion.point[1], "TOPLEFT")
+    testlib.equal(harness.addon.UI.titleRegion.point[2], first)
+    testlib.equal(harness.addon.UI.titleRegion.point[3], "TOPLEFT")
+    testlib.equal(harness.addon.UI.titleRegion.point[4], 8)
+    testlib.equal(harness.addon.UI.titleRegion.point[5], -8)
+    testlib.equal(harness.addon.UI.titleRegion:IsShown(), true)
+    testlib.equal(harness.addon.UI.titleIconFrame.width, 36)
+    testlib.equal(harness.addon.UI.titleIconFrame.height, 36)
+    testlib.equal(harness.addon.UI.titleIconFrame:IsShown(), true)
+    testlib.equal(harness.addon.UI.titleIcon:IsShown(), true)
+    testlib.equal(harness.addon.UI.titleIconFrame.point[1], "LEFT")
+    testlib.equal(
+        harness.addon.UI.titleIconFrame.point[2],
+        harness.addon.UI.titleRegion
+    )
+    testlib.equal(harness.addon.UI.titleIcon.texture,
+        "Interface\\Icons\\Ability_Rogue_Sprint")
+    testlib.equal(harness.addon.UI.titleIcon.texCoord[1], 0.08)
+    testlib.equal(harness.addon.UI.titleIcon.texCoord[2], 0.92)
+    testlib.equal(harness.addon.UI.titleIcon.texCoord[3], 0.08)
+    testlib.equal(harness.addon.UI.titleIcon.texCoord[4], 0.92)
+    testlib.truthy(harness.addon.UI.titleIconBackground.color ~= nil)
+    testlib.equal(#harness.addon.UI.titleIconBorder, 4)
+    testlib.truthy(
+        harness.addon.UI.titleIconFrame.frameLevel
+            > harness.addon.UI.shell.topGlow.parent:GetFrameLevel()
+    )
     testlib.equal(harness.addon.UI.title:GetText(), "Azeroth Travel Tracker")
+    testlib.equal(harness.addon.UI.title.justifyH, "LEFT")
+    testlib.equal(harness.addon.UI.title.points[1][1], "LEFT")
+    testlib.equal(
+        harness.addon.UI.title.points[1][2],
+        harness.addon.UI.titleIconFrame
+    )
+    testlib.equal(harness.addon.UI.title.points[1][3], "RIGHT")
+    testlib.near(harness.addon.UI.title.textColor[1], 1, 0.001)
+    testlib.near(harness.addon.UI.title.textColor[2], 0.82, 0.001)
+    testlib.near(harness.addon.UI.title.textColor[3], 0.32, 0.001)
     testlib.equal(harness.addon.UI.summaryGroups, nil)
     testlib.equal(#harness.addon.UI.summarySections, 3)
     local expectedLabels = {
@@ -1597,13 +1675,35 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     testlib.equal(harness.addon.UI.settingsButton.width, 24)
     testlib.equal(harness.addon.UI.settingsButton.height, 24)
     testlib.truthy(harness.addon.UI.settingsButton.frameLevel > first:GetFrameLevel())
+    testlib.truthy(harness.addon.UI.closeButton.frameLevel > first:GetFrameLevel())
     testlib.truthy(harness.addon.UI.minimizeButton.frameLevel > first:GetFrameLevel())
+    testlib.equal(harness.addon.UI.closeButton:IsShown(), true)
+    testlib.equal(harness.addon.UI.minimizeButton:IsShown(), true)
+    testlib.equal(harness.addon.UI.closeButton.point[1], "RIGHT")
+    testlib.equal(
+        harness.addon.UI.closeButton.point[2],
+        harness.addon.UI.titleRegion
+    )
+    testlib.equal(harness.addon.UI.minimizeButton.point[1], "RIGHT")
+    testlib.equal(
+        harness.addon.UI.minimizeButton.point[2],
+        harness.addon.UI.closeButton
+    )
+    testlib.equal(harness.addon.UI.minimizeButton.point[3], "LEFT")
     testlib.equal(harness.addon.UI.minimizeButton.width, 20)
     testlib.equal(harness.addon.UI.minimizeButton.height, 18)
-    testlib.equal(harness.addon.UI.minimizeButton.point[4], -32)
-    testlib.equal(harness.addon.UI.minimizeButton.point[5], -7)
     testlib.equal(harness.addon.UI.settingsButton.point[4], -22)
-    testlib.equal(harness.addon.UI.settingsButton.point[5], 20)
+    testlib.truthy(harness.addon.UI.settingsButton.point[5] >= 36)
+    testlib.equal(harness.addon.UI.versionLabel:GetText(), "ATT v0.1.0-beta")
+    testlib.equal(harness.addon.UI.versionLabel.template, "GameFontDisableSmall")
+    testlib.equal(harness.addon.UI.versionLabel.justifyH, "RIGHT")
+    testlib.equal(harness.addon.UI.versionLabel.point[1], "BOTTOMRIGHT")
+    testlib.equal(harness.calls.modernMetadata, 1)
+    testlib.equal(harness.calls.legacyMetadata, 0)
+    testlib.equal(harness.calls.metadataAddonName, "AzerothTravelTracker")
+    testlib.equal(harness.calls.metadataField, "Version")
+    testlib.equal(harness.addon.UI.contentInset, nil)
+    testlib.truthy(harness.addon.UI.errorInset ~= nil)
     testlib.equal(
         harness.addon.UI.settingsButton.Icon.texture,
         harness.addon.UITheme.Icons.SETTINGS
@@ -1710,12 +1810,16 @@ testlib.case("ui falls back from BackdropTemplate to a visible bare shell", func
     testlib.truthy(harness.addon.UI.closeButton ~= nil)
 end)
 
-testlib.case("ui keeps a fallback title without native portrait chrome", function()
+testlib.case("ui explicitly owns title icon text and controls without native chrome", function()
     local harness = newUIHarness()
     local frame = harness.addon.UI.Create()
 
     testlib.equal(frame.TitleText, nil)
     testlib.equal(frame.PortraitContainer, nil)
+    testlib.truthy(harness.addon.UI.titleRegion ~= nil)
+    testlib.truthy(harness.addon.UI.titleIconFrame ~= nil)
+    testlib.truthy(harness.addon.UI.closeButton ~= nil)
+    testlib.truthy(harness.addon.UI.minimizeButton ~= nil)
     testlib.equal(harness.addon.UI.title:GetText(), "Azeroth Travel Tracker")
 end)
 
@@ -1738,7 +1842,8 @@ testlib.case("ui remains visible when all shell side-tab and atlas assets fail",
     testlib.equal(noTemplate.addon.UI.levelTab.template, nil)
     testlib.equal(noTemplate.addon.UI.overviewTab:IsShown(), true)
     testlib.equal(noTemplate.addon.UI.levelTab:IsShown(), true)
-    testlib.truthy(noTemplate.addon.UI.contentInset.color ~= nil)
+    testlib.equal(noTemplate.addon.UI.contentInset, nil)
+    testlib.truthy(noTemplate.addon.UI.errorInset.color ~= nil)
     testlib.truthy(noTemplate.addon.UI.settingsButton.Icon.texture ~= nil)
     testlib.equal(noTemplate.addon.UI.resetButton:GetText(), "Reset Session")
     testlib.equal(noTemplate.addon.UI.summarySections[1].title:GetText(), "Lifetime")
@@ -1749,6 +1854,51 @@ testlib.case("ui remains visible when all shell side-tab and atlas assets fail",
     testlib.equal(noTemplate.addon.UI.title:GetText(), "Azeroth Travel Tracker")
     testlib.truthy(noTemplate.addon.UI.shell.fallbackBackground.color ~= nil)
     testlib.equal(#noTemplate.addon.UI.shell.fallbackBorder, 4)
+end)
+
+testlib.case("ui version footer trims metadata and falls back safely", function()
+    local metadata = newUIHarness({
+        metadataValue = "  2.4.6-rc1  ",
+    })
+    metadata.addon.UI.Create()
+    testlib.equal(metadata.addon.UI.versionLabel:GetText(), "ATT v2.4.6-rc1")
+    testlib.equal(metadata.calls.modernMetadata, 1)
+    testlib.equal(metadata.calls.legacyMetadata, 0)
+
+    local legacy = newUIHarness({
+        legacyMetadataOnly = true,
+        legacyMetadataValue = "  3.5.7  ",
+    })
+    legacy.addon.UI.Create()
+    testlib.equal(legacy.addon.UI.versionLabel:GetText(), "ATT v3.5.7")
+    testlib.equal(legacy.calls.modernMetadata, 0)
+    testlib.equal(legacy.calls.legacyMetadata, 1)
+
+    local fallbackCases = {
+        {
+            metadataReturnsNil = true,
+        },
+        {
+            metadataValue = "   ",
+        },
+        {
+            metadataThrows = true,
+        },
+        {
+            legacyMetadataOnly = true,
+            legacyMetadataThrows = true,
+        },
+    }
+    for _, options in ipairs(fallbackCases) do
+        local harness = newUIHarness(options)
+        local succeeded = pcall(harness.addon.UI.Create)
+        testlib.equal(succeeded, true)
+        testlib.equal(
+            harness.addon.UI.versionLabel:GetText(),
+            "ATT v" .. harness.addon.VERSION_FALLBACK
+        )
+        testlib.equal(harness.addon.UI.errorText:IsShown(), false)
+    end
 end)
 
 testlib.case("ui shell stays visible when backdrop or gradient APIs fail", function()
@@ -2057,6 +2207,45 @@ testlib.case("ui action buttons remain visible and interactive without panel tem
     UI.hud.closeButton.scripts.OnClick()
     testlib.equal(UI.hud.frame:IsShown(), false)
     testlib.equal(UI.IsShown(), false)
+end)
+
+testlib.case("ui regular close hides only the window and reopens without state mutation", function()
+    local tracker = {
+        previous = {
+            x = 17,
+            y = 23,
+        },
+    }
+    local harness = newUIHarness({
+        tracker = tracker,
+    })
+    local UI = harness.addon.UI
+    local frame = UI.Create()
+    local db = harness.db
+    local settings = db.settings
+    local character = harness.character
+    local session = character.session
+    local previous = tracker.previous
+
+    UI.ShowMain()
+    UI.closeButton.scripts.OnClick()
+
+    testlib.equal(frame:IsShown(), false)
+    testlib.equal(UI.hud, nil)
+    testlib.equal(UI.IsShown(), false)
+    testlib.equal(harness.db, db)
+    testlib.equal(harness.db.settings, settings)
+    testlib.equal(harness.character, character)
+    testlib.equal(harness.character.session, session)
+    testlib.equal(harness.tracker.previous, previous)
+    testlib.equal(harness.calls.reset, 0)
+    testlib.equal(harness.calls.baselineReset, 0)
+
+    UI.ShowMain()
+    testlib.equal(frame:IsShown(), true)
+    testlib.equal(UI.IsShown(), true)
+    testlib.equal(harness.character.session, session)
+    testlib.equal(harness.tracker.previous, previous)
 end)
 
 testlib.case("ui minimize restore close and toggle coordinate both surfaces", function()

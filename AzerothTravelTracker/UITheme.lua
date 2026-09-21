@@ -3,6 +3,7 @@ local _, ATT = ...
 local Theme = {
     Icons = {
         PORTRAIT = "Interface\\Icons\\INV_Misc_Map_01",
+        TITLE = "Interface\\Icons\\Ability_Rogue_Sprint",
         OVERVIEW = "Interface\\Icons\\INV_Misc_Map_01",
         LEVELS = "Interface\\Icons\\INV_Misc_Book_09",
         SETTINGS = "Interface\\Icons\\INV_Misc_Gear_01",
@@ -227,6 +228,46 @@ function Theme.CreateInset(parent)
     inset:SetAllPoints(parent)
     Theme.SetAtlasOrColor(inset, Theme.Atlases.INSET, 0.08, 0.05, 0.03, 0.95)
     return inset
+end
+
+function Theme.CreateFramedIcon(parent, texturePath, size)
+    local frame = CreateFrame("Frame", nil, parent)
+    frame:SetSize(size, size)
+
+    local background = createColorTexture(
+        frame,
+        "BACKGROUND",
+        0.20,
+        0.11,
+        0.035,
+        0.98
+    )
+
+    local icon = frame:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
+    icon:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -3, 3)
+    icon:SetTexture(texturePath)
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    icon:Show()
+
+    local border = {}
+    local edges = {
+        { "TOPLEFT", "TOPRIGHT", size, 2 },
+        { "BOTTOMLEFT", "BOTTOMRIGHT", size, 2 },
+        { "TOPLEFT", "BOTTOMLEFT", 2, size },
+        { "TOPRIGHT", "BOTTOMRIGHT", 2, size },
+    }
+    for _, edge in ipairs(edges) do
+        local line = frame:CreateTexture(nil, "OVERLAY")
+        line:SetColorTexture(0.82, 0.58, 0.22, 1)
+        line:SetSize(edge[3], edge[4])
+        line:SetPoint(edge[1], frame, edge[1], 0, 0)
+        line:SetPoint(edge[2], frame, edge[2], 0, 0)
+        table.insert(border, line)
+    end
+
+    frame:Show()
+    return frame, icon, background, border
 end
 
 function Theme.CreateSideTab(name, parent, options)

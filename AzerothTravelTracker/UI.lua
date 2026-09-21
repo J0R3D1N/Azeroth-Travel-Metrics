@@ -1,4 +1,4 @@
-local _, ATT = ...
+local addonName, ATT = ...
 
 ATT.UI = {}
 
@@ -104,6 +104,39 @@ local function createLabel(parent, text, font)
     label:SetJustifyH("LEFT")
     label:SetJustifyV("TOP")
     return label
+end
+
+local function trimNonblank(value)
+    if type(value) ~= "string" then
+        return nil
+    end
+
+    local trimmed = value:match("^%s*(.-)%s*$")
+    if trimmed == "" then
+        return nil
+    end
+    return trimmed
+end
+
+local function getVersion()
+    local getter
+    if C_AddOns and type(C_AddOns.GetAddOnMetadata) == "function" then
+        getter = C_AddOns.GetAddOnMetadata
+    elseif type(GetAddOnMetadata) == "function" then
+        getter = GetAddOnMetadata
+    end
+
+    if getter then
+        local succeeded, value = pcall(getter, addonName, "Version")
+        if succeeded then
+            local version = trimNonblank(value)
+            if version then
+                return version
+            end
+        end
+    end
+
+    return ATT.VERSION_FALLBACK
 end
 
 local function createCheckButton(parent, text)
@@ -329,8 +362,6 @@ end
 local function createMinimizeButton(parent)
     local button = CreateFrame("Button", nil, parent)
     button:SetSize(20, 18)
-    button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -32, -7)
-    raiseAboveParent(button, parent, 20)
 
     button.Background = createColorTexture(
         button,
@@ -634,31 +665,60 @@ function UI.Create()
 
     UI.shell = ATT.UITheme.ApplyWindowShell(frame, useBackdrop)
 
-    UI.closeButton = frame.CloseButton
-    if not UI.closeButton then
-        UI.closeButton = createSafeButton(
-            frame,
-            "UIPanelCloseButton",
-            24,
-            24,
-            nil,
-            "x"
+    UI.titleRegion = CreateFrame("Frame", nil, frame)
+    UI.titleRegion:SetSize(404, 44)
+    UI.titleRegion:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -8)
+    raiseAboveParent(UI.titleRegion, frame, 20)
+    UI.titleRegion:Show()
+
+    UI.titleIconFrame,
+        UI.titleIcon,
+        UI.titleIconBackground,
+        UI.titleIconBorder = ATT.UITheme.CreateFramedIcon(
+            UI.titleRegion,
+            ATT.UITheme.Icons.TITLE,
+            36
         )
-        UI.closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -4)
-    end
+    UI.titleIconFrame:SetPoint("LEFT", UI.titleRegion, "LEFT", 4, 0)
+    raiseAboveParent(UI.titleIconFrame, UI.titleRegion, 2)
+
+    UI.closeButton = createSafeButton(
+        UI.titleRegion,
+        "UIPanelCloseButton",
+        24,
+        24,
+        nil,
+        "x"
+    )
+    UI.closeButton:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -2, 0)
+    raiseAboveParent(UI.closeButton, UI.titleRegion, 3)
+    UI.closeButton:Show()
     UI.closeButton:SetScript("OnClick", function()
         frame:Hide()
     end)
 
     UI.title = createLabel(
-        frame,
+        UI.titleRegion,
         "Azeroth Travel Tracker",
         "GameFontNormalLarge"
     )
-    UI.title:SetPoint("TOP", frame, "TOP", 0, -15)
+    UI.title:SetPoint("LEFT", UI.titleIconFrame, "RIGHT", 10, 0)
+    UI.title:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -58, 0)
+    UI.title:SetJustifyH("LEFT")
+    UI.title:SetJustifyV("MIDDLE")
+    UI.title:SetTextColor(1, 0.82, 0.32, 1)
     UI.title:SetText("Azeroth Travel Tracker")
 
-    UI.minimizeButton = createMinimizeButton(frame)
+    UI.minimizeButton = createMinimizeButton(UI.titleRegion)
+    UI.minimizeButton:SetPoint(
+        "RIGHT",
+        UI.closeButton,
+        "LEFT",
+        -4,
+        0
+    )
+    raiseAboveParent(UI.minimizeButton, UI.titleRegion, 3)
+    UI.minimizeButton:Show()
     UI.minimizeButton:SetScript("OnClick", function()
         UI.Minimize()
     end)
@@ -715,7 +775,7 @@ function UI.Create()
         frame,
         "BOTTOMRIGHT",
         -22,
-        20
+        38
     )
     raiseAboveParent(UI.settingsButton, frame, 20)
 
@@ -731,7 +791,7 @@ function UI.Create()
     end
     UI.settingsPanel = settingsPanel
     settingsPanel:SetSize(205, 128)
-    settingsPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -18, 42)
+    settingsPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -18, 64)
     if type(settingsPanel.SetFrameLevel) == "function"
         and type(frame.GetFrameLevel) == "function"
     then
@@ -830,10 +890,26 @@ function UI.Create()
     syncSettingsControls()
     settingsPanel:Hide()
 
+    UI.versionLabel = createLabel(
+        frame,
+        "ATT v" .. getVersion(),
+        "GameFontDisableSmall"
+    )
+    UI.versionLabel:SetPoint(
+        "BOTTOMRIGHT",
+        frame,
+        "BOTTOMRIGHT",
+        -18,
+        13
+    )
+    UI.versionLabel:SetWidth(160)
+    UI.versionLabel:SetJustifyH("RIGHT")
+    UI.versionLabel:SetJustifyV("BOTTOM")
+    UI.versionLabel:SetTextColor(0.58, 0.50, 0.38, 1)
+
     UI.contentFrame = CreateFrame("Frame", nil, frame)
     UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -46)
     UI.contentFrame:SetSize(388, 340)
-    UI.contentInset = ATT.UITheme.CreateInset(UI.contentFrame)
 
     UI.errorPanel = CreateFrame("Frame", nil, UI.contentFrame)
     UI.errorPanel:SetPoint(
