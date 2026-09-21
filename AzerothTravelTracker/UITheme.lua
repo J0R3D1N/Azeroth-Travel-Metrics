@@ -3,9 +3,9 @@ local _, ATT = ...
 local Theme = {
     Icons = {
         PORTRAIT = "Interface\\Icons\\INV_Misc_Map_01",
-        TITLE = "Interface\\Icons\\Ability_Rogue_Sprint",
-        OVERVIEW = "Interface\\Icons\\INV_Misc_Map_01",
-        LEVELS = "Interface\\Icons\\INV_Misc_Book_09",
+        TITLE = "Interface\\AddOns\\AzerothTravelTracker\\Media\\ATTLogo",
+        OVERVIEW = "Interface\\AddOns\\AzerothTravelTracker\\Media\\Overview",
+        LEVELS = "Interface\\AddOns\\AzerothTravelTracker\\Media\\ByLevel",
         SETTINGS = "Interface\\Icons\\INV_Misc_Gear_01",
     },
     Atlases = {

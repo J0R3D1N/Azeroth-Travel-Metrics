@@ -121,6 +121,19 @@ Packaging reruns the Lua tests, validates required TOC metadata and file entries
 
 The clean package intentionally excludes `X-ForeverSVFix` markers, `ForeverSVFixData`, generated files, and account-specific junctions. After replacing an installed addon folder or TOC during development, keep WoW closed, reapply ForeverSVFix, and run its `doctor` command before launching WoW.
 
+### Icon assets
+
+The editable source JPGs live in `artwork/source/`. Regenerate the three
+64 x 64 WoW runtime textures with:
+
+```powershell
+python .\tools\Build-IconAssets.py
+```
+
+The distribution package includes only the three
+`AzerothTravelTracker/Media/*.tga` outputs. Source JPGs and the
+`tab_iconography.jpg` comparison sheet are not packaged.
+
 ## Beta limitations and direction
 
 Tracking depends on the Forever beta exposing usable position, map, timer, taxi, swimming, mounted, and falling-state APIs. Missing or malformed capabilities appear through `/att status` and optional diagnostics; affected samples are excluded. Zoning, portals, hearths, teleports, instances, long sample gaps, implausible speeds, and unsupported state transitions are rejected to avoid false distance.

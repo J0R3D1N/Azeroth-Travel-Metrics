@@ -2,6 +2,7 @@ local testlib = require("testlib")
 
 local MINIMAP_FILES = {
     "AzerothTravelTracker\\Namespace.lua",
+    "AzerothTravelTracker\\UITheme.lua",
     "AzerothTravelTracker\\Minimap.lua",
 }
 local VISIBLE_RING_RADIUS = 16
@@ -686,7 +687,7 @@ testlib.case("minimap create is idempotent native and interactive", function()
     testlib.truthy(contains(first.textures[1].texture, "Minimap"))
     testlib.equal(
         first.textures[2].texture,
-        "Interface\\Icons\\Ability_Rogue_Sprint"
+        "Interface\\AddOns\\AzerothTravelTracker\\Media\\ATTLogo"
     )
     local background = harness.addon.Minimap.background
     testlib.equal(background.width, 20)
@@ -697,13 +698,17 @@ testlib.case("minimap create is idempotent native and interactive", function()
     testlib.equal(background.point[4], 7)
     testlib.equal(background.point[5], -5)
     local icon = harness.addon.Minimap.icon
-    testlib.equal(icon.width, 17)
-    testlib.equal(icon.height, 17)
+    testlib.equal(
+        icon.texture,
+        "Interface\\AddOns\\AzerothTravelTracker\\Media\\ATTLogo"
+    )
+    testlib.equal(icon.width, 20)
+    testlib.equal(icon.height, 20)
     testlib.equal(icon.point[1], "TOPLEFT")
     testlib.equal(icon.point[2], first)
     testlib.equal(icon.point[3], "TOPLEFT")
     testlib.equal(icon.point[4], 7)
-    testlib.equal(icon.point[5], -6)
+    testlib.equal(icon.point[5], -5)
     local border = harness.addon.Minimap.border
     testlib.equal(border.width, 54)
     testlib.equal(border.height, 54)

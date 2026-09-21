@@ -2271,8 +2271,10 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
         0.22,
         0.001
     )
-    testlib.equal(harness.addon.UITheme.Icons.TITLE,
-        "Interface\\Icons\\Ability_Rogue_Sprint")
+    testlib.equal(
+        harness.addon.UITheme.Icons.TITLE,
+        "Interface\\AddOns\\AzerothTravelTracker\\Media\\ATTLogo"
+    )
     testlib.equal(harness.addon.UI.titleRegion.height, 44)
     testlib.equal(harness.addon.UI.titleRegion.point[1], "TOPLEFT")
     testlib.equal(harness.addon.UI.titleRegion.point[2], first)
@@ -2289,8 +2291,10 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
         harness.addon.UI.titleIconFrame.point[2],
         harness.addon.UI.titleRegion
     )
-    testlib.equal(harness.addon.UI.titleIcon.texture,
-        "Interface\\Icons\\Ability_Rogue_Sprint")
+    testlib.equal(
+        harness.addon.UI.titleIcon.texture,
+        harness.addon.UITheme.Icons.TITLE
+    )
     testlib.equal(harness.addon.UI.titleIcon.texCoord[1], 0.08)
     testlib.equal(harness.addon.UI.titleIcon.texCoord[2], 0.92)
     testlib.equal(harness.addon.UI.titleIcon.texCoord[3], 0.08)
@@ -2418,6 +2422,22 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     testlib.equal(
         harness.addon.UI.levelTab.template,
         "LargeSideTabButtonTemplate"
+    )
+    testlib.equal(
+        harness.addon.UITheme.Icons.OVERVIEW,
+        "Interface\\AddOns\\AzerothTravelTracker\\Media\\Overview"
+    )
+    testlib.equal(
+        harness.addon.UITheme.Icons.LEVELS,
+        "Interface\\AddOns\\AzerothTravelTracker\\Media\\ByLevel"
+    )
+    testlib.equal(
+        harness.addon.UI.overviewTab.Icon.texture,
+        harness.addon.UITheme.Icons.OVERVIEW
+    )
+    testlib.equal(
+        harness.addon.UI.levelTab.Icon.texture,
+        harness.addon.UITheme.Icons.LEVELS
     )
     testlib.equal(harness.addon.UI.overviewTab.point[1], "TOPLEFT")
     testlib.equal(harness.addon.UI.overviewTab.point[2], first)

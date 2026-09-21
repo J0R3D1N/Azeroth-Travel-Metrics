@@ -255,11 +255,21 @@ local function newHarness(options)
     return addon, parent, calls
 end
 
-testlib.case("ui theme exposes approved native icons and atlases", function()
+testlib.case("ui theme exposes approved custom icons and native atlases", function()
     local addon = testlib.loadAddon(FILES)
     testlib.equal(addon.UITheme.Icons.PORTRAIT, "Interface\\Icons\\INV_Misc_Map_01")
-    testlib.equal(addon.UITheme.Icons.OVERVIEW, "Interface\\Icons\\INV_Misc_Map_01")
-    testlib.equal(addon.UITheme.Icons.LEVELS, "Interface\\Icons\\INV_Misc_Book_09")
+    testlib.equal(
+        addon.UITheme.Icons.TITLE,
+        "Interface\\AddOns\\AzerothTravelTracker\\Media\\ATTLogo"
+    )
+    testlib.equal(
+        addon.UITheme.Icons.OVERVIEW,
+        "Interface\\AddOns\\AzerothTravelTracker\\Media\\Overview"
+    )
+    testlib.equal(
+        addon.UITheme.Icons.LEVELS,
+        "Interface\\AddOns\\AzerothTravelTracker\\Media\\ByLevel"
+    )
     testlib.equal(addon.UITheme.Icons.SETTINGS, "Interface\\Icons\\INV_Misc_Gear_01")
     testlib.equal(addon.UITheme.Atlases.SECTION, "UI-Character-Info-Title")
     testlib.equal(addon.UITheme.Atlases.ROW, "UI-Character-Info-Line-Bounce")

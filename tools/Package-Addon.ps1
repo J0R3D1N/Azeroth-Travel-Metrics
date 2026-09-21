@@ -310,6 +310,46 @@ function Assert-ZipLayout {
     }
 }
 
+function Assert-IconAssetArchiveEntries {
+    param([string[]]$EntryNames)
+
+    $normalizedEntries = @(
+        $EntryNames |
+            ForEach-Object { $_ -replace '\\', '/' } |
+            Where-Object { -not $_.EndsWith('/') }
+    )
+    $requiredTextures = @(
+        'AzerothTravelTracker/Media/ATTLogo.tga',
+        'AzerothTravelTracker/Media/ByLevel.tga',
+        'AzerothTravelTracker/Media/Overview.tga'
+    )
+    $actualTextures = @(
+        $normalizedEntries |
+            Where-Object {
+                $_ -match '\AAzerothTravelTracker/Media/[^/]+\.tga\z'
+            }
+    )
+    [System.Array]::Sort($requiredTextures, [System.StringComparer]::Ordinal)
+    [System.Array]::Sort($actualTextures, [System.StringComparer]::Ordinal)
+
+    if (
+        $requiredTextures.Count -ne $actualTextures.Count -or
+        [string]::Join("`n", $requiredTextures) -cne
+            [string]::Join("`n", $actualTextures)
+    ) {
+        throw (
+            'Package must include exactly the required runtime TGA entries: ' +
+            "$([string]::Join(', ', $requiredTextures))."
+        )
+    }
+    if ($normalizedEntries | Where-Object { $_ -match '(?i)tab_iconography' }) {
+        throw 'Package must not include a tab_iconography reference entry.'
+    }
+    if ($normalizedEntries | Where-Object { $_ -match '(?i)\.(jpg|jpeg)\z' }) {
+        throw 'Package must not include a source JPG or JPEG entry.'
+    }
+}
+
 function Assert-SafeStagingPath {
     param(
         [string]$RepoRoot,
@@ -408,8 +448,17 @@ try {
         -ZipPath $snapshotZipPath `
         -ExpectedTopLevelDirectory 'AzerothTravelTracker' `
         -ExpectedFilePaths $trackedFiles
-
     Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $snapshotArchive = [System.IO.Compression.ZipFile]::OpenRead($snapshotZipPath)
+    try {
+        Assert-IconAssetArchiveEntries -EntryNames @(
+            $snapshotArchive.Entries | ForEach-Object { $_.FullName }
+        )
+    }
+    finally {
+        $snapshotArchive.Dispose()
+    }
+
     [System.IO.Compression.ZipFile]::ExtractToDirectory(
         $snapshotZipPath,
         $artifactsRoot

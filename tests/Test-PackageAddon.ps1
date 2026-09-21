@@ -102,6 +102,14 @@ function New-PackageRepoFixture {
         "-- fixture`n-- second line`n",
         [System.Text.UTF8Encoding]::new($false)
     )
+    $fixtureMediaRoot = Join-Path $fixtureAddonRoot 'Media'
+    New-Item -ItemType Directory -Path $fixtureMediaRoot -Force | Out-Null
+    foreach ($textureName in @('ATTLogo.tga', 'Overview.tga', 'ByLevel.tga')) {
+        [System.IO.File]::WriteAllBytes(
+            (Join-Path $fixtureMediaRoot $textureName),
+            [byte[]](0, 1, 2, 3)
+        )
+    }
     @'
 ## Interface: 16001
 ## Title: Azeroth Travel Tracker - WoW: Forever (beta)
@@ -257,6 +265,44 @@ Present.lua
                 -ZipPath $validZip `
                 -ExpectedTopLevelDirectory 'AzerothTravelTracker' `
                 -ExpectedFilePaths @('Present.lua', 'Nested/Present.lua', 'Missing.lua')
+        }
+
+    $requiredTextures = @(
+        'AzerothTravelTracker/Media/ATTLogo.tga',
+        'AzerothTravelTracker/Media/Overview.tga',
+        'AzerothTravelTracker/Media/ByLevel.tga'
+    )
+    Test-DoesNotThrow `
+        -Name 'icon archive accepts exactly the three runtime TGA entries' `
+        -Action {
+            Assert-IconAssetArchiveEntries -EntryNames $requiredTextures
+        }
+    Test-Throws `
+        -Name 'icon archive rejects a missing runtime TGA entry' `
+        -MessagePattern 'exactly the required runtime TGA entries' `
+        -Action {
+            Assert-IconAssetArchiveEntries -EntryNames $requiredTextures[0..1]
+        }
+    Test-Throws `
+        -Name 'icon archive rejects source JPG and JPEG entries' `
+        -MessagePattern 'source JPG or JPEG' `
+        -Action {
+            Assert-IconAssetArchiveEntries -EntryNames (
+                $requiredTextures + @(
+                    'AzerothTravelTracker\artwork\source\overview_icon.jpg',
+                    'AzerothTravelTracker/source.jpeg'
+                )
+            )
+        }
+    Test-Throws `
+        -Name 'icon archive rejects the tab iconography reference' `
+        -MessagePattern 'tab_iconography' `
+        -Action {
+            Assert-IconAssetArchiveEntries -EntryNames (
+                $requiredTextures + @(
+                    'AzerothTravelTracker\Media\tab_iconography.jpg'
+                )
+            )
         }
 
     $invalidZipEntries = @(

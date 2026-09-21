@@ -406,9 +406,9 @@ function MinimapLauncher.Create()
     MinimapLauncher.background = background
 
     local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetTexture("Interface\\Icons\\Ability_Rogue_Sprint")
-    icon:SetSize(17, 17)
-    icon:SetPoint("TOPLEFT", button, "TOPLEFT", 7, -6)
+    icon:SetTexture(ATT.UITheme.Icons.TITLE)
+    icon:SetSize(20, 20)
+    icon:SetPoint("TOPLEFT", button, "TOPLEFT", 7, -5)
     MinimapLauncher.icon = icon
 
     local border = button:CreateTexture(nil, "OVERLAY")
