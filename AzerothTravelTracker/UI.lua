@@ -4,14 +4,14 @@ ATT.UI = {}
 
 local UI = ATT.UI
 local RESET_DIALOG_KEY = "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
-local SECTION_HEIGHT = 84
-local SECTION_GAP = 4
+local SECTION_HEIGHT = 100
+local SECTION_GAP = 3
 local SUMMARY_CONTENT_HEIGHT = (SECTION_HEIGHT * 3) + (SECTION_GAP * 2)
 local DIAGNOSTICS_GAP = 4
 local DIAGNOSTICS_VIEW_HEIGHT = 22
 local DIAGNOSTICS_LINE_HEIGHT = 12
 local DIAGNOSTICS_CONTENT_WIDTH = 348
-local LEVEL_CARD_HEIGHT = 100
+local LEVEL_CARD_HEIGHT = 104
 local LEVEL_VIEW_HEIGHT = 282
 local LEVEL_CONTENT_WIDTH = 348
 local HUD_REST_ALPHA = 0.45
@@ -23,6 +23,7 @@ local SUMMARY_ROWS = {
     { key = "onFoot", label = "On Foot" },
     { key = "swimming", label = "Swimming" },
     { key = "taxi", label = "Flight Path" },
+    { key = "total", label = "Total Distance", footer = true },
 }
 local SUMMARY_DEFINITIONS = {
     { key = "lifetime", title = "Lifetime" },
@@ -595,7 +596,8 @@ local function ensureLevelRows(count)
         local card = ATT.UITheme.CreateSection(
             UI.levelScrollChild,
             "",
-            #SUMMARY_ROWS
+            #SUMMARY_ROWS,
+            { footerIndex = #SUMMARY_ROWS }
         )
         card.frame:SetHeight(LEVEL_CARD_HEIGHT)
         card.frame:SetPoint(
@@ -867,7 +869,7 @@ function UI.Create()
 
     UI.contentFrame = CreateFrame("Frame", nil, frame)
     UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -46)
-    UI.contentFrame:SetSize(388, 330)
+    UI.contentFrame:SetSize(388, 332)
     UI.contentInset = ATT.UITheme.CreateInset(UI.contentFrame)
 
     UI.errorPanel = CreateFrame("Frame", nil, UI.contentFrame)
@@ -901,7 +903,8 @@ function UI.Create()
         local section = ATT.UITheme.CreateSection(
             UI.overviewPanel,
             definition.title,
-            #SUMMARY_ROWS
+            #SUMMARY_ROWS,
+            { footerIndex = #SUMMARY_ROWS }
         )
         section.key = definition.key
         section.frame:SetWidth(376)

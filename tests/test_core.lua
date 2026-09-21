@@ -1139,18 +1139,21 @@ local function newUIHarness(options)
                     onFoot = "1.00 km",
                     swimming = "2.00 km",
                     taxi = "3.00 km",
+                    total = "3.53 km",
                 },
                 session = {
                     steps = "10",
                     onFoot = "100 m",
                     swimming = "200 m",
                     taxi = "300 m",
+                    total = "600 m",
                 },
                 currentLevel = {
                     steps = "5",
                     onFoot = "50 m",
                     swimming = "60 m",
                     taxi = "70 m",
+                    total = "180 m",
                 },
             }
         end,
@@ -1168,6 +1171,7 @@ local function newUIHarness(options)
                     onFoot = "50 m",
                     swimming = "60 m",
                     taxi = "70 m",
+                    total = "603 yd",
                 },
                 {
                     level = 41,
@@ -1175,6 +1179,7 @@ local function newUIHarness(options)
                     onFoot = "500 m",
                     swimming = "600 m",
                     taxi = "700 m",
+                    total = "1.80 km",
                 },
             }
         end,
@@ -1295,6 +1300,7 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
         "On Foot",
         "Swimming",
         "Flight Path",
+        "Total Distance",
     }
     local expectedTitles = {
         "Lifetime",
@@ -1314,8 +1320,10 @@ testlib.case("ui creation is lazy idempotent and uses requested native structure
         testlib.equal(section.title.points[1][4], 13)
         testlib.equal(section.title.points[2][2], section.header)
         testlib.equal(section.title.points[2][4], -13)
-        testlib.equal(#section.rows, 4)
-        testlib.equal(section.frame.height, 84)
+        testlib.equal(#section.rows, 5)
+        testlib.equal(section.frame.height, 100)
+        testlib.equal(section.footer, section.rows[5])
+        testlib.equal(section.footer.separator.color[4], 0.95)
         testlib.equal(section.rows[1].frame.points[1][2], section.header)
         testlib.equal(section.rows[1].frame.points[1][3], "BOTTOMLEFT")
         testlib.equal(section.rows[1].frame.points[2][2], section.header)
@@ -1925,6 +1933,7 @@ testlib.case("ui refresh consumes overview levels and diagnostics models", funct
     testlib.equal(UI.summarySections[1].rows[2].value:GetText(), "1.00 km")
     testlib.equal(UI.summarySections[1].rows[3].value:GetText(), "2.00 km")
     testlib.equal(UI.summarySections[1].rows[4].value:GetText(), "3.00 km")
+    testlib.equal(UI.summarySections[1].rows[5].value:GetText(), "3.53 km")
     testlib.equal(UI.summarySections[2].rows[1].value:GetText(), "10")
     testlib.equal(UI.summarySections[2].rows[2].value:GetText(), "100 m")
     testlib.equal(UI.summarySections[3].rows[4].value:GetText(), "70 m")
@@ -1933,12 +1942,18 @@ testlib.case("ui refresh consumes overview levels and diagnostics models", funct
     testlib.equal(UI.levelRows[1].rows[2].value:GetText(), "50 m")
     testlib.equal(UI.levelRows[1].rows[3].value:GetText(), "60 m")
     testlib.equal(UI.levelRows[1].rows[4].value:GetText(), "70 m")
+    testlib.equal(UI.levelRows[1].rows[5].value:GetText(), "603 yd")
+    testlib.equal(UI.levelRows[1].frame.height, 104)
+    testlib.equal(UI.levelRows[1].footer, UI.levelRows[1].rows[5])
+    testlib.equal(UI.levelRows[1].footer.separator.color[4], 0.95)
     testlib.equal(UI.levelRows[2].title:GetText(), "Level 41")
+    testlib.equal(UI.levelRows[2].frame.point[5], -104)
     local expectedLabels = {
         "Estimated Steps",
         "On Foot",
         "Swimming",
         "Flight Path",
+        "Total Distance",
     }
     for index, label in ipairs(expectedLabels) do
         testlib.equal(UI.levelRows[1].rows[index].label:GetText(), label)
@@ -1978,7 +1993,7 @@ testlib.case("ui level list exposes every row through scrollable content", funct
     )
     testlib.truthy(
         harness.addon.UI.levelScrollChild.height
-            >= (#rows * 100)
+            >= (#rows * 104)
     )
     testlib.truthy(
         harness.addon.UI.levelScrollChild.height
@@ -2055,7 +2070,7 @@ testlib.case("ui diagnostics use no visible space when disabled", function()
     disabled.addon.UI.Refresh()
     testlib.equal(disabled.addon.UI.diagnosticsScrollFrame:IsShown(), false)
     testlib.equal(disabled.addon.UI.diagnosticsText:GetText(), "")
-    testlib.equal(disabled.addon.UI.overviewPanel.height, 260)
+    testlib.equal(disabled.addon.UI.overviewPanel.height, 306)
 end)
 
 testlib.case("ui diagnostics retain and scroll realistic multi-reason output", function()
@@ -2086,8 +2101,8 @@ testlib.case("ui diagnostics retain and scroll realistic multi-reason output", f
         UI.overviewPanel
     )
     testlib.equal(UI.diagnosticsScrollFrame.point[3], "TOPLEFT")
-    testlib.equal(UI.diagnosticsScrollFrame.point[5], -264)
-    testlib.equal(UI.overviewPanel.height, 286)
+    testlib.equal(UI.diagnosticsScrollFrame.point[5], -310)
+    testlib.equal(UI.overviewPanel.height, 332)
     testlib.truthy(UI.overviewPanel.height <= UI.contentFrame.height)
     testlib.truthy(
         UI.diagnosticsScrollChild.height > UI.diagnosticsScrollFrame.height
