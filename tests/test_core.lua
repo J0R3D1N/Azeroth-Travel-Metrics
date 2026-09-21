@@ -1339,12 +1339,17 @@ local function newUIHarness(options)
     local order = options.order or {}
     local calls = {
         overview = 0,
+        overviewCharacters = {},
         rows = 0,
+        rowCharacters = {},
         diagnostics = 0,
+        diagnosticCharacters = {},
+        uiInitialize = 0,
         modernMetadata = 0,
         legacyMetadata = 0,
         reset = 0,
         baselineReset = 0,
+        baselineResetReceivers = {},
         now = 0,
         protected = 0,
         order = order,
@@ -1520,8 +1525,9 @@ local function newUIHarness(options)
     }
 
     addon.UIModel = {
-        BuildOverview = function()
+        BuildOverview = function(receivedCharacter)
             calls.overview = calls.overview + 1
+            table.insert(calls.overviewCharacters, receivedCharacter)
             table.insert(order, "refresh")
             if options.overviewSequence then
                 local result = options.overviewSequence[
@@ -1556,8 +1562,9 @@ local function newUIHarness(options)
                 },
             }
         end,
-        BuildLevelRows = function()
+        BuildLevelRows = function(receivedCharacter)
             calls.rows = calls.rows + 1
+            table.insert(calls.rowCharacters, receivedCharacter)
             if options.levelRowsSequence then
                 return options.levelRowsSequence[
                     math.min(calls.rows, #options.levelRowsSequence)
@@ -1582,8 +1589,9 @@ local function newUIHarness(options)
                 },
             }
         end,
-        BuildDiagnostics = function()
+        BuildDiagnostics = function(receivedCharacter)
             calls.diagnostics = calls.diagnostics + 1
+            table.insert(calls.diagnosticCharacters, receivedCharacter)
             return options.diagnostics or {
                 {
                     reason = "alpha",
@@ -1634,6 +1642,7 @@ local function newUIHarness(options)
     if type(tracker.ResetBaseline) ~= "function" then
         function tracker:ResetBaseline()
             calls.baselineReset = calls.baselineReset + 1
+            table.insert(calls.baselineResetReceivers, self)
             table.insert(order, "baselineReset")
             if options.baselineResetThrows then
                 error("baseline exploded")
@@ -1653,6 +1662,12 @@ local function newUIHarness(options)
             return 42
         end,
     }
+    local initializeUI = addon.UI.Initialize
+    addon.UI.Initialize = function(initialContext)
+        calls.uiInitialize = calls.uiInitialize + 1
+        calls.uiInitializeContext = initialContext
+        return initializeUI(initialContext)
+    end
     addon.UI.Initialize(context)
 
     return {
@@ -2433,6 +2448,7 @@ testlib.case("ui regular close hides only the window and reopens without state m
     })
     local UI = harness.addon.UI
     local frame = UI.Create()
+    testlib.equal(harness.calls.uiInitialize, 1)
     local db = harness.db
     local settings = db.settings
     local lifetime = character.lifetime
@@ -2469,7 +2485,34 @@ testlib.case("ui regular close hides only the window and reopens without state m
         end
     end
 
+    local function assertRefreshUsedOriginalCharacter(callIndex)
+        local receivedCharacters = {
+            harness.calls.overviewCharacters[callIndex],
+            harness.calls.rowCharacters[callIndex],
+            harness.calls.diagnosticCharacters[callIndex],
+        }
+        for _, receivedCharacter in ipairs(receivedCharacters) do
+            testlib.equal(receivedCharacter, character)
+            testlib.equal(receivedCharacter.lifetime, lifetime)
+            testlib.equal(receivedCharacter.session, session)
+            testlib.equal(receivedCharacter.levels, levels)
+            testlib.equal(receivedCharacter.levels[42], currentLevel)
+            testlib.equal(receivedCharacter.lifetime.onFoot, 111)
+            testlib.equal(receivedCharacter.lifetime.swimming, 222)
+            testlib.equal(receivedCharacter.lifetime.taxi, 333)
+            testlib.equal(receivedCharacter.session.startedAt, 2000)
+            testlib.equal(receivedCharacter.session.onFoot, 11)
+            testlib.equal(receivedCharacter.session.swimming, 22)
+            testlib.equal(receivedCharacter.session.taxi, 33)
+            testlib.equal(receivedCharacter.levels[42].onFoot, 44)
+            testlib.equal(receivedCharacter.levels[42].swimming, 55)
+            testlib.equal(receivedCharacter.levels[42].taxi, 66)
+            testlib.equal(receivedCharacter.levels[42].reachedAt, 3000)
+        end
+    end
+
     UI.ShowMain()
+    assertRefreshUsedOriginalCharacter(1)
     assertVisibleValues()
     UI.closeButton.scripts.OnClick()
 
@@ -2509,6 +2552,7 @@ testlib.case("ui regular close hides only the window and reopens without state m
     testlib.equal(harness.calls.baselineReset, 0)
 
     UI.ShowMain()
+    testlib.equal(harness.calls.uiInitialize, 1)
     testlib.equal(frame:IsShown(), true)
     testlib.equal(UI.IsShown(), true)
     testlib.equal(harness.tracker, runtimeTracker)
@@ -2528,7 +2572,17 @@ testlib.case("ui regular close hides only the window and reopens without state m
     testlib.equal(harness.tracker.acceptedSegments, 9)
     testlib.equal(harness.calls.reset, 0)
     testlib.equal(harness.calls.baselineReset, 0)
+    assertRefreshUsedOriginalCharacter(2)
     assertVisibleValues()
+
+    UI.ConfirmResetSession()
+    local dialog = harness.environment.StaticPopupDialogs[
+        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+    ]
+    dialog.OnAccept()
+
+    testlib.equal(harness.calls.baselineReset, 1)
+    testlib.equal(harness.calls.baselineResetReceivers[1], tracker)
 end)
 
 testlib.case("ui minimize restore close and toggle coordinate both surfaces", function()
