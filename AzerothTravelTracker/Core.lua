@@ -35,6 +35,7 @@ local REPORTABLE_REASONS = {
 
 local state = {
     initialized = false,
+    databaseReady = false,
     ready = false,
     db = nil,
     character = nil,
@@ -43,7 +44,6 @@ local state = {
     capabilities = {},
     ticker = nil,
     reportedReasons = {},
-    retryIdentity = false,
 }
 
 local function isFinitePositiveInteger(value)
@@ -116,15 +116,24 @@ function Core.StopTicker()
     end
 end
 
-local function failInitialization(reason, retryIdentity)
+local function failDatabaseInitialization(reason)
     Core.StopTicker()
+    state.databaseReady = false
     state.ready = false
     state.db = nil
     state.character = nil
     state.tracker = nil
     state.currentLevel = nil
-    state.retryIdentity = retryIdentity == true
-    state.initialized = not state.retryIdentity
+    Core.ReportOnce(
+        reason,
+        "Initialization failed: " .. safeText(reason),
+        true
+    )
+end
+
+local function failRuntimeInitialization(reason)
+    Core.StopTicker()
+    state.ready = false
     Core.ReportOnce(
         reason,
         "Initialization failed: " .. safeText(reason),
@@ -160,11 +169,12 @@ end
 
 function Core.Initialize()
     if state.initialized then
-        return state.ready
+        return state.databaseReady
     end
+    state.initialized = true
 
     if not ATT.Storage or type(ATT.Storage.Initialize) ~= "function" then
-        failInitialization("storageUnavailable")
+        failDatabaseInitialization("storageUnavailable")
         return false
     end
 
@@ -174,72 +184,120 @@ function Core.Initialize()
         savedDB
     )
     if not initializeCallSucceeded then
-        failInitialization("storageInitializeFailed")
+        failDatabaseInitialization("storageInitializeFailed")
         return false
     end
     if db == nil or initializationError ~= nil then
-        failInitialization(initializationError or "storageInitializeFailed")
-        return false
-    end
-
-    if not ATT.Compat
-        or type(ATT.Compat.GetCharacterIdentity) ~= "function"
-    then
-        failInitialization("identityUnavailable")
-        return false
-    end
-
-    local identityCallSucceeded, identity, identityError = pcall(
-        ATT.Compat.GetCharacterIdentity
-    )
-    if not identityCallSucceeded or type(identity) ~= "table" then
-        failInitialization(identityError or "identityUnavailable", true)
-        return false
-    end
-
-    local characterKey = identity.name .. "-" .. identity.realm
-    local characterCallSucceeded, character = pcall(
-        ATT.Storage.GetCharacter,
-        db,
-        characterKey,
-        identity
-    )
-    if not characterCallSucceeded or type(character) ~= "table" then
-        failInitialization("characterInitializeFailed")
-        return false
-    end
-
-    local trackerCallSucceeded, tracker = pcall(ATT.Tracker.New, {
-        compat = ATT.Compat,
-        storage = ATT.Storage,
-        movement = ATT.Movement,
-        character = character,
-        level = identity.level,
-        emit = function(eventName, payload)
-            return ATT.Emit(eventName, payload)
-        end,
-    })
-    if not trackerCallSucceeded or type(tracker) ~= "table" then
-        failInitialization("trackerInitializeFailed")
+        failDatabaseInitialization(initializationError or "storageInitializeFailed")
         return false
     end
 
     state.db = db
-    state.character = character
-    state.tracker = tracker
-    state.currentLevel = identity.level
-    state.retryIdentity = false
+    state.databaseReady = true
+    AzerothTravelTrackerDB = db
+    return true
+end
+
+local function initializeRuntime()
+    if not state.databaseReady or state.ready then
+        return state.ready
+    end
+
+    if state.character == nil then
+        if not ATT.Compat
+            or type(ATT.Compat.GetCharacterIdentity) ~= "function"
+        then
+            failRuntimeInitialization("identityUnavailable")
+            return false
+        end
+
+        local identityCallSucceeded, identity, identityError = pcall(
+            ATT.Compat.GetCharacterIdentity
+        )
+        if not identityCallSucceeded
+            or type(identity) ~= "table"
+            or type(identity.name) ~= "string"
+            or identity.name == ""
+            or type(identity.realm) ~= "string"
+            or identity.realm == ""
+            or not isFinitePositiveInteger(identity.level)
+            or not isFinitePositiveInteger(identity.now)
+        then
+            failRuntimeInitialization(identityError or "identityUnavailable")
+            return false
+        end
+
+        if not ATT.Storage or type(ATT.Storage.GetCharacter) ~= "function" then
+            failRuntimeInitialization("characterInitializeFailed")
+            return false
+        end
+
+        local characterKey = identity.name .. "-" .. identity.realm
+        local characterCallSucceeded, character = pcall(
+            ATT.Storage.GetCharacter,
+            state.db,
+            characterKey,
+            identity
+        )
+        if not characterCallSucceeded or type(character) ~= "table" then
+            failRuntimeInitialization("characterInitializeFailed")
+            return false
+        end
+
+        if type(ATT.Storage.StartSession) ~= "function" then
+            failRuntimeInitialization("sessionInitializeFailed")
+            return false
+        end
+
+        local sessionCallSucceeded, session = pcall(
+            ATT.Storage.StartSession,
+            character,
+            identity.now
+        )
+        if not sessionCallSucceeded or type(session) ~= "table" then
+            failRuntimeInitialization("sessionInitializeFailed")
+            return false
+        end
+
+        state.character = character
+        state.currentLevel = identity.level
+    end
+
+    if state.tracker == nil then
+        if not ATT.Tracker or type(ATT.Tracker.New) ~= "function" then
+            failRuntimeInitialization("trackerInitializeFailed")
+            return false
+        end
+
+        local trackerCallSucceeded, tracker = pcall(ATT.Tracker.New, {
+            compat = ATT.Compat,
+            storage = ATT.Storage,
+            movement = ATT.Movement,
+            character = state.character,
+            level = state.currentLevel,
+            emit = function(eventName, payload)
+                return ATT.Emit(eventName, payload)
+            end,
+        })
+        if not trackerCallSucceeded or type(tracker) ~= "table" then
+            failRuntimeInitialization("trackerInitializeFailed")
+            return false
+        end
+
+        state.tracker = tracker
+    end
+
     refreshCapabilities()
 
     if not ATT.UI or type(ATT.UI.Initialize) ~= "function" then
-        failInitialization("uiUnavailable")
+        failRuntimeInitialization("uiUnavailable")
         return false
     end
 
     local runtimeContext = {
-        db = db,
-        character = character,
-        tracker = tracker,
+        db = state.db,
+        character = state.character,
+        tracker = state.tracker,
         capabilities = state.capabilities,
         getCurrentLevel = function()
             return state.currentLevel
@@ -247,7 +305,7 @@ function Core.Initialize()
     }
     local uiCallSucceeded = pcall(ATT.UI.Initialize, runtimeContext)
     if not uiCallSucceeded then
-        failInitialization("uiInitializeFailed")
+        failRuntimeInitialization("uiInitializeFailed")
         return false
     end
 
@@ -265,9 +323,8 @@ function Core.Initialize()
         end
     end
 
-    AzerothTravelTrackerDB = db
-    state.initialized = true
     state.ready = true
+    Core.StartTicker()
     return true
 end
 
@@ -489,12 +546,13 @@ function Core.OnEvent(eventName, ...)
             Core.Initialize()
         end
     elseif eventName == "PLAYER_ENTERING_WORLD" then
-        if not state.ready and state.retryIdentity then
-            Core.Initialize()
-        end
-        if state.ready then
+        if not state.ready then
+            initializeRuntime()
+        else
             refreshCapabilities()
-            Core.StartTicker()
+            if type(state.tracker.ResetBaseline) == "function" then
+                pcall(state.tracker.ResetBaseline, state.tracker)
+            end
         end
     elseif eventName == "PLAYER_LEVEL_UP" then
         handleLevelUp(...)

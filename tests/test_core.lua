@@ -59,7 +59,9 @@ local function newCoreHarness(options)
         initialize = 0,
         identity = 0,
         getCharacter = 0,
+        startSession = 0,
         trackerNew = 0,
+        capabilities = 0,
         uiInitialize = 0,
         minimapInitialize = 0,
         uiRefresh = 0,
@@ -135,6 +137,7 @@ local function newCoreHarness(options)
         end,
         GetCharacter = function(db, key, receivedIdentity)
             calls.getCharacter = calls.getCharacter + 1
+            table.insert(calls.initializationOrder, "getCharacter")
             calls.characterArguments = {
                 db = db,
                 key = key,
@@ -145,11 +148,35 @@ local function newCoreHarness(options)
             end
             return character
         end,
+        StartSession = function(receivedCharacter, now)
+            calls.startSession = calls.startSession + 1
+            table.insert(calls.initializationOrder, "startSession")
+            calls.sessionArguments = {
+                character = receivedCharacter,
+                now = now,
+            }
+            if options.startSessionThrows then
+                error("session exploded")
+            end
+            if options.startSessionResult ~= nil then
+                return options.startSessionResult
+            end
+            receivedCharacter.session = {
+                startedAt = now,
+                totals = {
+                    onFoot = 0,
+                    swimming = 0,
+                    taxi = 0,
+                },
+            }
+            return receivedCharacter.session
+        end,
     }
 
     addon.Compat = {
         GetCharacterIdentity = function()
             calls.identity = calls.identity + 1
+            table.insert(calls.initializationOrder, "identity")
             if options.identityThrows then
                 error("identity exploded")
             end
@@ -159,6 +186,8 @@ local function newCoreHarness(options)
             return identity
         end,
         GetCapabilities = function()
+            calls.capabilities = calls.capabilities + 1
+            table.insert(calls.initializationOrder, "capabilities")
             if options.capabilitiesThrows then
                 error("capabilities exploded")
             end
@@ -194,6 +223,7 @@ local function newCoreHarness(options)
     addon.Tracker = {
         New = function(deps)
             calls.trackerNew = calls.trackerNew + 1
+            table.insert(calls.initializationOrder, "trackerNew")
             calls.trackerDependencies = deps
             if options.trackerThrows then
                 error("tracker exploded")
@@ -241,6 +271,7 @@ local function newCoreHarness(options)
 
     environment.C_Timer = {
         NewTicker = function(interval, callback)
+            table.insert(calls.initializationOrder, "ticker")
             if options.nativeTickerHandles then
                 local ticker = {
                     interval = interval,
@@ -298,6 +329,15 @@ local function initialize(harness)
     harness.fire("ADDON_LOADED", "AzerothTravelTracker")
 end
 
+local function enterWorld(harness)
+    harness.fire("PLAYER_ENTERING_WORLD")
+end
+
+local function makeReady(harness)
+    initialize(harness)
+    enterWorld(harness)
+end
+
 testlib.case("core registers one frame for all lifecycle events and slash commands", function()
     local harness = newCoreHarness()
 
@@ -317,7 +357,7 @@ testlib.case("core registers one frame for all lifecycle events and slash comman
     )
 end)
 
-testlib.case("core ignores nonmatching ADDON_LOADED and initializes matching addon once", function()
+testlib.case("ADDON_LOADED initializes only the database once", function()
     local harness = newCoreHarness({
         savedDB = {
             sentinel = true,
@@ -329,15 +369,50 @@ testlib.case("core ignores nonmatching ADDON_LOADED and initializes matching add
 
     initialize(harness)
     testlib.equal(harness.calls.initialize, 1)
+    testlib.equal(harness.calls.identity, 0)
+    testlib.equal(harness.calls.getCharacter, 0)
+    testlib.equal(harness.calls.startSession, 0)
+    testlib.equal(harness.calls.trackerNew, 0)
+    testlib.equal(harness.calls.capabilities, 0)
+    testlib.equal(harness.calls.uiInitialize, 0)
+    testlib.equal(harness.calls.minimapInitialize, 0)
+    testlib.equal(#harness.calls.tickers, 0)
+    testlib.equal(harness.environment.AzerothTravelTrackerDB, harness.db)
+    local state = harness.addon.Core.GetState()
+    testlib.equal(state.initialized, true)
+    testlib.equal(state.databaseReady, true)
+    testlib.equal(state.ready, false)
+    testlib.equal(state.db, harness.db)
+
+    initialize(harness)
+    testlib.equal(harness.calls.initialize, 1)
+    testlib.equal(harness.calls.identity, 0)
+end)
+
+testlib.case("first entering world binds runtime and starts one fresh session", function()
+    local harness = newCoreHarness()
+    initialize(harness)
+
+    enterWorld(harness)
+
     testlib.equal(harness.calls.identity, 1)
     testlib.equal(harness.calls.getCharacter, 1)
+    testlib.equal(harness.calls.startSession, 1)
     testlib.equal(harness.calls.trackerNew, 1)
+    testlib.equal(harness.calls.capabilities, 1)
     testlib.equal(harness.calls.uiInitialize, 1)
     testlib.equal(harness.calls.minimapInitialize, 1)
-    testlib.equal(harness.calls.initializationOrder[1], "uiInitialize")
-    testlib.equal(harness.calls.initializationOrder[2], "minimapInitialize")
+    testlib.equal(#harness.calls.tickers, 1)
+    testlib.near(harness.calls.tickers[1].interval, 0.5, 0.0001)
+    testlib.equal(harness.calls.initializationOrder[1], "identity")
+    testlib.equal(harness.calls.initializationOrder[2], "getCharacter")
+    testlib.equal(harness.calls.initializationOrder[3], "startSession")
+    testlib.equal(harness.calls.initializationOrder[4], "trackerNew")
+    testlib.equal(harness.calls.initializationOrder[5], "capabilities")
+    testlib.equal(harness.calls.initializationOrder[6], "uiInitialize")
+    testlib.equal(harness.calls.initializationOrder[7], "minimapInitialize")
+    testlib.equal(harness.calls.initializationOrder[8], "ticker")
     testlib.equal(harness.calls.minimapContext.db, harness.db)
-    testlib.equal(harness.environment.AzerothTravelTrackerDB, harness.db)
     testlib.equal(harness.calls.characterArguments.db, harness.db)
     testlib.equal(
         harness.calls.characterArguments.key,
@@ -347,6 +422,8 @@ testlib.case("core ignores nonmatching ADDON_LOADED and initializes matching add
         harness.calls.characterArguments.identity.name,
         "Traveler"
     )
+    testlib.equal(harness.calls.sessionArguments.character, harness.character)
+    testlib.equal(harness.calls.sessionArguments.now, 1000)
     testlib.equal(harness.calls.trackerDependencies.compat, harness.addon.Compat)
     testlib.equal(harness.calls.trackerDependencies.storage, harness.addon.Storage)
     testlib.equal(harness.calls.trackerDependencies.movement, harness.addon.Movement)
@@ -358,10 +435,7 @@ testlib.case("core ignores nonmatching ADDON_LOADED and initializes matching add
     testlib.equal(harness.calls.uiContext.tracker, harness.tracker)
     testlib.equal(harness.calls.uiContext.getCurrentLevel(), 42)
     testlib.equal(harness.calls.uiContext.capabilities.position, true)
-
-    harness.fire("ADDON_LOADED", "AzerothTravelTracker")
-    testlib.equal(harness.calls.initialize, 1)
-    testlib.equal(harness.calls.getCharacter, 1)
+    testlib.equal(harness.addon.Core.GetState().ready, true)
 end)
 
 testlib.case("core tolerates missing minimap for load-order safety", function()
@@ -369,7 +443,7 @@ testlib.case("core tolerates missing minimap for load-order safety", function()
         missingMinimap = true,
     })
 
-    initialize(harness)
+    makeReady(harness)
 
     testlib.equal(harness.addon.Core.GetState().ready, true)
     testlib.equal(harness.calls.uiInitialize, 1)
@@ -381,7 +455,7 @@ testlib.case("core reports minimap initialization failure without disabling trac
         minimapThrows = true,
     })
 
-    initialize(harness)
+    makeReady(harness)
     initialize(harness)
 
     testlib.equal(harness.addon.Core.GetState().ready, true)
@@ -391,7 +465,6 @@ testlib.case("core reports minimap initialization failure without disabling trac
     testlib.truthy(contains(harness.calls.prints[1], "minimap"))
     testlib.truthy(contains(harness.calls.uiErrors[1], "minimap"))
 
-    harness.fire("PLAYER_ENTERING_WORLD")
     testlib.equal(#harness.calls.tickers, 1)
 end)
 
@@ -407,7 +480,7 @@ testlib.case("unsupported storage preserves the saved DB and reports once", func
 
     initialize(harness)
     initialize(harness)
-    harness.fire("PLAYER_ENTERING_WORLD")
+    enterWorld(harness)
 
     testlib.equal(harness.environment.AzerothTravelTrackerDB, savedDB)
     testlib.equal(harness.calls.identity, 0)
@@ -418,7 +491,7 @@ testlib.case("unsupported storage preserves the saved DB and reports once", func
     testlib.truthy(contains(harness.calls.prints[1], "unsupportedSchema"))
 end)
 
-testlib.case("identity failure prevents tracking and throttles its reason", function()
+testlib.case("identity failure retains the database and retries without an empty record", function()
     local savedDB = {
         sentinel = true,
     }
@@ -428,35 +501,106 @@ testlib.case("identity failure prevents tracking and throttles its reason", func
     })
 
     initialize(harness)
-    harness.addon.Core.ReportOnce("identityUnavailable")
-    harness.fire("PLAYER_ENTERING_WORLD")
+    enterWorld(harness)
 
-    testlib.equal(harness.environment.AzerothTravelTrackerDB, savedDB)
+    testlib.equal(harness.environment.AzerothTravelTrackerDB, harness.db)
+    testlib.equal(harness.addon.Core.GetState().databaseReady, true)
+    testlib.equal(harness.addon.Core.GetState().ready, false)
+    testlib.equal(harness.calls.identity, 1)
     testlib.equal(harness.calls.getCharacter, 0)
+    testlib.equal(harness.calls.startSession, 0)
     testlib.equal(harness.calls.trackerNew, 0)
     testlib.equal(#harness.calls.tickers, 0)
     testlib.equal(#harness.calls.uiErrors, 1)
     testlib.equal(#harness.calls.prints, 1)
-end)
-
-testlib.case("entering world retries transient identity initialization once", function()
-    local harness = newCoreHarness({
-        identityError = "identityUnavailable",
-    })
-
-    initialize(harness)
-    testlib.equal(harness.calls.getCharacter, 0)
 
     harness.options.identityError = nil
-    harness.fire("PLAYER_ENTERING_WORLD")
+    enterWorld(harness)
 
+    testlib.equal(harness.calls.identity, 2)
     testlib.equal(harness.calls.getCharacter, 1)
+    testlib.equal(harness.calls.startSession, 1)
     testlib.equal(harness.calls.trackerNew, 1)
     testlib.equal(harness.calls.uiInitialize, 1)
     testlib.equal(#harness.calls.tickers, 1)
+    testlib.equal(countKeys(harness.db.characters), 0)
 end)
 
-testlib.case("entering world refreshes capabilities without replacing UI context", function()
+testlib.case("identity exceptions are throttled and retried on entering world", function()
+    local harness = newCoreHarness({
+        identityThrows = true,
+    })
+    initialize(harness)
+
+    enterWorld(harness)
+    enterWorld(harness)
+
+    testlib.equal(harness.calls.identity, 2)
+    testlib.equal(harness.calls.getCharacter, 0)
+    testlib.equal(harness.calls.startSession, 0)
+    testlib.equal(#harness.calls.tickers, 0)
+    testlib.equal(#harness.calls.prints, 1)
+    testlib.equal(#harness.calls.uiErrors, 1)
+end)
+
+testlib.case("session initialization failure prevents partial runtime startup", function()
+    local throwing = newCoreHarness({
+        startSessionThrows = true,
+    })
+    initialize(throwing)
+    enterWorld(throwing)
+    enterWorld(throwing)
+
+    testlib.equal(throwing.calls.identity, 2)
+    testlib.equal(throwing.calls.getCharacter, 2)
+    testlib.equal(throwing.calls.startSession, 2)
+    testlib.equal(throwing.calls.trackerNew, 0)
+    testlib.equal(#throwing.calls.tickers, 0)
+    testlib.equal(throwing.addon.Core.GetState().ready, false)
+    testlib.equal(throwing.addon.Core.GetState().db, throwing.db)
+    testlib.equal(#throwing.calls.prints, 1)
+    testlib.truthy(contains(
+        throwing.calls.prints[1],
+        "sessionInitializeFailed"
+    ))
+
+    local invalid = newCoreHarness({
+        startSessionResult = false,
+    })
+    initialize(invalid)
+    enterWorld(invalid)
+
+    testlib.equal(invalid.calls.startSession, 1)
+    testlib.equal(invalid.calls.trackerNew, 0)
+    testlib.equal(#invalid.calls.tickers, 0)
+    testlib.equal(invalid.addon.Core.GetState().databaseReady, true)
+    testlib.equal(#invalid.calls.prints, 1)
+    testlib.truthy(contains(
+        invalid.calls.prints[1],
+        "sessionInitializeFailed"
+    ))
+end)
+
+testlib.case("runtime retries preserve a session that already started", function()
+    local harness = newCoreHarness({
+        trackerThrows = true,
+    })
+    initialize(harness)
+
+    enterWorld(harness)
+    harness.options.trackerThrows = false
+    enterWorld(harness)
+
+    testlib.equal(harness.calls.identity, 1)
+    testlib.equal(harness.calls.getCharacter, 1)
+    testlib.equal(harness.calls.startSession, 1)
+    testlib.equal(harness.calls.trackerNew, 2)
+    testlib.equal(harness.calls.uiInitialize, 1)
+    testlib.equal(#harness.calls.tickers, 1)
+    testlib.equal(harness.addon.Core.GetState().ready, true)
+end)
+
+testlib.case("subsequent entering world preserves runtime and refreshes capabilities", function()
     local initialCapabilities = {
         position = false,
         onFootReady = false,
@@ -464,56 +608,54 @@ testlib.case("entering world refreshes capabilities without replacing UI context
     local harness = newCoreHarness({
         capabilities = initialCapabilities,
     })
-    initialize(harness)
+    makeReady(harness)
     local exposedCapabilities = harness.calls.uiContext.capabilities
+    local selectedCharacter = harness.addon.Core.GetState().character
+    local selectedTracker = harness.addon.Core.GetState().tracker
+    local activeTicker = harness.addon.Core.GetState().ticker
 
     harness.options.capabilities = {
         position = true,
         onFootReady = true,
     }
-    harness.fire("PLAYER_ENTERING_WORLD")
+    harness.options.identityThrows = true
+    enterWorld(harness)
 
     testlib.equal(harness.calls.uiContext.capabilities, exposedCapabilities)
     testlib.equal(exposedCapabilities.position, true)
     testlib.equal(exposedCapabilities.onFootReady, true)
-end)
-
-testlib.case("entering world resets baseline and maintains one half-second ticker", function()
-    local harness = newCoreHarness()
-    initialize(harness)
-
-    harness.fire("PLAYER_ENTERING_WORLD")
-    testlib.equal(harness.calls.resets, 1)
-    testlib.equal(#harness.calls.tickers, 1)
-    testlib.near(harness.calls.tickers[1].interval, 0.5, 0.0001)
-
-    harness.fire("PLAYER_ENTERING_WORLD")
+    testlib.equal(harness.calls.identity, 1)
+    testlib.equal(harness.calls.getCharacter, 1)
+    testlib.equal(harness.calls.startSession, 1)
+    testlib.equal(harness.calls.trackerNew, 1)
+    testlib.equal(harness.calls.capabilities, 2)
+    testlib.equal(harness.calls.uiInitialize, 1)
+    testlib.equal(harness.calls.minimapInitialize, 1)
     testlib.equal(harness.calls.resets, 2)
-    testlib.equal(#harness.calls.tickers, 2)
-    testlib.equal(harness.calls.tickers[1].cancelled, true)
-    testlib.equal(harness.calls.tickers[2].cancelled, false)
+    testlib.equal(#harness.calls.tickers, 1)
+    testlib.equal(harness.calls.tickers[1].cancelled, false)
+    testlib.equal(harness.addon.Core.GetState().character, selectedCharacter)
+    testlib.equal(harness.addon.Core.GetState().tracker, selectedTracker)
+    testlib.equal(harness.addon.Core.GetState().ticker, activeTicker)
 end)
 
-testlib.case("native-like ticker handles are retained and cancelled before restart", function()
+testlib.case("native-like ticker handles are retained and cancelled on logout", function()
     local harness = newCoreHarness({
         nativeTickerHandles = true,
     })
-    initialize(harness)
-
-    harness.fire("PLAYER_ENTERING_WORLD")
+    makeReady(harness)
     testlib.equal(#harness.calls.tickers, 1)
     testlib.equal(
         harness.addon.Core.GetState().ticker,
         harness.calls.tickers[1].handle
     )
 
-    harness.fire("PLAYER_ENTERING_WORLD")
-    testlib.equal(#harness.calls.tickers, 2)
-    testlib.equal(harness.calls.tickers[1].cancelled, true)
-    testlib.equal(harness.calls.tickers[2].cancelled, false)
+    enterWorld(harness)
+    testlib.equal(#harness.calls.tickers, 1)
+    testlib.equal(harness.calls.tickers[1].cancelled, false)
 
     harness.fire("PLAYER_LOGOUT")
-    testlib.equal(harness.calls.tickers[2].cancelled, true)
+    testlib.equal(harness.calls.tickers[1].cancelled, true)
     testlib.equal(harness.addon.Core.GetState().ticker, nil)
 end)
 
@@ -525,8 +667,7 @@ testlib.case("ticker refreshes only accepted segments while the window is shown"
             { segment = { yards = 3 } },
         },
     })
-    initialize(harness)
-    harness.fire("PLAYER_ENTERING_WORLD")
+    makeReady(harness)
 
     local ticker = harness.calls.tickers[1]
     ticker.callback()
@@ -540,8 +681,7 @@ testlib.case("ticker refreshes only accepted segments while the window is shown"
             { segment = { yards = 3 } },
         },
     })
-    initialize(hidden)
-    hidden.fire("PLAYER_ENTERING_WORLD")
+    makeReady(hidden)
     hidden.calls.tickers[1].callback()
     testlib.equal(hidden.calls.uiRefresh, 0)
 end)
@@ -556,8 +696,7 @@ testlib.case("ticker reports only explicit capability reasons once", function()
             { reason = "notAnApprovedCapabilityReason" },
         },
     })
-    initialize(harness)
-    harness.fire("PLAYER_ENTERING_WORLD")
+    makeReady(harness)
 
     for _ = 1, 5 do
         harness.calls.tickers[1].callback()
@@ -570,7 +709,7 @@ end)
 
 testlib.case("level up obtains wall clock before setting level and refreshes", function()
     local harness = newCoreHarness()
-    initialize(harness)
+    makeReady(harness)
 
     harness.fire("PLAYER_LEVEL_UP", 43)
 
@@ -584,7 +723,7 @@ end)
 
 testlib.case("level up rejects invalid levels and reports time or tracker failures", function()
     local invalid = newCoreHarness()
-    initialize(invalid)
+    makeReady(invalid)
     invalid.fire("PLAYER_LEVEL_UP", 0)
     testlib.equal(#invalid.calls.levelCalls, 0)
     testlib.equal(invalid.calls.uiContext.getCurrentLevel(), 42)
@@ -593,7 +732,7 @@ testlib.case("level up rejects invalid levels and reports time or tracker failur
     local noTime = newCoreHarness({
         nowError = "timeUnavailable",
     })
-    initialize(noTime)
+    makeReady(noTime)
     noTime.fire("PLAYER_LEVEL_UP", 43)
     testlib.equal(#noTime.calls.levelCalls, 0)
     testlib.equal(noTime.calls.uiContext.getCurrentLevel(), 42)
@@ -605,7 +744,7 @@ testlib.case("level up rejects invalid levels and reports time or tracker failur
             "invalidStoredLevel",
         },
     })
-    initialize(rejected)
+    makeReady(rejected)
     rejected.fire("PLAYER_LEVEL_UP", 43)
     testlib.equal(rejected.calls.uiContext.getCurrentLevel(), 42)
     testlib.equal(rejected.calls.uiRefresh, 0)
@@ -615,7 +754,7 @@ testlib.case("level up rejects invalid levels and reports time or tracker failur
     local throwingTime = newCoreHarness({
         nowThrows = true,
     })
-    initialize(throwingTime)
+    makeReady(throwingTime)
     local succeeded = pcall(throwingTime.fire, "PLAYER_LEVEL_UP", 43)
     testlib.equal(succeeded, true)
     testlib.equal(#throwingTime.calls.levelCalls, 0)
@@ -625,8 +764,7 @@ end)
 
 testlib.case("logout cancels and clears the active ticker", function()
     local harness = newCoreHarness()
-    initialize(harness)
-    harness.fire("PLAYER_ENTERING_WORLD")
+    makeReady(harness)
 
     harness.fire("PLAYER_LOGOUT")
 
@@ -636,7 +774,7 @@ end)
 
 testlib.case("slash commands toggle and persist units and diagnostics", function()
     local harness = newCoreHarness()
-    initialize(harness)
+    makeReady(harness)
     local slash = harness.environment.SlashCmdList.AZEROTHTRAVELTRACKER
 
     slash("")
@@ -656,7 +794,7 @@ end)
 
 testlib.case("reset command opens confirmation without resetting immediately", function()
     local harness = newCoreHarness()
-    initialize(harness)
+    makeReady(harness)
 
     harness.environment.SlashCmdList.AZEROTHTRAVELTRACKER("reset session")
 
@@ -678,7 +816,7 @@ testlib.case("status prints capabilities and sorted diagnostic counts", function
             onFootReady = false,
         },
     })
-    initialize(harness)
+    makeReady(harness)
 
     harness.environment.SlashCmdList.AZEROTHTRAVELTRACKER("status")
 
@@ -699,7 +837,7 @@ testlib.case("slash commands report not-ready and concise usage without throwing
     testlib.equal(#harness.calls.prints, 1)
     testlib.truthy(contains(harness.calls.prints[1], "not ready"))
 
-    initialize(harness)
+    makeReady(harness)
     slash("units")
     slash("diagnostics maybe")
     slash("unknown")
