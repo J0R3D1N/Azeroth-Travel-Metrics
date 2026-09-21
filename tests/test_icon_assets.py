@@ -50,10 +50,10 @@ class IconAssetTests(unittest.TestCase):
                     "target": "ATTLogo.tga",
                     "mask": "circle",
                     "crop": (
-                        500 / 2048,
-                        1340 / 2048,
-                        960 / 2048,
-                        1800 / 2048,
+                        540 / 2048,
+                        810 / 2048,
+                        880 / 2048,
+                        1150 / 2048,
                     ),
                 },
                 "overview_icon.jpg": {
@@ -119,6 +119,65 @@ class IconAssetTests(unittest.TestCase):
             / len(adjacent_contrasts),
             0.15,
         )
+
+    def test_att_logo_excludes_fish_blue_from_upper_region_at_small_sizes(self):
+        with Image.open(MEDIA / "ATTLogo.tga") as source:
+            for size in (20, 32):
+                with self.subTest(size=size):
+                    image = (
+                        source.convert("RGBA")
+                        .convert("RGBa")
+                        .resize((size, size), Image.Resampling.LANCZOS)
+                        .convert("RGBA")
+                    )
+                    opaque = {
+                        (x, y): image.getpixel((x, y))
+                        for y in range(image.height)
+                        for x in range(image.width)
+                        if image.getpixel((x, y))[3] >= 128
+                    }
+                    upper = {
+                        point: pixel
+                        for point, pixel in opaque.items()
+                        if point[1] < round(size * 0.65)
+                    }
+                    fish_blue = {
+                        point
+                        for point, pixel in upper.items()
+                        if pixel[2] >= 70
+                        and pixel[2] - pixel[0] >= 12
+                        and pixel[2] - pixel[1] >= 5
+                    }
+                    fish_cyan = {
+                        point
+                        for point, pixel in upper.items()
+                        if pixel[1] >= 75
+                        and pixel[2] >= 75
+                        and pixel[1] - pixel[0] >= 8
+                        and pixel[2] - pixel[0] >= 8
+                    }
+                    boot_brown = {
+                        point
+                        for point, pixel in opaque.items()
+                        if pixel[0] - pixel[1] >= 20
+                        and pixel[1] - pixel[2] >= 3
+                        and 45 <= sum(pixel[:3]) / 3 <= 190
+                    }
+                    dark_outline = {
+                        point
+                        for point, pixel in opaque.items()
+                        if max(pixel[:3]) <= 80
+                    }
+
+                    self.assertEqual(set(), fish_blue | fish_cyan)
+                    self.assertGreaterEqual(
+                        len(boot_brown) / len(opaque),
+                        0.45,
+                    )
+                    self.assertGreaterEqual(
+                        len(dark_outline) / len(opaque),
+                        0.30,
+                    )
 
     def test_att_logo_uses_circular_alpha_mask(self):
         with Image.open(MEDIA / "ATTLogo.tga") as source:
