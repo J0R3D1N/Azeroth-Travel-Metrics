@@ -70,6 +70,7 @@ local function newCoreHarness(options)
         uiErrors = {},
         prints = {},
         tickers = {},
+        tickerAttempts = 0,
         samples = 0,
         resets = 0,
         levelCalls = {},
@@ -272,6 +273,10 @@ local function newCoreHarness(options)
     environment.C_Timer = {
         NewTicker = function(interval, callback)
             table.insert(calls.initializationOrder, "ticker")
+            calls.tickerAttempts = calls.tickerAttempts + 1
+            if calls.tickerAttempts <= (options.invalidTickerAttempts or 0) then
+                return {}
+            end
             if options.nativeTickerHandles then
                 local ticker = {
                     interval = interval,
@@ -637,6 +642,46 @@ testlib.case("subsequent entering world preserves runtime and refreshes capabili
     testlib.equal(harness.addon.Core.GetState().character, selectedCharacter)
     testlib.equal(harness.addon.Core.GetState().tracker, selectedTracker)
     testlib.equal(harness.addon.Core.GetState().ticker, activeTicker)
+end)
+
+testlib.case("entering world retries an unavailable ticker without rebuilding runtime", function()
+    local harness = newCoreHarness({
+        invalidTickerAttempts = 1,
+    })
+    initialize(harness)
+
+    enterWorld(harness)
+
+    local state = harness.addon.Core.GetState()
+    local selectedCharacter = state.character
+    local selectedTracker = state.tracker
+    testlib.equal(state.ready, true)
+    testlib.equal(state.ticker, nil)
+    testlib.equal(harness.calls.tickerAttempts, 1)
+    testlib.equal(#harness.calls.tickers, 0)
+
+    enterWorld(harness)
+
+    local activeTicker = state.ticker
+    testlib.equal(harness.calls.identity, 1)
+    testlib.equal(harness.calls.getCharacter, 1)
+    testlib.equal(harness.calls.startSession, 1)
+    testlib.equal(harness.calls.trackerNew, 1)
+    testlib.equal(harness.calls.uiInitialize, 1)
+    testlib.equal(harness.calls.minimapInitialize, 1)
+    testlib.equal(harness.calls.tickerAttempts, 2)
+    testlib.equal(#harness.calls.tickers, 1)
+    testlib.equal(activeTicker, harness.calls.tickers[1])
+    testlib.equal(harness.calls.tickers[1].cancelled, false)
+    testlib.equal(state.character, selectedCharacter)
+    testlib.equal(state.tracker, selectedTracker)
+
+    enterWorld(harness)
+
+    testlib.equal(harness.calls.tickerAttempts, 2)
+    testlib.equal(#harness.calls.tickers, 1)
+    testlib.equal(state.ticker, activeTicker)
+    testlib.equal(harness.calls.tickers[1].cancelled, false)
 end)
 
 testlib.case("native-like ticker handles are retained and cancelled on logout", function()

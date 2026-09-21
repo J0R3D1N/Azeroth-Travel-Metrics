@@ -550,7 +550,9 @@ function Core.OnEvent(eventName, ...)
             initializeRuntime()
         else
             refreshCapabilities()
-            if type(state.tracker.ResetBaseline) == "function" then
+            if state.ticker == nil then
+                Core.StartTicker()
+            elseif type(state.tracker.ResetBaseline) == "function" then
                 pcall(state.tracker.ResetBaseline, state.tracker)
             end
         end
