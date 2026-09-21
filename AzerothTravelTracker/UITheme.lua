@@ -20,6 +20,19 @@ ATT.UITheme = Theme
 local SIDE_TAB_SIZE = 50
 local SECTION_HEADER_HEIGHT = 20
 local SECTION_ROW_HEIGHT = 16
+local SHELL_BACKDROP = {
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true,
+    tileSize = 16,
+    edgeSize = 16,
+    insets = {
+        left = 4,
+        right = 4,
+        top = 4,
+        bottom = 4,
+    },
+}
 
 local function setTooltip(frame, text)
     frame:SetScript("OnEnter", function(self)
@@ -47,6 +60,112 @@ local function createColorTexture(parent, layer, red, green, blue, alpha)
     texture:SetAllPoints(parent)
     texture:SetColorTexture(red, green, blue, alpha)
     return texture
+end
+
+local function createFallbackBorder(parent)
+    local border = {}
+    local edges = {
+        { "TOPLEFT", "TOPRIGHT", "horizontal" },
+        { "BOTTOMLEFT", "BOTTOMRIGHT", "horizontal" },
+        { "TOPLEFT", "BOTTOMLEFT", "vertical" },
+        { "TOPRIGHT", "BOTTOMRIGHT", "vertical" },
+    }
+
+    for _, edge in ipairs(edges) do
+        local texture = parent:CreateTexture(nil, "BORDER")
+        texture:SetPoint(edge[1], parent, edge[1], 0, 0)
+        texture:SetPoint(edge[2], parent, edge[2], 0, 0)
+        if edge[3] == "horizontal" then
+            texture:SetHeight(1)
+        else
+            texture:SetWidth(1)
+        end
+        texture:SetColorTexture(0.55, 0.34, 0.12, 0.95)
+        table.insert(border, texture)
+    end
+
+    return border
+end
+
+function Theme.ApplyWindowShell(frame, useBackdrop)
+    local shell = {}
+    local backdropApplied = false
+
+    if useBackdrop and type(frame.SetBackdrop) == "function" then
+        local backdropSucceeded, backdropAccepted = pcall(
+            frame.SetBackdrop,
+            frame,
+            SHELL_BACKDROP
+        )
+        if backdropSucceeded
+            and backdropAccepted ~= false
+            and type(frame.SetBackdropColor) == "function"
+        then
+            local colorSucceeded, colorAccepted = pcall(
+                frame.SetBackdropColor,
+                frame,
+                0.08,
+                0.06,
+                0.035,
+                0.95
+            )
+            backdropApplied = colorSucceeded and colorAccepted ~= false
+        end
+    end
+
+    if not backdropApplied then
+        shell.fallbackBackground = createColorTexture(
+            frame,
+            "BACKGROUND",
+            0.08,
+            0.06,
+            0.035,
+            0.95
+        )
+        shell.fallbackBorder = createFallbackBorder(frame)
+    end
+
+    shell.darkTexture = frame:CreateTexture(nil, "BACKGROUND")
+    shell.darkTexture:SetPoint("TOPLEFT", frame, "TOPLEFT", 7, -7)
+    shell.darkTexture:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -7, 7)
+    shell.darkTexture:SetTexture(
+        "Interface\\DialogFrame\\UI-DialogBox-Background-Dark"
+    )
+    shell.darkTexture:SetVertexColor(0.42, 0.31, 0.16, 0.88)
+
+    shell.goldTexture = frame:CreateTexture(nil, "BACKGROUND")
+    shell.goldTexture:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -8)
+    shell.goldTexture:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 8)
+    shell.goldTexture:SetTexture(
+        "Interface\\DialogFrame\\UI-DialogBox-Gold-Background"
+    )
+    shell.goldTexture:SetVertexColor(0.55, 0.38, 0.15, 0.16)
+
+    shell.vignette = frame:CreateTexture(nil, "BORDER")
+    shell.vignette:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -8)
+    shell.vignette:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 8)
+    local gradientApplied = false
+    if type(shell.vignette.SetGradientAlpha) == "function" then
+        local gradientSucceeded, gradientAccepted = pcall(
+            shell.vignette.SetGradientAlpha,
+            shell.vignette,
+            "VERTICAL",
+            0.04, 0.02, 0.01, 0.15,
+            0.01, 0.005, 0.002, 0.72
+        )
+        gradientApplied = gradientSucceeded and gradientAccepted ~= false
+    end
+    if not gradientApplied then
+        shell.vignette:SetColorTexture(0.02, 0.01, 0.005, 0.42)
+    end
+
+    shell.topGlow = frame:CreateTexture(nil, "BORDER")
+    shell.topGlow:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -8)
+    shell.topGlow:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, -8)
+    shell.topGlow:SetHeight(44)
+    shell.topGlow:SetColorTexture(0.78, 0.48, 0.12, 0.14)
+
+    return shell
 end
 
 local function createSelectedBorder(parent)

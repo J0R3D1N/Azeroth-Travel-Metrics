@@ -80,29 +80,22 @@ local function registerEscapeFrame(frameName)
 end
 
 local function createMainFrame()
-    local templates = {
-        "PortraitFrameBaseTemplate",
-        "BasicFrameTemplateWithInset",
-    }
-
-    for _, template in ipairs(templates) do
-        local succeeded, frame = pcall(
-            CreateFrame,
-            "Frame",
-            "AzerothTravelTrackerFrame",
-            UIParent,
-            template
-        )
-        if succeeded and frame then
-            return frame
-        end
+    local succeeded, frame = pcall(
+        CreateFrame,
+        "Frame",
+        "AzerothTravelTrackerFrame",
+        UIParent,
+        "BackdropTemplate"
+    )
+    if succeeded and frame then
+        return frame, true
     end
 
     return CreateFrame(
         "Frame",
         "AzerothTravelTrackerFrame",
         UIParent
-    )
+    ), false
 end
 
 local function createLabel(parent, text, font)
@@ -623,7 +616,7 @@ function UI.Create()
         return UI.frame
     end
 
-    local frame = createMainFrame()
+    local frame, useBackdrop = createMainFrame()
     UI.frame = frame
     registerEscapeFrame("AzerothTravelTrackerFrame")
     frame:SetSize(420, 430)
@@ -639,10 +632,7 @@ function UI.Create()
         self:StopMovingOrSizing()
     end)
 
-    UI.mainBackground = frame:CreateTexture(nil, "BACKGROUND")
-    UI.mainBackground:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -28)
-    UI.mainBackground:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 8)
-    UI.mainBackground:SetColorTexture(0.035, 0.025, 0.018, 1)
+    UI.shell = ATT.UITheme.ApplyWindowShell(frame, useBackdrop)
 
     UI.closeButton = frame.CloseButton
     if not UI.closeButton then
@@ -660,39 +650,12 @@ function UI.Create()
         frame:Hide()
     end)
 
-    local portraitSet = false
-    if type(SetPortraitToTexture) == "function" then
-        portraitSet = pcall(
-            SetPortraitToTexture,
-            frame,
-            ATT.UITheme.Icons.PORTRAIT
-        )
-    end
-    if not portraitSet
-        and frame.PortraitContainer
-        and frame.PortraitContainer.portrait
-        and type(frame.PortraitContainer.portrait.SetTexture) == "function"
-    then
-        frame.PortraitContainer.portrait:SetTexture(
-            ATT.UITheme.Icons.PORTRAIT
-        )
-    end
-    if frame.PortraitContainer
-        and type(frame.PortraitContainer.Hide) == "function"
-    then
-        frame.PortraitContainer:Hide()
-    end
-
-    UI.title = frame.TitleText
-        or (frame.TitleContainer and frame.TitleContainer.TitleText)
-    if not UI.title then
-        UI.title = createLabel(
-            frame,
-            "Azeroth Travel Tracker",
-            "GameFontNormalLarge"
-        )
-        UI.title:SetPoint("TOP", frame, "TOP", 0, -15)
-    end
+    UI.title = createLabel(
+        frame,
+        "Azeroth Travel Tracker",
+        "GameFontNormalLarge"
+    )
+    UI.title:SetPoint("TOP", frame, "TOP", 0, -15)
     UI.title:SetText("Azeroth Travel Tracker")
 
     UI.minimizeButton = createMinimizeButton(frame)
