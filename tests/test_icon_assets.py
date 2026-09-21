@@ -49,6 +49,7 @@ class IconAssetTests(unittest.TestCase):
                 "azeroth_travel_metrics.jpg": {
                     "target": "ATTLogo.tga",
                     "mask": "circle",
+                    "isolate": "boot",
                     "crop": (
                         540 / 2048,
                         810 / 2048,
@@ -119,6 +120,26 @@ class IconAssetTests(unittest.TestCase):
             / len(adjacent_contrasts),
             0.15,
         )
+
+    def test_att_logo_excludes_terrain_colors_at_small_sizes(self):
+        with Image.open(MEDIA / "ATTLogo.tga") as source:
+            for size in (20, 32):
+                with self.subTest(size=size):
+                    image = (
+                        source.convert("RGBA")
+                        .convert("RGBa")
+                        .resize((size, size), Image.Resampling.LANCZOS)
+                        .convert("RGBA")
+                    )
+                    terrain = [
+                        pixel
+                        for pixel in image.get_flattened_data()
+                        if pixel[3] >= 128
+                        and pixel[1] - pixel[0] >= 5
+                        and pixel[1] - pixel[2] >= 3
+                    ]
+
+                    self.assertEqual([], terrain)
 
     def test_att_logo_excludes_fish_blue_from_upper_region_at_small_sizes(self):
         with Image.open(MEDIA / "ATTLogo.tga") as source:

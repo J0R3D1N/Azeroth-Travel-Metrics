@@ -451,6 +451,9 @@ Present.lua
     $repeatedSnapshotZip = Join-Path $snapshotRepo 'snapshot-repeat.zip'
     Assert-CleanAddonWorktree -RepoRoot $snapshotRepo
     $trackedSnapshotFiles = @(Get-TrackedAddonFilesAtHead -RepoRoot $snapshotRepo)
+    if ($trackedSnapshotFiles -contains '') {
+        throw 'Tracked addon files must not include a trailing empty Git record.'
+    }
     & git -C $snapshotRepo config core.autocrlf true
 
     Test-DoesNotThrow `

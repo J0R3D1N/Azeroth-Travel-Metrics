@@ -10,6 +10,7 @@ ASSETS = {
     "azeroth_travel_metrics.jpg": {
         "target": "ATTLogo.tga",
         "mask": "circle",
+        "isolate": "boot",
         "crop": (
             540 / 2048,
             810 / 2048,
@@ -30,6 +31,68 @@ SIZE = 64
 MASK_SCALE = 4
 CORNER_RADIUS = 14
 CIRCLE_INSET = 5
+
+
+def isolate_boot(image: Image.Image) -> Image.Image:
+    rgb = image.convert("RGB")
+    pixels = rgb.load()
+    width, height = rgb.size
+
+    def belongs_to_boot(pixel: tuple[int, int, int]) -> bool:
+        red, green, blue = pixel
+        is_brown = (
+            red - green >= 18
+            and green >= blue
+            and red >= 55
+            and blue <= 125
+        )
+        is_outline = max(pixel) <= 65
+        return is_brown or is_outline
+
+    visited: set[tuple[int, int]] = set()
+    components: list[list[tuple[int, int]]] = []
+    for y in range(height):
+        for x in range(width):
+            point = (x, y)
+            if point in visited or not belongs_to_boot(pixels[x, y]):
+                continue
+
+            component = []
+            pending = [point]
+            visited.add(point)
+            while pending:
+                current_x, current_y = pending.pop()
+                component.append((current_x, current_y))
+                for neighbor_y in range(
+                    max(0, current_y - 1),
+                    min(height, current_y + 2),
+                ):
+                    for neighbor_x in range(
+                        max(0, current_x - 1),
+                        min(width, current_x + 2),
+                    ):
+                        neighbor = (neighbor_x, neighbor_y)
+                        if (
+                            neighbor not in visited
+                            and belongs_to_boot(pixels[neighbor_x, neighbor_y])
+                        ):
+                            visited.add(neighbor)
+                            pending.append(neighbor)
+
+            components.append(component)
+
+    if not components:
+        raise ValueError("boot crop does not contain a recognizable boot")
+
+    boot = max(components, key=len)
+    alpha = Image.new("L", rgb.size, 0)
+    alpha_pixels = alpha.load()
+    for point in boot:
+        alpha_pixels[point] = 255
+
+    output = rgb.convert("RGBA")
+    output.putalpha(alpha)
+    return output
 
 
 def center_crop(image: Image.Image) -> Image.Image:
@@ -102,6 +165,8 @@ def build(source_name: str, config: dict) -> None:
             if crop is not None
             else center_crop(original)
         )
+        if config.get("isolate") == "boot":
+            cropped = isolate_boot(cropped)
         mask_kind = config["mask"]
         if mask_kind == "circle":
             resized = resize_premultiplied(cropped, (SIZE, SIZE))

@@ -182,7 +182,10 @@ function Get-TrackedAddonFilesAtHead {
         -RepoRoot $RepoRoot `
         -Arguments "ls-tree -r -z $Commit -- AzerothTravelTracker"
     $files = [System.Collections.Generic.List[string]]::new()
-    foreach ($record in $tree.Split([char]0, [System.StringSplitOptions]::RemoveEmptyEntries)) {
+    foreach ($record in [regex]::Split($tree, "`0")) {
+        if ($record.Length -eq 0) {
+            continue
+        }
         if ($record -notmatch '^(\d{6}) (blob|tree|commit) ([0-9a-f]+)\t(.+)$') {
             throw "Git returned an invalid addon tree entry: $record"
         }
