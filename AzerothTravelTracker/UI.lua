@@ -48,9 +48,9 @@ local activeTab = "overview"
 
 local function safeSetFrameStrata(frame)
     local strataOptions = {
-        "DIALOG",
-        "HIGH",
         "MEDIUM",
+        "HIGH",
+        "DIALOG",
     }
 
     for _, strata in ipairs(strataOptions) do
@@ -792,10 +792,13 @@ function UI.Create()
     UI.settingsPanel = settingsPanel
     settingsPanel:SetSize(205, 128)
     settingsPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -18, 64)
+    if type(settingsPanel.SetFrameStrata) == "function" then
+        pcall(settingsPanel.SetFrameStrata, settingsPanel, "DIALOG")
+    end
     if type(settingsPanel.SetFrameLevel) == "function"
         and type(frame.GetFrameLevel) == "function"
     then
-        settingsPanel:SetFrameLevel(frame:GetFrameLevel() + 10)
+        settingsPanel:SetFrameLevel(frame:GetFrameLevel() + 100)
     end
 
     UI.settingsHeading = createLabel(

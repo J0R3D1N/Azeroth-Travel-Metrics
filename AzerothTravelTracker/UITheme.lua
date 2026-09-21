@@ -81,7 +81,7 @@ local function createFallbackBorder(parent)
         else
             texture:SetWidth(1)
         end
-        texture:SetColorTexture(0.55, 0.34, 0.12, 0.95)
+        texture:SetColorTexture(0.67, 0.53, 0.27, 0.96)
         table.insert(border, texture)
     end
 
@@ -111,6 +111,18 @@ function Theme.ApplyWindowShell(frame, useBackdrop)
                 0.95
             )
             backdropApplied = colorSucceeded and colorAccepted ~= false
+            if backdropApplied
+                and type(frame.SetBackdropBorderColor) == "function"
+            then
+                pcall(
+                    frame.SetBackdropBorderColor,
+                    frame,
+                    0.67,
+                    0.53,
+                    0.27,
+                    0.96
+                )
+            end
         end
     end
 
@@ -132,7 +144,7 @@ function Theme.ApplyWindowShell(frame, useBackdrop)
     shell.darkTexture:SetTexture(
         "Interface\\DialogFrame\\UI-DialogBox-Background-Dark"
     )
-    shell.darkTexture:SetVertexColor(0.42, 0.31, 0.16, 0.88)
+    shell.darkTexture:SetVertexColor(0.86, 0.64, 0.20, 0.26)
 
     shell.goldTexture = frame:CreateTexture(nil, "BACKGROUND")
     shell.goldTexture:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -8)
@@ -140,7 +152,7 @@ function Theme.ApplyWindowShell(frame, useBackdrop)
     shell.goldTexture:SetTexture(
         "Interface\\DialogFrame\\UI-DialogBox-Gold-Background"
     )
-    shell.goldTexture:SetVertexColor(0.55, 0.38, 0.15, 0.16)
+    shell.goldTexture:SetVertexColor(0.80, 0.58, 0.18, 0.08)
 
     shell.vignette = frame:CreateTexture(nil, "BORDER")
     shell.vignette:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -8)
@@ -151,20 +163,26 @@ function Theme.ApplyWindowShell(frame, useBackdrop)
             shell.vignette.SetGradientAlpha,
             shell.vignette,
             "VERTICAL",
-            0.04, 0.02, 0.01, 0.15,
-            0.01, 0.005, 0.002, 0.72
+            0.02, 0.01, 0.00, 0.16,
+            0.00, 0.00, 0.00, 0.03
         )
         gradientApplied = gradientSucceeded and gradientAccepted ~= false
     end
     if not gradientApplied then
-        shell.vignette:SetColorTexture(0.02, 0.01, 0.005, 0.42)
+        shell.vignette:SetColorTexture(0.02, 0.01, 0.00, 0.16)
     end
 
     shell.topGlow = frame:CreateTexture(nil, "BORDER")
     shell.topGlow:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -8)
     shell.topGlow:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, -8)
-    shell.topGlow:SetHeight(44)
-    shell.topGlow:SetColorTexture(0.78, 0.48, 0.12, 0.14)
+    shell.topGlow:SetHeight(28)
+    shell.topGlow:SetColorTexture(0.95, 0.72, 0.22, 0.14)
+
+    shell.titleSeparator = frame:CreateTexture(nil, "BORDER")
+    shell.titleSeparator:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -52)
+    shell.titleSeparator:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -16, -52)
+    shell.titleSeparator:SetHeight(1)
+    shell.titleSeparator:SetColorTexture(0.88, 0.69, 0.24, 0.22)
 
     return shell
 end

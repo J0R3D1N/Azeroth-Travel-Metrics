@@ -1681,6 +1681,10 @@ local function newFrame(frameType, name, parent, template, options)
         end
     end
 
+    function frame:SetBackdropBorderColor(...)
+        self.backdropBorderColor = { ... }
+    end
+
     function frame:SetNormalTexture(texture)
         self.normalTexture = texture
     end
@@ -2149,7 +2153,7 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     testlib.equal(first.template, "BackdropTemplate")
     testlib.equal(first.width, 420)
     testlib.equal(first.height, 430)
-    testlib.equal(first.strata, "DIALOG")
+    testlib.equal(first.strata, "MEDIUM")
     testlib.truthy(first.backdrop ~= nil)
     testlib.equal(
         first.backdrop[1].bgFile,
@@ -2163,6 +2167,10 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     testlib.near(first.backdropColor[2], 0.06, 0.001)
     testlib.near(first.backdropColor[3], 0.035, 0.001)
     testlib.near(first.backdropColor[4], 0.95, 0.001)
+    testlib.near(first.backdropBorderColor[1], 0.67, 0.001)
+    testlib.near(first.backdropBorderColor[2], 0.53, 0.001)
+    testlib.near(first.backdropBorderColor[3], 0.27, 0.001)
+    testlib.near(first.backdropBorderColor[4], 0.96, 0.001)
     testlib.equal(first.movable, true)
     testlib.equal(first.mouseEnabled, true)
     testlib.equal(first.dragButton, "LeftButton")
@@ -2174,20 +2182,34 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
         harness.addon.UI.shell.darkTexture.texture,
         "Interface\\DialogFrame\\UI-DialogBox-Background-Dark"
     )
-    testlib.near(harness.addon.UI.shell.darkTexture.vertexColor[1], 0.42, 0.001)
-    testlib.near(harness.addon.UI.shell.darkTexture.vertexColor[2], 0.31, 0.001)
-    testlib.near(harness.addon.UI.shell.darkTexture.vertexColor[3], 0.16, 0.001)
-    testlib.near(harness.addon.UI.shell.darkTexture.vertexColor[4], 0.88, 0.001)
+    testlib.near(harness.addon.UI.shell.darkTexture.vertexColor[1], 0.86, 0.001)
+    testlib.near(harness.addon.UI.shell.darkTexture.vertexColor[2], 0.64, 0.001)
+    testlib.near(harness.addon.UI.shell.darkTexture.vertexColor[3], 0.20, 0.001)
+    testlib.near(harness.addon.UI.shell.darkTexture.vertexColor[4], 0.26, 0.001)
     testlib.equal(
         harness.addon.UI.shell.goldTexture.texture,
         "Interface\\DialogFrame\\UI-DialogBox-Gold-Background"
     )
-    testlib.near(harness.addon.UI.shell.goldTexture.vertexColor[4], 0.16, 0.001)
+    testlib.near(harness.addon.UI.shell.goldTexture.vertexColor[1], 0.80, 0.001)
+    testlib.near(harness.addon.UI.shell.goldTexture.vertexColor[2], 0.58, 0.001)
+    testlib.near(harness.addon.UI.shell.goldTexture.vertexColor[3], 0.18, 0.001)
+    testlib.near(harness.addon.UI.shell.goldTexture.vertexColor[4], 0.08, 0.001)
     testlib.truthy(harness.addon.UI.shell.vignette.gradient ~= nil)
     testlib.equal(harness.addon.UI.shell.vignette.layer, "BORDER")
+    testlib.near(harness.addon.UI.shell.vignette.gradient[5], 0.16, 0.001)
+    testlib.near(harness.addon.UI.shell.vignette.gradient[9], 0.03, 0.001)
     testlib.truthy(harness.addon.UI.shell.topGlow.color ~= nil)
+    testlib.equal(harness.addon.UI.shell.topGlow.height, 28)
     testlib.near(harness.addon.UI.shell.topGlow.color[4], 0.14, 0.001)
     testlib.equal(harness.addon.UI.shell.topGlow.layer, "BORDER")
+    testlib.truthy(harness.addon.UI.shell.titleSeparator ~= nil)
+    testlib.equal(harness.addon.UI.shell.titleSeparator.height, 1)
+    testlib.equal(harness.addon.UI.shell.titleSeparator.point[5], -52)
+    testlib.near(
+        harness.addon.UI.shell.titleSeparator.color[4],
+        0.22,
+        0.001
+    )
     testlib.equal(harness.addon.UITheme.Icons.TITLE,
         "Interface\\Icons\\Ability_Rogue_Sprint")
     testlib.equal(harness.addon.UI.titleRegion.height, 44)
@@ -2322,6 +2344,7 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
         harness.addon.UITheme.Icons.SETTINGS
     )
     testlib.equal(harness.addon.UI.settingsPanel:IsShown(), false)
+    testlib.equal(harness.addon.UI.settingsPanel.strata, "DIALOG")
     testlib.truthy(
         harness.addon.UI.settingsPanel:GetFrameLevel() > first:GetFrameLevel()
     )
@@ -2418,7 +2441,10 @@ testlib.case("ui falls back from BackdropTemplate to a visible bare shell", func
     testlib.equal(#harness.addon.UI.shell.fallbackBorder, 4)
     for _, edge in ipairs(harness.addon.UI.shell.fallbackBorder) do
         testlib.truthy(edge.color ~= nil)
-        testlib.near(edge.color[4], 0.95, 0.001)
+        testlib.near(edge.color[1], 0.67, 0.001)
+        testlib.near(edge.color[2], 0.53, 0.001)
+        testlib.near(edge.color[3], 0.27, 0.001)
+        testlib.near(edge.color[4], 0.96, 0.001)
     end
     testlib.truthy(harness.addon.UI.closeButton ~= nil)
 end)
@@ -2553,7 +2579,7 @@ testlib.case("ui shell stays visible when backdrop or gradient APIs fail", funct
     noGradient.addon.UI.Create()
     testlib.equal(noGradient.addon.UI.shell.vignette.gradient, nil)
     testlib.truthy(noGradient.addon.UI.shell.vignette.color ~= nil)
-    testlib.near(noGradient.addon.UI.shell.vignette.color[4], 0.42, 0.001)
+    testlib.near(noGradient.addon.UI.shell.vignette.color[4], 0.16, 0.001)
 
     local missingGradient = newUIHarness({
         missingGradientAPI = true,
@@ -2633,32 +2659,32 @@ testlib.case("ui selects only safe non-fullscreen strata for main and HUD", func
     local cases = {
         {
             rejected = {},
-            expected = "DIALOG",
-            attempts = 1,
-        },
-        {
-            rejected = {
-                DIALOG = true,
-            },
-            expected = "HIGH",
-            attempts = 2,
-        },
-        {
-            rejected = {
-                DIALOG = true,
-                HIGH = true,
-            },
             expected = "MEDIUM",
-            attempts = 3,
+            attempts = { "MEDIUM" },
         },
         {
             rejected = {
-                DIALOG = true,
-                HIGH = true,
                 MEDIUM = true,
             },
+            expected = "HIGH",
+            attempts = { "MEDIUM", "HIGH" },
+        },
+        {
+            rejected = {
+                MEDIUM = true,
+                HIGH = true,
+            },
+            expected = "DIALOG",
+            attempts = { "MEDIUM", "HIGH", "DIALOG" },
+        },
+        {
+            rejected = {
+                MEDIUM = true,
+                HIGH = true,
+                DIALOG = true,
+            },
             expected = nil,
-            attempts = 3,
+            attempts = { "MEDIUM", "HIGH", "DIALOG" },
         },
     }
 
@@ -2668,16 +2694,10 @@ testlib.case("ui selects only safe non-fullscreen strata for main and HUD", func
         })
         local frame = harness.addon.UI.Create()
         testlib.equal(frame.strata, case.expected)
-        testlib.equal(#harness.strataAttempts, case.attempts)
-        testlib.equal(harness.strataAttempts[1], "DIALOG")
-        testlib.equal(
-            harness.strataAttempts[2],
-            case.attempts >= 2 and "HIGH" or nil
-        )
-        testlib.equal(
-            harness.strataAttempts[3],
-            case.attempts >= 3 and "MEDIUM" or nil
-        )
+        testlib.equal(#harness.strataAttempts, #case.attempts)
+        for index, expectedStrata in ipairs(case.attempts) do
+            testlib.equal(harness.strataAttempts[index], expectedStrata)
+        end
         for _, strata in ipairs(harness.strataAttempts) do
             testlib.truthy(strata ~= "FULLSCREEN")
             testlib.truthy(strata ~= "FULLSCREEN_DIALOG")
@@ -2685,16 +2705,13 @@ testlib.case("ui selects only safe non-fullscreen strata for main and HUD", func
 
         harness.addon.UI.Minimize()
         testlib.equal(harness.addon.UI.hud.frame.strata, case.expected)
-        testlib.equal(#harness.calls.hudStrataAttempts, case.attempts)
-        testlib.equal(harness.calls.hudStrataAttempts[1], "DIALOG")
-        testlib.equal(
-            harness.calls.hudStrataAttempts[2],
-            case.attempts >= 2 and "HIGH" or nil
-        )
-        testlib.equal(
-            harness.calls.hudStrataAttempts[3],
-            case.attempts >= 3 and "MEDIUM" or nil
-        )
+        testlib.equal(#harness.calls.hudStrataAttempts, #case.attempts)
+        for index, expectedStrata in ipairs(case.attempts) do
+            testlib.equal(
+                harness.calls.hudStrataAttempts[index],
+                expectedStrata
+            )
+        end
         for _, strata in ipairs(harness.calls.hudStrataAttempts) do
             testlib.truthy(strata ~= "FULLSCREEN")
             testlib.truthy(strata ~= "FULLSCREEN_DIALOG")
