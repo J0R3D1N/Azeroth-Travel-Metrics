@@ -115,6 +115,13 @@ margin above and below. The title glow fills the complete title region so the
 icon, text, minimize control, and Close control all sit within the colored
 strip without moving the tabs or content below it.
 
+## Section Spacing
+
+Overview summary sections use an 8-pixel vertical gap after Lifetime and This
+Session. By Level cards use the same 8-pixel gap before the next level heading.
+Section and card heights remain unchanged. Layout and scroll-height
+calculations include gaps only between items, never after the final item.
+
 The minimized HUD keeps its controls hidden at rest and reveals them while the
 HUD or either control is hovered:
 
