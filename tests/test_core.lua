@@ -164,11 +164,9 @@ local function newCoreHarness(options)
             end
             receivedCharacter.session = {
                 startedAt = now,
-                totals = {
-                    onFoot = 0,
-                    swimming = 0,
-                    taxi = 0,
-                },
+                onFoot = 0,
+                swimming = 0,
+                taxi = 0,
             }
             return receivedCharacter.session
         end,
@@ -441,6 +439,109 @@ testlib.case("first entering world binds runtime and starts one fresh session", 
     testlib.equal(harness.calls.uiContext.getCurrentLevel(), 42)
     testlib.equal(harness.calls.uiContext.capabilities.position, true)
     testlib.equal(harness.addon.Core.GetState().ready, true)
+end)
+
+testlib.case("relog initialization recovers existing character and resets only one session", function()
+    local identity = {
+        name = "Traveler",
+        realm = "TestRealm",
+        raceFile = "Human",
+        level = 42,
+        now = 9000,
+    }
+    local character = {
+        identity = {
+            name = "Traveler",
+            realm = "TestRealm",
+            raceFile = "Human",
+            firstSeenAt = 1000,
+        },
+        lifetime = {
+            onFoot = 111,
+            swimming = 222,
+            taxi = 333,
+        },
+        session = {
+            startedAt = 7000,
+            onFoot = 11,
+            swimming = 22,
+            taxi = 33,
+        },
+        levels = {
+            [42] = {
+                onFoot = 44,
+                swimming = 55,
+                taxi = 66,
+                reachedAt = 8000,
+            },
+        },
+        diagnostics = {
+            samples = 77,
+            rejected = 8,
+        },
+    }
+    local db = {
+        settings = {
+            units = "imperial",
+            showDiagnostics = true,
+        },
+        characters = {
+            ["Traveler-TestRealm"] = character,
+        },
+    }
+    local lifetime = character.lifetime
+    local oldSession = character.session
+    local levels = character.levels
+    local currentLevel = levels[42]
+    local diagnostics = character.diagnostics
+    local storedIdentity = character.identity
+    local harness = newCoreHarness({
+        initializedDB = db,
+        character = character,
+        identity = identity,
+    })
+
+    initialize(harness)
+    enterWorld(harness)
+
+    local state = harness.addon.Core.GetState()
+    local freshSession = character.session
+    testlib.equal(harness.calls.getCharacter, 1)
+    testlib.equal(harness.calls.startSession, 1)
+    testlib.equal(harness.calls.characterArguments.db, db)
+    testlib.equal(db.characters["Traveler-TestRealm"], character)
+    testlib.equal(countKeys(db.characters), 1)
+    testlib.equal(state.character, character)
+    testlib.equal(harness.calls.sessionArguments.character, character)
+    testlib.equal(character.lifetime, lifetime)
+    testlib.equal(character.levels, levels)
+    testlib.equal(character.levels[42], currentLevel)
+    testlib.equal(character.diagnostics, diagnostics)
+    testlib.equal(character.identity, storedIdentity)
+    testlib.equal(character.identity.firstSeenAt, 1000)
+    testlib.equal(character.lifetime.onFoot, 111)
+    testlib.equal(character.lifetime.swimming, 222)
+    testlib.equal(character.lifetime.taxi, 333)
+    testlib.equal(currentLevel.onFoot, 44)
+    testlib.equal(currentLevel.swimming, 55)
+    testlib.equal(currentLevel.taxi, 66)
+    testlib.equal(currentLevel.reachedAt, 8000)
+    testlib.equal(character.diagnostics.samples, 77)
+    testlib.equal(character.diagnostics.rejected, 8)
+    testlib.truthy(freshSession ~= oldSession)
+    testlib.equal(freshSession.startedAt, identity.now)
+    testlib.equal(freshSession.onFoot, 0)
+    testlib.equal(freshSession.swimming, 0)
+    testlib.equal(freshSession.taxi, 0)
+
+    enterWorld(harness)
+
+    testlib.equal(harness.calls.getCharacter, 1)
+    testlib.equal(harness.calls.startSession, 1)
+    testlib.equal(countKeys(db.characters), 1)
+    testlib.equal(db.characters["Traveler-TestRealm"], character)
+    testlib.equal(character.session, freshSession)
+    testlib.equal(character.session.startedAt, identity.now)
 end)
 
 testlib.case("core tolerates missing minimap for load-order safety", function()
@@ -2215,19 +2316,112 @@ testlib.case("ui regular close hides only the window and reopens without state m
             x = 17,
             y = 23,
         },
+        acceptedSegments = 9,
+    }
+    local character = {
+        identity = {
+            name = "Traveler",
+            realm = "TestRealm",
+            firstSeenAt = 1000,
+        },
+        lifetime = {
+            onFoot = 111,
+            swimming = 222,
+            taxi = 333,
+        },
+        session = {
+            startedAt = 2000,
+            onFoot = 11,
+            swimming = 22,
+            taxi = 33,
+        },
+        levels = {
+            [42] = {
+                onFoot = 44,
+                swimming = 55,
+                taxi = 66,
+                reachedAt = 3000,
+            },
+        },
+        diagnostics = {
+            samples = 77,
+        },
+    }
+    local overview = {
+        lifetime = {
+            steps = "111",
+            onFoot = "1.11 km",
+            swimming = "2.22 km",
+            taxi = "3.33 km",
+            total = "6.66 km",
+        },
+        session = {
+            steps = "11",
+            onFoot = "110 m",
+            swimming = "220 m",
+            taxi = "330 m",
+            total = "660 m",
+        },
+        currentLevel = {
+            steps = "44",
+            onFoot = "440 m",
+            swimming = "550 m",
+            taxi = "660 m",
+            total = "1.65 km",
+        },
+    }
+    local levelRows = {
+        {
+            level = 42,
+            steps = "44",
+            onFoot = "440 m",
+            swimming = "550 m",
+            taxi = "660 m",
+            total = "1.65 km",
+        },
     }
     local harness = newUIHarness({
         tracker = tracker,
+        character = character,
+        overview = overview,
+        levelRows = levelRows,
     })
     local UI = harness.addon.UI
     local frame = UI.Create()
     local db = harness.db
     local settings = db.settings
-    local character = harness.character
+    local lifetime = character.lifetime
     local session = character.session
+    local levels = character.levels
+    local currentLevel = levels[42]
+    local diagnostics = character.diagnostics
     local previous = tracker.previous
+    local expectedSummaryValues = {
+        { "111", "1.11 km", "2.22 km", "3.33 km", "6.66 km" },
+        { "11", "110 m", "220 m", "330 m", "660 m" },
+        { "44", "440 m", "550 m", "660 m", "1.65 km" },
+    }
+
+    local function assertVisibleValues()
+        for sectionIndex, expectedValues in ipairs(expectedSummaryValues) do
+            local section = UI.summarySections[sectionIndex]
+            for rowIndex, expectedValue in ipairs(expectedValues) do
+                testlib.equal(
+                    section.rows[rowIndex].value:GetText(),
+                    expectedValue
+                )
+            end
+        end
+        for rowIndex, expectedValue in ipairs(expectedSummaryValues[3]) do
+            testlib.equal(
+                UI.levelRows[1].rows[rowIndex].value:GetText(),
+                expectedValue
+            )
+        end
+    end
 
     UI.ShowMain()
+    assertVisibleValues()
     UI.closeButton.scripts.OnClick()
 
     testlib.equal(frame:IsShown(), false)
@@ -2236,16 +2430,41 @@ testlib.case("ui regular close hides only the window and reopens without state m
     testlib.equal(harness.db, db)
     testlib.equal(harness.db.settings, settings)
     testlib.equal(harness.character, character)
+    testlib.equal(harness.character.lifetime, lifetime)
     testlib.equal(harness.character.session, session)
+    testlib.equal(harness.character.levels, levels)
+    testlib.equal(harness.character.levels[42], currentLevel)
+    testlib.equal(harness.character.diagnostics, diagnostics)
+    testlib.equal(lifetime.onFoot, 111)
+    testlib.equal(lifetime.swimming, 222)
+    testlib.equal(lifetime.taxi, 333)
+    testlib.equal(session.startedAt, 2000)
+    testlib.equal(session.onFoot, 11)
+    testlib.equal(session.swimming, 22)
+    testlib.equal(session.taxi, 33)
+    testlib.equal(currentLevel.onFoot, 44)
+    testlib.equal(currentLevel.swimming, 55)
+    testlib.equal(currentLevel.taxi, 66)
+    testlib.equal(currentLevel.reachedAt, 3000)
     testlib.equal(harness.tracker.previous, previous)
+    testlib.equal(harness.tracker.acceptedSegments, 9)
     testlib.equal(harness.calls.reset, 0)
     testlib.equal(harness.calls.baselineReset, 0)
 
     UI.ShowMain()
     testlib.equal(frame:IsShown(), true)
     testlib.equal(UI.IsShown(), true)
+    testlib.equal(harness.character, character)
+    testlib.equal(harness.character.lifetime, lifetime)
     testlib.equal(harness.character.session, session)
+    testlib.equal(harness.character.levels, levels)
+    testlib.equal(harness.character.levels[42], currentLevel)
+    testlib.equal(harness.character.diagnostics, diagnostics)
     testlib.equal(harness.tracker.previous, previous)
+    testlib.equal(harness.tracker.acceptedSegments, 9)
+    testlib.equal(harness.calls.reset, 0)
+    testlib.equal(harness.calls.baselineReset, 0)
+    assertVisibleValues()
 end)
 
 testlib.case("ui minimize restore close and toggle coordinate both surfaces", function()
