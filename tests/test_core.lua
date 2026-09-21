@@ -3418,6 +3418,40 @@ testlib.case("ui hides level scrollbar chrome when content fits", function()
     )
 end)
 
+local function levelScrollbarButtonBounds(UI)
+    local scrollFrameLeft = UI.levelScrollFrame.point[4]
+    local scrollFrameTop = -UI.levelScrollFrame.point[5]
+    local scrollFrameBottom = scrollFrameTop + UI.levelScrollFrame.height
+    local scrollBar = UI.levelScrollFrame.ScrollBar
+    local scrollBarLeft =
+        scrollFrameLeft + UI.levelScrollFrame.width + scrollBar.points[1][4]
+    local topInset = -scrollBar.points[1][5]
+    local bottomInset = scrollBar.points[2][5]
+    local nativeButtonSize = 16
+
+    return {
+        up = {
+            left = scrollBarLeft,
+            right = scrollBarLeft + nativeButtonSize,
+            top = scrollFrameTop + topInset - nativeButtonSize,
+            bottom = scrollFrameTop + topInset,
+        },
+        down = {
+            left = scrollBarLeft,
+            right = scrollBarLeft + nativeButtonSize,
+            top = scrollFrameBottom - bottomInset,
+            bottom = scrollFrameBottom - bottomInset + nativeButtonSize,
+        },
+    }
+end
+
+local function assertBoundsInsidePanel(bounds, panel)
+    testlib.truthy(bounds.left >= 0)
+    testlib.truthy(bounds.right <= panel.width)
+    testlib.truthy(bounds.top >= 0)
+    testlib.truthy(bounds.bottom <= panel.height)
+end
+
 testlib.case("ui level list exposes every row through scrollable content", function()
     local rows = {}
     for level = 16, 1, -1 do
@@ -3469,7 +3503,10 @@ testlib.case("ui level list exposes every row through scrollable content", funct
     testlib.equal(scrollBar.points[2][2], harness.addon.UI.levelScrollFrame)
     testlib.equal(scrollBar.points[2][3], "BOTTOMRIGHT")
     testlib.equal(scrollBar.points[2][4], 4)
-    testlib.equal(scrollBar.points[2][5], 14)
+    testlib.equal(scrollBar.points[2][5], 16)
+    local buttonBounds = levelScrollbarButtonBounds(harness.addon.UI)
+    assertBoundsInsidePanel(buttonBounds.up, harness.addon.UI.levelPanel)
+    assertBoundsInsidePanel(buttonBounds.down, harness.addon.UI.levelPanel)
     testlib.equal(scrollBar.ScrollUpButton:IsShown(), true)
     testlib.equal(scrollBar.ScrollDownButton:IsShown(), true)
     testlib.equal(scrollBar.ThumbTexture:IsShown(), true)

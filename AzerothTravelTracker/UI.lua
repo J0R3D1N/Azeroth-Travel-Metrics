@@ -16,6 +16,8 @@ local LEVEL_VIEW_HEIGHT = 282
 local LEVEL_PANEL_WIDTH = 376
 local LEVEL_CONTENT_WIDTH = 348
 local LEVEL_SCROLLBAR_GAP = 4
+local LEVEL_SCROLLBAR_TOP_INSET = 14
+local LEVEL_SCROLLBAR_BOTTOM_INSET = 16
 local HUD_REST_ALPHA = 0.45
 local HUD_HOVER_ALPHA = 0.92
 local HUD_WIDTH = 220
@@ -1245,7 +1247,7 @@ function UI.Create()
                 levelScrollFrame,
                 "TOPRIGHT",
                 LEVEL_SCROLLBAR_GAP,
-                -14
+                -LEVEL_SCROLLBAR_TOP_INSET
             )
             pcall(
                 scrollBar.SetPoint,
@@ -1254,7 +1256,7 @@ function UI.Create()
                 levelScrollFrame,
                 "BOTTOMRIGHT",
                 LEVEL_SCROLLBAR_GAP,
-                14
+                LEVEL_SCROLLBAR_BOTTOM_INSET
             )
         end
     end
