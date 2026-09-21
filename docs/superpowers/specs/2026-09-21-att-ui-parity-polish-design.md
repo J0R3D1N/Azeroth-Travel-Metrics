@@ -188,7 +188,8 @@ unchanged.
 Three user-provided source images become optimized 64 x 64 TGA textures under
 `AzerothTravelTracker\Media\`:
 
-- `azeroth_travel_metrics` is used by the title and minimap launcher;
+- a tight crop of the custom boot in `azeroth_travel_metrics` is used by the
+  title and minimap launcher;
 - `overview_icon` is used by the Overview side tab;
 - `by_level_icon` is used by the By Level side tab.
 

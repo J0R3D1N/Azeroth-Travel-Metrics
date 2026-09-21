@@ -4,7 +4,7 @@
 
 **Goal:** Resolve the remaining screenshot-verified title, control, footer, spacing, and small-logo issues without regressing the validated layering, scrollbar, minimap placement, or SavedVariables behavior.
 
-**Architecture:** Reuse Blizzard's native `MaximizeMinimizeButtonFrameTemplate` for the exact World Map Condense/Expand iconography, retaining ATT's custom control only as a compatibility fallback. Update existing layout constants and anchors rather than restructuring the window. Regenerate the ATT runtime badge from the new pixel-art source with an explicit circular alpha mask suitable for 20-32 pixel rendering.
+**Architecture:** Reuse Blizzard's native `MaximizeMinimizeButtonFrameTemplate` for the exact World Map Condense/Expand iconography, retaining ATT's custom control only as a compatibility fallback. Update existing layout constants and anchors rather than restructuring the window. Regenerate the ATT runtime badge from a tight crop of the custom boot in the new pixel-art source, with an explicit circular alpha mask suitable for 20-32 pixel rendering.
 
 **Tech Stack:** World of Warcraft Lua UI APIs, Blizzard SharedXML templates and atlases, Lua test harness, Python 3 with Pillow, PowerShell package tests, Git.
 
@@ -59,7 +59,9 @@ Do not delete either file from `artifacts\AzerothTravelTracker`.
 - [ ] **Step 2: Write failing badge-generation tests**
 
 In `tests/test_icon_assets.py`, require the builder's source mapping to use
-`azeroth_travel_metrics.jpg`, then validate the generated `ATTLogo.tga`:
+`azeroth_travel_metrics.jpg` with the normalized boot crop
+`(500 / 2048, 1340 / 2048, 960 / 2048, 1800 / 2048)`, then validate the
+generated `ATTLogo.tga`:
 
 ```python
 def test_att_logo_uses_circular_alpha_mask(self):
@@ -88,8 +90,7 @@ python -m unittest tests.test_icon_assets
 ```
 
 Expected: failure because the builder still maps `ATTLogo.tga` from
-`att_logo_400x400.jpg`, or because the old rounded mask leaves too little
-transparent area.
+the full badge rather than the approved boot crop.
 
 - [ ] **Step 4: Add an explicit circular badge mask**
 
@@ -97,9 +98,19 @@ In `tools/Build-IconAssets.py`, define per-asset configuration:
 
 ```python
 ASSETS = {
-    "azeroth_travel_metrics.jpg": ("ATTLogo.tga", "circle"),
-    "overview_icon.jpg": ("Overview.tga", "rounded"),
-    "by_level_icon.jpg": ("ByLevel.tga", "rounded"),
+    "azeroth_travel_metrics.jpg": {
+        "target": "ATTLogo.tga",
+        "mask": "circle",
+        "crop": (500 / 2048, 1340 / 2048, 960 / 2048, 1800 / 2048),
+    },
+    "overview_icon.jpg": {
+        "target": "Overview.tga",
+        "mask": "rounded",
+    },
+    "by_level_icon.jpg": {
+        "target": "ByLevel.tga",
+        "mask": "rounded",
+    },
 }
 ```
 
@@ -117,10 +128,11 @@ def circular_mask(size: int, scale: int = 4) -> Image.Image:
     return large.resize((size, size), Image.Resampling.LANCZOS)
 ```
 
-Crop the new source to a centered square, resize with premultiplied alpha, and
-multiply the circular mask into its alpha channel. This removes the baked
-checkerboard outside the badge without color-keying its internal highlights.
-Retain the existing rounded mask for the two tab icons.
+Crop the new source to the normalized boot rectangle, resize with premultiplied
+alpha, and multiply the circular mask into its alpha channel. The crop retains
+the brown boot and nearby map colors while excluding the title, metric values,
+fish, and most of the baked checkerboard. Do not globally color-key the source.
+Retain the existing centered crop and rounded mask for the two tab icons.
 
 - [ ] **Step 5: Regenerate and verify the runtime badge**
 
@@ -454,7 +466,7 @@ restore load after `Core.lua`, and the exact junction target.
 
 At 100%, 80%, and 120% UI scale, verify:
 
-1. The new metrics badge is recognizable in the 32-pixel title icon and
+1. The custom boot crop is recognizable in the 32-pixel title icon and
    20-pixel minimap icon, with no checkerboard.
 2. The title tint reaches both inner border edges.
 3. The main Condense button points down-left and the HUD Expand button points
@@ -479,7 +491,7 @@ git commit -m "docs: record final ATT UI smoke results" `
 
 ## Completion Criteria
 
-1. The new metrics badge is legible at title and minimap sizes without a checkerboard.
+1. The custom boot crop is legible at title and minimap sizes without a checkerboard.
 2. The title tint reaches the shell's inner left and right edges.
 3. Main/HUD controls use Blizzard's native Condense/Expand visuals.
 4. Settings cannot overlap data rows.
