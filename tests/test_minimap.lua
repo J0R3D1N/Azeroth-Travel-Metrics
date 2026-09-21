@@ -5,6 +5,118 @@ local MINIMAP_FILES = {
     "AzerothTravelTracker\\Minimap.lua",
 }
 local LAUNCHER_OUTER_RADIUS = 27
+local SHAPE_QUADRANTS = {
+    ROUND = { true, true, true, true },
+    SQUARE = { false, false, false, false },
+    ["CORNER-TOPLEFT"] = { false, false, false, true },
+    ["CORNER-TOPRIGHT"] = { false, false, true, false },
+    ["CORNER-BOTTOMLEFT"] = { false, true, false, false },
+    ["CORNER-BOTTOMRIGHT"] = { true, false, false, false },
+    ["SIDE-LEFT"] = { false, true, false, true },
+    ["SIDE-RIGHT"] = { true, false, true, false },
+    ["SIDE-TOP"] = { false, false, true, true },
+    ["SIDE-BOTTOM"] = { true, true, false, false },
+    ["TRICORNER-TOPLEFT"] = { false, true, true, true },
+    ["TRICORNER-TOPRIGHT"] = { true, false, true, true },
+    ["TRICORNER-BOTTOMLEFT"] = { true, true, false, true },
+    ["TRICORNER-BOTTOMRIGHT"] = { true, true, true, false },
+}
+local QUADRANT_SIGNS = {
+    { 1, -1 },
+    { -1, -1 },
+    { 1, 1 },
+    { -1, 1 },
+}
+
+local function clamp(value, minimum, maximum)
+    return math.max(minimum, math.min(maximum, value))
+end
+
+local function distanceToQuadrant(x, y, radiusX, radiusY, signs, curved)
+    local localX = signs[1] * x
+    local localY = signs[2] * y
+    local projectedX = math.max(localX, 0)
+    local projectedY = math.max(localY, 0)
+
+    if curved then
+        local normalized = projectedX * projectedX / (radiusX * radiusX)
+            + projectedY * projectedY / (radiusY * radiusY)
+        if normalized > 1 then
+            local lower = 0
+            local upper = math.max(radiusX, radiusY)
+                * math.sqrt(projectedX * projectedX + projectedY * projectedY)
+            for _ = 1, 80 do
+                local lambda = (lower + upper) / 2
+                local ellipseX = radiusX * radiusX * projectedX
+                    / (lambda + radiusX * radiusX)
+                local ellipseY = radiusY * radiusY * projectedY
+                    / (lambda + radiusY * radiusY)
+                local value = ellipseX * ellipseX / (radiusX * radiusX)
+                    + ellipseY * ellipseY / (radiusY * radiusY)
+                if value > 1 then
+                    lower = lambda
+                else
+                    upper = lambda
+                end
+            end
+            local lambda = (lower + upper) / 2
+            projectedX = radiusX * radiusX * projectedX
+                / (lambda + radiusX * radiusX)
+            projectedY = radiusY * radiusY * projectedY
+                / (lambda + radiusY * radiusY)
+        end
+    else
+        projectedX = clamp(projectedX, 0, radiusX)
+        projectedY = clamp(projectedY, 0, radiusY)
+    end
+
+    local deltaX = localX - projectedX
+    local deltaY = localY - projectedY
+    return math.sqrt(deltaX * deltaX + deltaY * deltaY)
+end
+
+local function distanceToMinimapShape(x, y, width, height, shape)
+    local quadrants = SHAPE_QUADRANTS[shape] or SHAPE_QUADRANTS.ROUND
+    local radiusX = width / 2
+    local radiusY = height / 2
+    local minimumDistance = math.huge
+    for quadrant, signs in ipairs(QUADRANT_SIGNS) do
+        minimumDistance = math.min(
+            minimumDistance,
+            distanceToQuadrant(
+                x,
+                y,
+                radiusX,
+                radiusY,
+                signs,
+                quadrants[quadrant]
+            )
+        )
+    end
+    return minimumDistance
+end
+
+local function assertMinimapClearance(
+    addon,
+    angle,
+    width,
+    height,
+    padding,
+    shape
+)
+    local x, y = addon.Minimap.CalculateMinimapOffset(
+        angle,
+        width,
+        height,
+        padding,
+        shape
+    )
+    testlib.near(
+        distanceToMinimapShape(x, y, width, height, shape),
+        padding,
+        0.00001
+    )
+end
 
 local function contains(text, fragment)
     return type(text) == "string"
@@ -308,8 +420,8 @@ testlib.case("minimap calculates offsets from live rectangular dimensions", func
     testlib.near(y, 107, 0.0001)
 
     x, y = addon.Minimap.CalculateMinimapOffset(45, 200, 160)
-    testlib.near(x, 81.5614, 0.0001)
-    testlib.near(y, 81.5614, 0.0001)
+    testlib.near(x, 81.9157, 0.0001)
+    testlib.near(y, 81.9157, 0.0001)
     testlib.near(math.deg(math.atan(y / x)), 45, 0.0001)
 
     x, y = addon.Minimap.CalculateMinimapOffset(45, 140, 140)
@@ -335,6 +447,50 @@ testlib.case("minimap square diagonals stay outside the rim", function()
     testlib.near(x, 73.5355, 0.0001)
     testlib.near(y, 73.5355, 0.0001)
     testlib.near(math.deg(math.atan(y / x)), 45, 0.0001)
+end)
+
+testlib.case("minimap offsets preserve Euclidean rim clearance", function()
+    local addon = testlib.loadAddon(MINIMAP_FILES, {
+        CreateFrame = function()
+            error("not needed")
+        end,
+    })
+    local cases = {
+        { angle = 45, width = 200, height = 160, shape = "ROUND" },
+        { angle = 30, width = 140, height = 140, shape = "SQUARE" },
+        { angle = 25, width = 180, height = 140, shape = "SIDE-TOP" },
+        {
+            angle = 25,
+            width = 180,
+            height = 140,
+            shape = "CORNER-TOPLEFT",
+        },
+        {
+            angle = 25,
+            width = 180,
+            height = 140,
+            shape = "TRICORNER-TOPRIGHT",
+        },
+    }
+
+    for _, case in ipairs(cases) do
+        assertMinimapClearance(
+            addon,
+            case.angle,
+            case.width,
+            case.height,
+            LAUNCHER_OUTER_RADIUS,
+            case.shape
+        )
+        assertMinimapClearance(
+            addon,
+            case.angle,
+            case.width,
+            case.height,
+            5,
+            case.shape
+        )
+    end
 end)
 
 testlib.case("minimap shape table selects curved quadrants", function()

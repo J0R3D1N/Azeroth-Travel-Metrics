@@ -9,6 +9,7 @@ local BORDER_SIZE = 54
 local BUTTON_OUTER_RADIUS = BORDER_SIZE / 2
 local DEFAULT_MINIMAP_DIAMETER = 150
 local DEFAULT_MINIMAP_SHAPE = "ROUND"
+local OFFSET_SOLVE_ITERATIONS = 32
 local MINIMAP_SHAPE_QUADRANTS = {
     ROUND = { true, true, true, true },
     SQUARE = { false, false, false, false },
@@ -24,6 +25,12 @@ local MINIMAP_SHAPE_QUADRANTS = {
     ["TRICORNER-TOPRIGHT"] = { true, false, true, true },
     ["TRICORNER-BOTTOMLEFT"] = { true, true, false, true },
     ["TRICORNER-BOTTOMRIGHT"] = { true, true, true, false },
+}
+local QUADRANT_SIGNS = {
+    { 1, -1 },
+    { -1, -1 },
+    { 1, 1 },
+    { -1, 1 },
 }
 local context
 local dragging = false
@@ -83,6 +90,100 @@ function MinimapLauncher.CalculateOffset(angleDegrees, radius)
     return math.cos(radians) * radius, math.sin(radians) * radius
 end
 
+local function clamp(value, minimum, maximum)
+    return math.max(minimum, math.min(maximum, value))
+end
+
+local function distanceToQuadrant(
+    x,
+    y,
+    radiusX,
+    radiusY,
+    signs,
+    curved
+)
+    local localX = signs[1] * x
+    local localY = signs[2] * y
+    local projectedX = math.max(localX, 0)
+    local projectedY = math.max(localY, 0)
+
+    if curved then
+        local normalized = projectedX * projectedX / (radiusX * radiusX)
+            + projectedY * projectedY / (radiusY * radiusY)
+        if normalized > 1 then
+            local lower = 0
+            local upper = math.max(radiusX, radiusY)
+                * math.sqrt(projectedX * projectedX + projectedY * projectedY)
+            for _ = 1, OFFSET_SOLVE_ITERATIONS do
+                local lambda = (lower + upper) / 2
+                local ellipseX = radiusX * radiusX * projectedX
+                    / (lambda + radiusX * radiusX)
+                local ellipseY = radiusY * radiusY * projectedY
+                    / (lambda + radiusY * radiusY)
+                local value = ellipseX * ellipseX / (radiusX * radiusX)
+                    + ellipseY * ellipseY / (radiusY * radiusY)
+                if value > 1 then
+                    lower = lambda
+                else
+                    upper = lambda
+                end
+            end
+            local lambda = (lower + upper) / 2
+            projectedX = radiusX * radiusX * projectedX
+                / (lambda + radiusX * radiusX)
+            projectedY = radiusY * radiusY * projectedY
+                / (lambda + radiusY * radiusY)
+        end
+    else
+        projectedX = clamp(projectedX, 0, radiusX)
+        projectedY = clamp(projectedY, 0, radiusY)
+    end
+
+    local deltaX = localX - projectedX
+    local deltaY = localY - projectedY
+    return math.sqrt(deltaX * deltaX + deltaY * deltaY)
+end
+
+local function distanceToShape(x, y, radiusX, radiusY, quadrants)
+    -- Blizzard shapes combine quarter ellipses and quarter rectangles.
+    local minimumDistance = math.huge
+    for quadrant, signs in ipairs(QUADRANT_SIGNS) do
+        minimumDistance = math.min(
+            minimumDistance,
+            distanceToQuadrant(
+                x,
+                y,
+                radiusX,
+                radiusY,
+                signs,
+                quadrants[quadrant]
+            )
+        )
+    end
+    return minimumDistance
+end
+
+local function calculateRayIntersection(unitX, unitY, radiusX, radiusY, curved)
+    if curved then
+        return 1 / math.sqrt(
+            unitX * unitX / (radiusX * radiusX)
+                + unitY * unitY / (radiusY * radiusY)
+        )
+    end
+
+    local intersection
+    if unitX ~= 0 then
+        intersection = radiusX / math.abs(unitX)
+    end
+    if unitY ~= 0 then
+        local verticalIntersection = radiusY / math.abs(unitY)
+        if intersection == nil or verticalIntersection < intersection then
+            intersection = verticalIntersection
+        end
+    end
+    return intersection
+end
+
 function MinimapLauncher.CalculateMinimapOffset(
     angleDegrees,
     width,
@@ -120,25 +221,32 @@ function MinimapLauncher.CalculateMinimapOffset(
 
     local shapeQuadrants = MINIMAP_SHAPE_QUADRANTS[shape]
         or MINIMAP_SHAPE_QUADRANTS[DEFAULT_MINIMAP_SHAPE]
-    local intersection
-    if shapeQuadrants[quadrant] then
-        intersection = 1 / math.sqrt(
-            unitX * unitX / (radiusX * radiusX)
-                + unitY * unitY / (radiusY * radiusY)
-        )
-    else
-        if unitX ~= 0 then
-            intersection = radiusX / math.abs(unitX)
-        end
-        if unitY ~= 0 then
-            local verticalIntersection = radiusY / math.abs(unitY)
-            if intersection == nil or verticalIntersection < intersection then
-                intersection = verticalIntersection
-            end
+    local lower = calculateRayIntersection(
+        unitX,
+        unitY,
+        radiusX,
+        radiusY,
+        shapeQuadrants[quadrant]
+    )
+    local upper = math.sqrt(radiusX * radiusX + radiusY * radiusY)
+        + padding
+
+    for _ = 1, OFFSET_SOLVE_ITERATIONS do
+        local distance = (lower + upper) / 2
+        if distanceToShape(
+            unitX * distance,
+            unitY * distance,
+            radiusX,
+            radiusY,
+            shapeQuadrants
+        ) < padding then
+            lower = distance
+        else
+            upper = distance
         end
     end
 
-    local distance = intersection + padding
+    local distance = (lower + upper) / 2
     return unitX * distance, unitY * distance
 end
 
