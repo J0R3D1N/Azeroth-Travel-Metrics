@@ -309,7 +309,7 @@ UI.Minimize()
 testlib.equal(UI.frame:IsShown(), false)
 testlib.equal(UI.hud.frame:IsShown(), true)
 testlib.equal(UI.hud.frame.width, 220)
-testlib.equal(UI.hud.frame.height, 74)
+testlib.equal(UI.hud.frame.height, 96)
 testlib.equal(#UI.hud.cells, 4)
 testlib.equal(UI.IsShown(), true)
 
