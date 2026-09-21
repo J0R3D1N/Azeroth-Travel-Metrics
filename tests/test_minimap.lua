@@ -131,6 +131,20 @@ local function newHarness(options)
     function minimapFrame:GetEffectiveScale()
         return options.minimapScale or 1
     end
+    if not options.omitDimensions then
+        function minimapFrame:GetWidth()
+            if options.width ~= nil then
+                return options.width
+            end
+            return 140
+        end
+        function minimapFrame:GetHeight()
+            if options.height ~= nil then
+                return options.height
+            end
+            return 140
+        end
+    end
 
     local uiParentFrame = {
         name = "UIParent",
@@ -225,6 +239,80 @@ testlib.case("minimap calculates cardinal offsets", function()
     testlib.equal(y, nil)
 end)
 
+testlib.case("minimap calculates offsets from live rectangular dimensions", function()
+    local addon = testlib.loadAddon(MINIMAP_FILES, {
+        CreateFrame = function()
+            error("not needed")
+        end,
+    })
+
+    local x, y = addon.Minimap.CalculateMinimapOffset(0, 200, 160)
+    testlib.near(x, 105, 0.0001)
+    testlib.near(y, 0, 0.0001)
+
+    x, y = addon.Minimap.CalculateMinimapOffset(90, 200, 160)
+    testlib.near(x, 0, 0.0001)
+    testlib.near(y, 85, 0.0001)
+end)
+
+testlib.case("minimap dimension offsets reject invalid geometry", function()
+    local addon = testlib.loadAddon(MINIMAP_FILES, {
+        CreateFrame = function()
+            error("not needed")
+        end,
+    })
+
+    local invalidCases = {
+        { 0 / 0, 200, 160, 5 },
+        { 0, 0, 160, 5 },
+        { 0, 200, -1, 5 },
+        { 0, 200, 160, 0 },
+        { 0, 200, 160, math.huge },
+    }
+    for _, values in ipairs(invalidCases) do
+        local x, y = addon.Minimap.CalculateMinimapOffset(
+            values[1],
+            values[2],
+            values[3],
+            values[4]
+        )
+        testlib.equal(x, nil)
+        testlib.equal(y, nil)
+    end
+end)
+
+testlib.case("minimap default placement uses live dimensions", function()
+    local harness = newHarness({
+        angle = 0,
+        width = 200,
+        height = 160,
+    })
+    local button = harness.addon.Minimap.Create()
+
+    testlib.near(button.point[4], 105, 0.0001)
+    testlib.near(button.point[5], 0, 0.0001)
+end)
+
+testlib.case("minimap placement falls back when dimensions are invalid", function()
+    local harness = newHarness({
+        angle = 0,
+        width = 0 / 0,
+        height = -1,
+    })
+    local button = harness.addon.Minimap.Create()
+
+    testlib.near(button.point[4], 80, 0.0001)
+    testlib.near(button.point[5], 0, 0.0001)
+
+    local missingHarness = newHarness({
+        angle = 90,
+        omitDimensions = true,
+    })
+    local missingButton = missingHarness.addon.Minimap.Create()
+    testlib.near(missingButton.point[4], 0, 0.0001)
+    testlib.near(missingButton.point[5], 80, 0.0001)
+end)
+
 testlib.case("minimap normalizes angles and rejects invalid values", function()
     local harness = newHarness()
     local button = harness.addon.Minimap.Create()
@@ -297,8 +385,8 @@ testlib.case("minimap drag uses UI parent scale when minimap scale differs", fun
     button.scripts.OnDragStop(button)
 
     testlib.near(harness.db.settings.minimapAngle, 45, 0.0001)
-    testlib.near(button.point[4], 56.5685, 0.0001)
-    testlib.near(button.point[5], 56.5685, 0.0001)
+    testlib.near(button.point[4], 53.0330, 0.0001)
+    testlib.near(button.point[5], 53.0330, 0.0001)
 end)
 
 testlib.case("minimap drag release suppresses only its generated click", function()

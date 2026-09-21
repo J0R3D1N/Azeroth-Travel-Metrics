@@ -5,6 +5,7 @@ ATT.Minimap = {}
 local MinimapLauncher = ATT.Minimap
 local DEFAULT_ANGLE = 225
 local BUTTON_RADIUS = 80
+local DEFAULT_OUTER_PADDING = 5
 local context
 local dragging = false
 local dragMoved = false
@@ -63,12 +64,66 @@ function MinimapLauncher.CalculateOffset(angleDegrees, radius)
     return math.cos(radians) * radius, math.sin(radians) * radius
 end
 
+function MinimapLauncher.CalculateMinimapOffset(
+    angleDegrees,
+    width,
+    height,
+    padding
+)
+    padding = padding == nil and DEFAULT_OUTER_PADDING or padding
+    if not isFiniteNumber(angleDegrees)
+        or not isFiniteNumber(width)
+        or width <= 0
+        or not isFiniteNumber(height)
+        or height <= 0
+        or not isFiniteNumber(padding)
+        or padding <= 0
+    then
+        return nil, nil
+    end
+
+    local radians = math.rad(angleDegrees)
+    return math.cos(radians) * (width / 2 + padding),
+        math.sin(radians) * (height / 2 + padding)
+end
+
+local function getMinimapDimensions()
+    if not Minimap
+        or type(Minimap.GetWidth) ~= "function"
+        or type(Minimap.GetHeight) ~= "function"
+    then
+        return nil, nil
+    end
+
+    local widthSucceeded, width = pcall(Minimap.GetWidth, Minimap)
+    local heightSucceeded, height = pcall(Minimap.GetHeight, Minimap)
+    if not widthSucceeded
+        or not heightSucceeded
+        or not isFiniteNumber(width)
+        or width <= 0
+        or not isFiniteNumber(height)
+        or height <= 0
+    then
+        return nil, nil
+    end
+
+    return width, height
+end
+
 local function positionButton(angle)
     if not MinimapLauncher.button then
         return false
     end
 
-    local x, y = MinimapLauncher.CalculateOffset(angle, BUTTON_RADIUS)
+    local width, height = getMinimapDimensions()
+    local x, y = MinimapLauncher.CalculateMinimapOffset(
+        angle,
+        width,
+        height
+    )
+    if x == nil or y == nil then
+        x, y = MinimapLauncher.CalculateOffset(angle, BUTTON_RADIUS)
+    end
     if not isFiniteNumber(x) or not isFiniteNumber(y) then
         return false
     end
