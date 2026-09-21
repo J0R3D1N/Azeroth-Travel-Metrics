@@ -220,14 +220,9 @@ function MinimapLauncher.UpdateFromCursor()
 
     local cursorX, cursorY = GetCursorPosition()
     local centerX, centerY = Minimap:GetCenter()
-    local scale
-    if UIParent then
-        if type(UIParent.GetEffectiveScale) == "function" then
-            scale = UIParent:GetEffectiveScale()
-        elseif type(UIParent.GetScale) == "function" then
-            scale = UIParent:GetScale()
-        end
-    end
+    local scale = getFrameDimension(Minimap, "GetEffectiveScale")
+        or getFrameDimension(UIParent, "GetEffectiveScale")
+        or getFrameDimension(UIParent, "GetScale")
 
     if not isFiniteNumber(cursorX)
         or not isFiniteNumber(cursorY)

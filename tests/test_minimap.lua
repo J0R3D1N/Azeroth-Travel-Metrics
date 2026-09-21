@@ -128,8 +128,16 @@ local function newHarness(options)
     function minimapFrame:GetCenter()
         return options.centerX or 500, options.centerY or 400
     end
-    function minimapFrame:GetEffectiveScale()
-        return options.minimapScale or 1
+    if not options.omitMinimapEffectiveScale then
+        function minimapFrame:GetEffectiveScale()
+            if options.minimapScaleThrows then
+                error("minimap scale unavailable")
+            end
+            if options.minimapScale ~= nil then
+                return options.minimapScale
+            end
+            return 1
+        end
     end
     if not options.omitDimensions then
         function minimapFrame:GetWidth()
@@ -155,8 +163,27 @@ local function newHarness(options)
     local uiParentFrame = {
         name = "UIParent",
     }
-    function uiParentFrame:GetEffectiveScale()
-        return options.uiParentScale or 1
+    if not options.omitUIParentEffectiveScale then
+        function uiParentFrame:GetEffectiveScale()
+            if options.uiParentScaleThrows then
+                error("UIParent effective scale unavailable")
+            end
+            if options.uiParentScale ~= nil then
+                return options.uiParentScale
+            end
+            return 1
+        end
+    end
+    if not options.omitUIParentScale then
+        function uiParentFrame:GetScale()
+            if options.uiParentFallbackScaleThrows then
+                error("UIParent scale unavailable")
+            end
+            if options.uiParentFallbackScale ~= nil then
+                return options.uiParentFallbackScale
+            end
+            return 1
+        end
     end
 
     local globals = {
@@ -506,7 +533,7 @@ testlib.case("minimap create is idempotent native and interactive", function()
     testlib.equal(harness.calls.toggles, 0)
 end)
 
-testlib.case("minimap drag uses UI parent scale when minimap scale differs", function()
+testlib.case("minimap drag prefers minimap effective scale", function()
     local harness = newHarness({
         centerX = 300,
         centerY = 200,
@@ -521,9 +548,84 @@ testlib.case("minimap drag uses UI parent scale when minimap scale differs", fun
     button.scripts.OnUpdate(button)
     button.scripts.OnDragStop(button)
 
-    testlib.near(harness.db.settings.minimapAngle, 45, 0.0001)
-    testlib.near(button.point[4], 53.0330, 0.0001)
-    testlib.near(button.point[5], 53.0330, 0.0001)
+    testlib.near(harness.db.settings.minimapAngle, 37.5686, 0.0001)
+    testlib.near(button.point[4], 59.4468, 0.0001)
+    testlib.near(button.point[5], 45.7283, 0.0001)
+end)
+
+testlib.case("minimap drag falls back to UI parent effective scale", function()
+    local cases = {
+        { omitMinimapEffectiveScale = true },
+        { minimapScaleThrows = true },
+        { minimapScale = 0 },
+        { minimapScale = 0 / 0 },
+        { minimapScale = math.huge },
+    }
+
+    for _, options in ipairs(cases) do
+        options.centerX = 300
+        options.centerY = 200
+        options.uiParentScale = 2
+        options.cursorX = 800
+        options.cursorY = 600
+        local harness = newHarness(options)
+        local button = harness.addon.Minimap.button
+
+        button.scripts.OnDragStart(button, "LeftButton")
+        testlib.equal(harness.addon.Minimap.UpdateFromCursor(), true)
+        button.scripts.OnDragStop(button)
+
+        testlib.near(harness.db.settings.minimapAngle, 45, 0.0001)
+    end
+end)
+
+testlib.case("minimap drag falls back to UI parent scale", function()
+    local cases = {
+        { omitUIParentEffectiveScale = true },
+        { uiParentScaleThrows = true },
+        { uiParentScale = 0 },
+        { uiParentScale = 0 / 0 },
+        { uiParentScale = math.huge },
+    }
+
+    for _, options in ipairs(cases) do
+        options.centerX = 300
+        options.centerY = 200
+        options.omitMinimapEffectiveScale = true
+        options.uiParentFallbackScale = 2
+        options.cursorX = 800
+        options.cursorY = 600
+        local harness = newHarness(options)
+        local button = harness.addon.Minimap.button
+
+        button.scripts.OnDragStart(button, "LeftButton")
+        testlib.equal(harness.addon.Minimap.UpdateFromCursor(), true)
+        button.scripts.OnDragStop(button)
+
+        testlib.near(harness.db.settings.minimapAngle, 45, 0.0001)
+    end
+end)
+
+testlib.case("minimap drag rejects when all scales are invalid", function()
+    local harness = newHarness({
+        minimapScale = 0 / 0,
+        uiParentScale = 0,
+        uiParentFallbackScale = math.huge,
+        cursorX = 800,
+        cursorY = 600,
+    })
+    local button = harness.addon.Minimap.button
+    local originalAngle = harness.db.settings.minimapAngle
+    local originalPoint = button.point
+
+    button.scripts.OnDragStart(button, "LeftButton")
+    testlib.equal(harness.addon.Minimap.UpdateFromCursor(), false)
+    button.scripts.OnDragStop(button)
+    button.scripts.OnClick(button, "LeftButton")
+
+    testlib.equal(harness.db.settings.minimapAngle, originalAngle)
+    testlib.equal(button.point, originalPoint)
+    testlib.equal(harness.calls.showMain, 1)
 end)
 
 testlib.case("minimap drag persists angle across recreation", function()
