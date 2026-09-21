@@ -33,6 +33,17 @@ local function newRegion(kind, parent, options)
         self.texture = texture
     end
 
+    function region:SetRotation(radians)
+        if options.rejectRotations then
+            error("rotation unavailable")
+        end
+        self.rotation = radians
+    end
+
+    if options.missingRotation then
+        region.SetRotation = nil
+    end
+
     function region:SetSize(width, height)
         self.sizeCalls = (self.sizeCalls or 0) + 1
         self.width = width
@@ -541,4 +552,66 @@ testlib.case("ui theme creates compact icon buttons with fallback visuals", func
     testlib.equal(calls.tooltipText, "Settings")
     button.scripts.OnLeave(button)
     testlib.equal(calls.tooltipHidden, true)
+end)
+
+testlib.case("title controls expose compact minimize and restore glyphs", function()
+    local addon, parent = newHarness()
+
+    local minimize = addon.UITheme.CreateTitleControl(
+        parent,
+        "minimize",
+        "Minimize",
+        24
+    )
+    local restore = addon.UITheme.CreateTitleControl(
+        parent,
+        "restore",
+        "Restore",
+        20
+    )
+
+    testlib.equal(minimize.width, 24)
+    testlib.equal(minimize.height, 24)
+    testlib.equal(minimize.controlKind, "minimize")
+    testlib.equal(#minimize.GlyphTextures, 1)
+    testlib.equal(minimize.GlyphTextures[1].width, 9)
+    testlib.equal(minimize.GlyphTextures[1].height, 2)
+    testlib.equal(minimize.GlyphTextures[1].point[1], "CENTER")
+    testlib.equal(minimize.GlyphTextures[1].point[5], -4)
+
+    testlib.equal(restore.width, 20)
+    testlib.equal(restore.height, 20)
+    testlib.equal(restore.controlKind, "restore")
+    testlib.equal(#restore.GlyphTextures, 3)
+    testlib.near(restore.GlyphTextures[1].rotation, math.rad(45), 0.001)
+end)
+
+testlib.case("restore title control tolerates unavailable texture rotation", function()
+    local rejectedAddon, rejectedParent = newHarness({
+        rejectRotations = true,
+    })
+    local rejectedSucceeded, rejected = pcall(
+        rejectedAddon.UITheme.CreateTitleControl,
+        rejectedParent,
+        "restore",
+        "Restore"
+    )
+    testlib.equal(rejectedSucceeded, true)
+    testlib.equal(#rejected.GlyphTextures, 3)
+    testlib.equal(rejected.GlyphTextures[1].point[4], -1)
+    testlib.equal(rejected.GlyphTextures[1].point[5], 0)
+
+    local missingAddon, missingParent = newHarness({
+        missingRotation = true,
+    })
+    local missingSucceeded, missing = pcall(
+        missingAddon.UITheme.CreateTitleControl,
+        missingParent,
+        "restore",
+        "Restore"
+    )
+    testlib.equal(missingSucceeded, true)
+    testlib.equal(#missing.GlyphTextures, 3)
+    testlib.equal(missing.GlyphTextures[3].point[4], 5)
+    testlib.equal(missing.GlyphTextures[3].point[5], 2)
 end)

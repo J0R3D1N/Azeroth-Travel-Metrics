@@ -2334,8 +2334,9 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
         harness.addon.UI.closeButton
     )
     testlib.equal(harness.addon.UI.minimizeButton.point[3], "LEFT")
-    testlib.equal(harness.addon.UI.minimizeButton.width, 20)
-    testlib.equal(harness.addon.UI.minimizeButton.height, 18)
+    testlib.equal(harness.addon.UI.minimizeButton.controlKind, "minimize")
+    testlib.equal(harness.addon.UI.minimizeButton.width, 24)
+    testlib.equal(harness.addon.UI.minimizeButton.height, 24)
     testlib.equal(harness.addon.UI.settingsButton.point[4], -22)
     testlib.truthy(harness.addon.UI.settingsButton.point[5] >= 36)
     testlib.equal(harness.addon.UI.versionLabel:GetText(), "ATT v0.1.0-beta")
@@ -2810,12 +2811,13 @@ testlib.case("ui action buttons remain visible and interactive without panel tem
     UI.Minimize()
     testlib.truthy(UI.hud.frame ~= nil)
     testlib.equal(UI.hud.restoreButton.template, nil)
-    testlib.equal(UI.hud.restoreButton.width, 54)
-    testlib.equal(UI.hud.restoreButton.height, 18)
-    testlib.equal(UI.hud.restoreButton:GetText(), "Restore")
+    testlib.equal(UI.hud.restoreButton.controlKind, "restore")
+    testlib.equal(UI.hud.restoreButton.width, 20)
+    testlib.equal(UI.hud.restoreButton.height, 20)
+    testlib.equal(UI.hud.restoreButton:GetText(), nil)
     testlib.truthy(UI.hud.restoreButton.Background.color ~= nil)
-    testlib.truthy(#UI.hud.restoreButton.Border == 4)
-    testlib.truthy(UI.hud.restoreButton.Highlight.color ~= nil)
+    testlib.truthy(UI.hud.restoreButton.HighlightTexture.color ~= nil)
+    testlib.equal(#UI.hud.restoreButton.GlyphTextures, 3)
 
     testlib.equal(UI.hud.closeButton.template, nil)
     testlib.equal(UI.hud.closeButton.width, 20)
@@ -2830,7 +2832,11 @@ testlib.case("ui action buttons remain visible and interactive without panel tem
     testlib.truthy(
         UI.hud.closeButton.frameLevel > UI.hud.frame:GetFrameLevel()
     )
-    testlib.equal(UI.hud.restoreButton.point[5], -3)
+    testlib.equal(UI.hud.restoreButton.point[1], "RIGHT")
+    testlib.equal(UI.hud.restoreButton.point[2], UI.hud.closeButton)
+    testlib.equal(UI.hud.restoreButton.point[3], "LEFT")
+    testlib.equal(UI.hud.restoreButton.point[4], -2)
+    testlib.equal(UI.hud.restoreButton.point[5], 0)
     testlib.equal(UI.hud.closeButton.point[5], -2)
     testlib.truthy(UI.hud.cells[1].point[5] <= -29)
 
@@ -3077,6 +3083,13 @@ testlib.case("ui minimize restore close and toggle coordinate both surfaces", fu
     testlib.equal(UI.hud.frame.dragButton, "LeftButton")
     testlib.equal(#UI.hud.cells, 4)
     testlib.equal(UI.hud.title:GetText(), "Session")
+    testlib.equal(UI.hud.restoreButton.controlKind, "restore")
+    testlib.equal(UI.hud.restoreButton.width, 20)
+    testlib.equal(UI.hud.restoreButton.height, 20)
+    testlib.equal(UI.hud.restoreButton:GetText(), nil)
+    testlib.equal(UI.hud.restoreButton.point[1], "RIGHT")
+    testlib.equal(UI.hud.restoreButton.point[2], UI.hud.closeButton)
+    testlib.equal(UI.hud.restoreButton.point[3], "LEFT")
     testlib.truthy(UI.hud.restoreButton.frameLevel > UI.hud.frame:GetFrameLevel())
     testlib.truthy(UI.hud.closeButton.frameLevel > UI.hud.frame:GetFrameLevel())
     testlib.truthy(UI.hud.cells[1].point[5] <= -29)
@@ -3164,6 +3177,13 @@ testlib.case("ui HUD hover reveals controls and refreshes current session values
     testlib.truthy(UI.hud.frame:GetAlpha() > 0.45)
     testlib.equal(UI.hud.restoreButton:IsShown(), true)
     UI.hud.restoreButton.mouseOver = false
+
+    UI.hud.closeButton.mouseOver = true
+    UI.hud.frame.scripts.OnLeave()
+    testlib.truthy(UI.hud.frame:GetAlpha() > 0.45)
+    testlib.equal(UI.hud.restoreButton:IsShown(), true)
+    testlib.equal(UI.hud.closeButton:IsShown(), true)
+    UI.hud.closeButton.mouseOver = false
 
     UI.hud.frame.scripts.OnLeave()
     testlib.equal(UI.hud.frame:GetAlpha(), 0.45)

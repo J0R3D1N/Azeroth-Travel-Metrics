@@ -493,3 +493,53 @@ function Theme.CreateIconButton(parent, icon, tooltip)
     setTooltip(button, tooltip or "")
     return button
 end
+
+local function addGlyphLine(button, width, height, x, y, rotation)
+    local line = button:CreateTexture(nil, "ARTWORK")
+    line:SetColorTexture(1, 0.82, 0.18, 1)
+    line:SetSize(width, height)
+    line:SetPoint("CENTER", button, "CENTER", x, y)
+    if rotation and type(line.SetRotation) == "function" then
+        pcall(line.SetRotation, line, rotation)
+    end
+    table.insert(button.GlyphTextures, line)
+    return line
+end
+
+function Theme.CreateTitleControl(parent, kind, tooltip, size)
+    local button = CreateFrame("Button", nil, parent)
+    size = size or 20
+    button:SetSize(size, size)
+    button.controlKind = kind
+    button.GlyphTextures = {}
+
+    button.Background = createColorTexture(
+        button,
+        "BACKGROUND",
+        0.18,
+        0.10,
+        0.04,
+        0.88
+    )
+    button.HighlightTexture = createColorTexture(
+        button,
+        "HIGHLIGHT",
+        0.95,
+        0.72,
+        0.22,
+        0.24
+    )
+
+    if kind == "minimize" then
+        addGlyphLine(button, 9, 2, 0, -4)
+    elseif kind == "restore" then
+        addGlyphLine(button, 10, 2, -1, 0, math.rad(45))
+        addGlyphLine(button, 5, 2, 3, 4, 0)
+        addGlyphLine(button, 5, 2, 5, 2, math.rad(90))
+    else
+        error("unsupported title control: " .. tostring(kind))
+    end
+
+    setTooltip(button, tooltip or "")
+    return button
+end

@@ -359,37 +359,6 @@ local function createSafeButton(
     return button
 end
 
-local function createMinimizeButton(parent)
-    local button = CreateFrame("Button", nil, parent)
-    button:SetSize(20, 18)
-
-    button.Background = createColorTexture(
-        button,
-        "BACKGROUND",
-        0.18,
-        0.10,
-        0.04,
-        0.95
-    )
-    button.Highlight = createColorTexture(
-        button,
-        "HIGHLIGHT",
-        0.55,
-        0.30,
-        0.08,
-        0.7
-    )
-
-    button.FallbackText = createLabel(
-        button,
-        "-",
-        "GameFontNormalLarge"
-    )
-    button.FallbackText:SetPoint("CENTER", button, "CENTER", 0, 1)
-    button.FallbackText:SetTextColor(1, 0.82, 0, 1)
-    return button
-end
-
 local function setHUDHovering(hovering)
     if not UI.hud then
         return
@@ -536,24 +505,6 @@ local function createHUD()
         ),
     }
 
-    local restoreButton = createSafeButton(
-        frame,
-        "UIPanelButtonTemplate",
-        54,
-        18,
-        "Restore"
-    )
-    restoreButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -22, -3)
-    raiseAboveParent(restoreButton, frame, 20)
-    restoreButton:SetScript("OnClick", function()
-        UI.ShowMain()
-    end)
-    restoreButton:SetScript("OnEnter", function()
-        setHUDHovering(true)
-    end)
-    restoreButton:SetScript("OnLeave", updateHUDHover)
-    restoreButton:Hide()
-
     local closeButton = createSafeButton(
         frame,
         "UIPanelCloseButton",
@@ -572,6 +523,23 @@ local function createHUD()
     end)
     closeButton:SetScript("OnLeave", updateHUDHover)
     closeButton:Hide()
+
+    local restoreButton = ATT.UITheme.CreateTitleControl(
+        frame,
+        "restore",
+        "Restore",
+        20
+    )
+    restoreButton:SetPoint("RIGHT", closeButton, "LEFT", -2, 0)
+    raiseAboveParent(restoreButton, frame, 20)
+    restoreButton:SetScript("OnClick", function()
+        UI.ShowMain()
+    end)
+    restoreButton:SetScript("OnEnter", function()
+        setHUDHovering(true)
+    end)
+    restoreButton:SetScript("OnLeave", updateHUDHover)
+    restoreButton:Hide()
 
     frame:SetScript("OnDragStart", function(self)
         self:StartMoving()
@@ -709,7 +677,12 @@ function UI.Create()
     UI.title:SetTextColor(1, 0.82, 0.32, 1)
     UI.title:SetText("Azeroth Travel Tracker")
 
-    UI.minimizeButton = createMinimizeButton(UI.titleRegion)
+    UI.minimizeButton = ATT.UITheme.CreateTitleControl(
+        UI.titleRegion,
+        "minimize",
+        "Minimize",
+        24
+    )
     UI.minimizeButton:SetPoint(
         "RIGHT",
         UI.closeButton,
