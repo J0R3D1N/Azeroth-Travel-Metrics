@@ -3011,3 +3011,45 @@ testlib.case("addon manifest declares the sprint listing icon", function()
         "## IconTexture: Interface\\Icons\\Ability_Rogue_Sprint"
     )
 end)
+
+testlib.case("fallback version matches the single addon manifest version", function()
+    local source = debug.getinfo(1, "S").source:sub(2)
+    local testsDirectory = source:match("^(.*)[\\/][^\\/]+$") or "."
+    local projectDirectory = testsDirectory:match("^(.*)[\\/][^\\/]+$") or "."
+    local separator = package.config:sub(1, 1)
+    local tocPath = projectDirectory
+        .. separator
+        .. "AzerothTravelTracker"
+        .. separator
+        .. "AzerothTravelTracker.toc"
+    local toc = assert(io.open(tocPath, "r"))
+    local versions = {}
+
+    for line in toc:lines() do
+        local version = line:match("^##%s*Version:%s*(.-)%s*$")
+        if version then
+            table.insert(versions, version)
+        end
+    end
+
+    toc:close()
+    testlib.equal(
+        #versions,
+        1,
+        string.format(
+            "expected exactly one ## Version: value in addon manifest, found %d",
+            #versions
+        )
+    )
+
+    local addon = testlib.loadAddon("AzerothTravelTracker\\Namespace.lua")
+    testlib.equal(
+        versions[1],
+        addon.VERSION_FALLBACK,
+        string.format(
+            "addon manifest Version %q does not match addon.VERSION_FALLBACK %q",
+            versions[1],
+            addon.VERSION_FALLBACK
+        )
+    )
+end)
