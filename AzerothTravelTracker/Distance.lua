@@ -7,16 +7,34 @@ local Distance = ATT.Distance
 Distance.YARDS_TO_METERS = 0.9144
 Distance.YARDS_PER_MILE = 1760
 
-local function formatScaledNumber(value, suffix)
+local function precisionForScaledNumber(value)
     if value < 10 then
-        return string.format("%.2f%s", value, suffix)
+        return 2
     end
 
     if value < 100 then
-        return string.format("%.1f%s", value, suffix)
+        return 1
     end
 
-    return string.format("%.0f%s", value, suffix)
+    return 0
+end
+
+local function roundToPrecision(value, precision)
+    local factor = 10 ^ precision
+    return math.floor((value * factor) + 0.5) / factor
+end
+
+local function formatScaledNumber(value, suffix)
+    local precision = precisionForScaledNumber(value)
+    local rounded = roundToPrecision(value, precision)
+    local roundedPrecision = precisionForScaledNumber(rounded)
+
+    if roundedPrecision ~= precision then
+        precision = roundedPrecision
+        rounded = roundToPrecision(value, precision)
+    end
+
+    return string.format("%." .. precision .. "f%s", rounded, suffix)
 end
 
 function Distance.YardsToMeters(yards)
@@ -28,15 +46,32 @@ function Distance.FormatNumber(value)
         return tostring(value)
     end
 
-    if value >= 1000000000 then
-        return formatScaledNumber(value / 1000000000, "B")
-    end
+    local scales = {
+        { divisor = 1000, suffix = "K" },
+        { divisor = 1000000, suffix = "M" },
+        { divisor = 1000000000, suffix = "B" },
+    }
+    local scaleIndex = 1
 
     if value >= 1000000 then
-        return formatScaledNumber(value / 1000000, "M")
+        scaleIndex = 2
+    end
+    if value >= 1000000000 then
+        scaleIndex = 3
     end
 
-    return formatScaledNumber(value / 1000, "K")
+    while scaleIndex < #scales do
+        local scale = scales[scaleIndex]
+        local scaled = value / scale.divisor
+        local precision = precisionForScaledNumber(scaled)
+        if roundToPrecision(scaled, precision) < 1000 then
+            break
+        end
+        scaleIndex = scaleIndex + 1
+    end
+
+    local scale = scales[scaleIndex]
+    return formatScaledNumber(value / scale.divisor, scale.suffix)
 end
 
 function Distance.Format(yards, units)

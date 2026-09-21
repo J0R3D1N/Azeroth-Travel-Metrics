@@ -26,6 +26,21 @@ testlib.case("distance formats large numbers with compact WoW suffixes", functio
     testlib.equal(addon.Distance.FormatNumber(1250000000), "1.25B")
 end)
 
+testlib.case("distance compact formatting carries across precision bands", function()
+    local addon = loadDistance()
+
+    testlib.equal(addon.Distance.FormatNumber(9999999), "10.0M")
+    testlib.equal(addon.Distance.FormatNumber(99999999), "100M")
+    testlib.equal(addon.Distance.FormatNumber(9999999999), "10.0B")
+end)
+
+testlib.case("distance compact formatting promotes rounded suffixes", function()
+    local addon = loadDistance()
+
+    testlib.equal(addon.Distance.FormatNumber(999999), "1.00M")
+    testlib.equal(addon.Distance.FormatNumber(999999999), "1.00B")
+end)
+
 testlib.case("distance formats metric yards as meters", function()
     local addon = loadDistance()
 

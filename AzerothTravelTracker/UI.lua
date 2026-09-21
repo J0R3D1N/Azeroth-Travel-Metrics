@@ -235,6 +235,78 @@ local function createColorTexture(parent, layer, red, green, blue, alpha)
     return texture
 end
 
+local function createSafeButton(
+    parent,
+    template,
+    width,
+    height,
+    text,
+    fallbackText
+)
+    local succeeded, button = pcall(
+        CreateFrame,
+        "Button",
+        nil,
+        parent,
+        template
+    )
+    if succeeded and button then
+        button:SetSize(width, height)
+        if text then
+            button:SetText(text)
+        end
+        return button
+    end
+
+    button = CreateFrame("Button", nil, parent)
+    button:SetSize(width, height)
+    button.Background = createColorTexture(
+        button,
+        "BACKGROUND",
+        0.18,
+        0.10,
+        0.04,
+        0.98
+    )
+    button.Highlight = createColorTexture(
+        button,
+        "HIGHLIGHT",
+        0.42,
+        0.24,
+        0.08,
+        0.75
+    )
+    button.Border = {}
+    local edges = {
+        { "TOPLEFT", "TOPRIGHT", width, 1 },
+        { "BOTTOMLEFT", "BOTTOMRIGHT", width, 1 },
+        { "TOPLEFT", "BOTTOMLEFT", 1, height },
+        { "TOPRIGHT", "BOTTOMRIGHT", 1, height },
+    }
+    for _, edge in ipairs(edges) do
+        local border = button:CreateTexture(nil, "OVERLAY")
+        border:SetColorTexture(0.82, 0.58, 0.22, 1)
+        border:SetSize(edge[3], edge[4])
+        border:SetPoint(edge[1], button, edge[1], 0, 0)
+        border:SetPoint(edge[2], button, edge[2], 0, 0)
+        table.insert(button.Border, border)
+    end
+
+    local visibleText = fallbackText or text
+    if visibleText then
+        button:SetText(visibleText)
+        button.FallbackText = createLabel(
+            button,
+            visibleText,
+            "GameFontHighlightSmall"
+        )
+        button.FallbackText:SetPoint("CENTER", button, "CENTER", 0, 0)
+        button.FallbackText:SetTextColor(1, 0.82, 0, 1)
+    end
+    button:Show()
+    return button
+end
+
 local function createMinimizeButton(parent)
     local button = CreateFrame("Button", nil, parent)
     button:SetSize(24, 24)
@@ -404,10 +476,14 @@ local function createHUD()
         ),
     }
 
-    local restoreButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    restoreButton:SetSize(54, 18)
+    local restoreButton = createSafeButton(
+        frame,
+        "UIPanelButtonTemplate",
+        54,
+        18,
+        "Restore"
+    )
     restoreButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -2)
-    restoreButton:SetText("Restore")
     restoreButton:SetScript("OnClick", function()
         UI.ShowMain()
     end)
@@ -417,29 +493,14 @@ local function createHUD()
     restoreButton:SetScript("OnLeave", updateHUDHover)
     restoreButton:Hide()
 
-    local closeSucceeded, closeButton = pcall(
-        CreateFrame,
-        "Button",
-        nil,
+    local closeButton = createSafeButton(
         frame,
-        "UIPanelCloseButton"
+        "UIPanelCloseButton",
+        20,
+        20,
+        nil,
+        "x"
     )
-    if not closeSucceeded or not closeButton then
-        closeButton = CreateFrame("Button", nil, frame)
-        closeButton.FallbackText = createLabel(
-            closeButton,
-            "x",
-            "GameFontNormal"
-        )
-        closeButton.FallbackText:SetPoint(
-            "CENTER",
-            closeButton,
-            "CENTER",
-            0,
-            0
-        )
-    end
-    closeButton:SetSize(20, 20)
     closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
     closeButton:SetScript("OnClick", function()
         UI.CloseHUD()
@@ -539,15 +600,14 @@ function UI.Create()
 
     UI.closeButton = frame.CloseButton
     if not UI.closeButton then
-        local closeSucceeded, closeButton = pcall(
-            CreateFrame,
-            "Button",
-            nil,
+        UI.closeButton = createSafeButton(
             frame,
-            "UIPanelCloseButton"
+            "UIPanelCloseButton",
+            24,
+            24,
+            nil,
+            "x"
         )
-        UI.closeButton = closeSucceeded and closeButton
-            or CreateFrame("Button", nil, frame)
         UI.closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -4)
     end
     UI.closeButton:SetScript("OnClick", function()
@@ -619,10 +679,14 @@ function UI.Create()
         setPanelVisibility()
     end)
 
-    UI.resetButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    UI.resetButton:SetSize(96, 22)
+    UI.resetButton = createSafeButton(
+        frame,
+        "UIPanelButtonTemplate",
+        96,
+        22,
+        "Reset Session"
+    )
     UI.resetButton:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 18, 12)
-    UI.resetButton:SetText("Reset Session")
     UI.resetButton:SetScript("OnClick", function()
         UI.ConfirmResetSession()
     end)

@@ -1511,6 +1511,79 @@ testlib.case("ui side tabs fall back safely when native template is unavailable"
     testlib.equal(safeFallback.addon.UI.overviewTab.SelectedTexture.shown, true)
 end)
 
+testlib.case("ui action buttons remain visible and interactive without panel templates", function()
+    local harness = newUIHarness({
+        rejectTemplates = {
+            PortraitFrameBaseTemplate = true,
+            UIPanelButtonTemplate = true,
+            UIPanelCloseButton = true,
+        },
+    })
+    local UI = harness.addon.UI
+    local succeeded, frame = pcall(UI.Create)
+
+    testlib.equal(succeeded, true)
+    testlib.truthy(frame ~= nil)
+    testlib.equal(UI.resetButton.template, nil)
+    testlib.equal(UI.resetButton.width, 96)
+    testlib.equal(UI.resetButton.height, 22)
+    testlib.equal(UI.resetButton:IsShown(), true)
+    testlib.equal(UI.resetButton:GetText(), "Reset Session")
+    testlib.truthy(UI.resetButton.Background.color ~= nil)
+    testlib.truthy(#UI.resetButton.Border == 4)
+    testlib.truthy(UI.resetButton.Highlight.color ~= nil)
+
+    testlib.equal(UI.closeButton.template, nil)
+    testlib.equal(UI.closeButton.width, 24)
+    testlib.equal(UI.closeButton.height, 24)
+    testlib.equal(UI.closeButton:IsShown(), true)
+    testlib.equal(UI.closeButton.FallbackText:GetText(), "x")
+    testlib.truthy(UI.closeButton.Background.color ~= nil)
+    testlib.truthy(#UI.closeButton.Border == 4)
+    testlib.truthy(UI.closeButton.Highlight.color ~= nil)
+
+    UI.ShowMain()
+    UI.closeButton.scripts.OnClick()
+    testlib.equal(frame:IsShown(), false)
+
+    UI.resetButton.scripts.OnClick()
+    testlib.equal(
+        harness.environment.shownPopup,
+        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+    )
+
+    UI.Minimize()
+    testlib.truthy(UI.hud.frame ~= nil)
+    testlib.equal(UI.hud.restoreButton.template, nil)
+    testlib.equal(UI.hud.restoreButton.width, 54)
+    testlib.equal(UI.hud.restoreButton.height, 18)
+    testlib.equal(UI.hud.restoreButton:GetText(), "Restore")
+    testlib.truthy(UI.hud.restoreButton.Background.color ~= nil)
+    testlib.truthy(#UI.hud.restoreButton.Border == 4)
+    testlib.truthy(UI.hud.restoreButton.Highlight.color ~= nil)
+
+    testlib.equal(UI.hud.closeButton.template, nil)
+    testlib.equal(UI.hud.closeButton.width, 20)
+    testlib.equal(UI.hud.closeButton.height, 20)
+    testlib.equal(UI.hud.closeButton.FallbackText:GetText(), "x")
+    testlib.truthy(UI.hud.closeButton.Background.color ~= nil)
+    testlib.truthy(#UI.hud.closeButton.Border == 4)
+    testlib.truthy(UI.hud.closeButton.Highlight.color ~= nil)
+
+    UI.hud.frame.scripts.OnEnter()
+    testlib.equal(UI.hud.restoreButton:IsShown(), true)
+    testlib.equal(UI.hud.closeButton:IsShown(), true)
+
+    UI.hud.restoreButton.scripts.OnClick()
+    testlib.equal(UI.hud.frame:IsShown(), false)
+    testlib.equal(frame:IsShown(), true)
+
+    UI.Minimize()
+    UI.hud.closeButton.scripts.OnClick()
+    testlib.equal(UI.hud.frame:IsShown(), false)
+    testlib.equal(UI.IsShown(), false)
+end)
+
 testlib.case("ui minimize restore close and toggle coordinate both surfaces", function()
     local harness = newUIHarness()
     local UI = harness.addon.UI
