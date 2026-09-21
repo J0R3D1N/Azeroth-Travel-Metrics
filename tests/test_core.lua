@@ -1565,6 +1565,20 @@ local function newFrame(frameType, name, parent, template, options)
         self.scripts[scriptName] = callback
     end
 
+    function frame:GetScript(scriptName)
+        return self.scripts[scriptName]
+    end
+
+    function frame:HookScript(scriptName, callback)
+        local previous = self.scripts[scriptName]
+        self.scripts[scriptName] = function(...)
+            if previous then
+                previous(...)
+            end
+            callback(...)
+        end
+    end
+
     function frame:StartMoving()
         self.startedMoving = true
     end
@@ -1758,6 +1772,10 @@ local function newFrame(frameType, name, parent, template, options)
 
     if options.missingGradientAPI then
         frame.SetGradientAlpha = nil
+    end
+
+    if options.missingHookScript then
+        frame.HookScript = nil
     end
 
     function frame:SetTexture(texture)
@@ -3189,6 +3207,46 @@ testlib.case("ui HUD hover reveals controls and refreshes current session values
     testlib.equal(UI.hud.frame:GetAlpha(), 0.45)
     testlib.equal(UI.hud.restoreButton:IsShown(), false)
     testlib.equal(UI.hud.closeButton:IsShown(), false)
+end)
+
+testlib.case("ui HUD restore hover preserves tooltip scripts with HookScript", function()
+    local harness = newUIHarness()
+    local UI = harness.addon.UI
+    UI.Minimize()
+
+    UI.hud.restoreButton.scripts.OnEnter(UI.hud.restoreButton)
+    testlib.equal(UI.hud.restoreButton:IsShown(), true)
+    testlib.equal(UI.hud.closeButton:IsShown(), true)
+    testlib.equal(harness.calls.tooltipOwner, UI.hud.restoreButton)
+    testlib.equal(harness.calls.tooltipText, "Restore")
+    testlib.equal(harness.calls.tooltipShown, true)
+
+    UI.hud.restoreButton.mouseOver = false
+    UI.hud.restoreButton.scripts.OnLeave(UI.hud.restoreButton)
+    testlib.equal(UI.hud.restoreButton:IsShown(), false)
+    testlib.equal(UI.hud.closeButton:IsShown(), false)
+    testlib.equal(harness.calls.tooltipHidden, true)
+end)
+
+testlib.case("ui HUD restore hover composes tooltip scripts without HookScript", function()
+    local harness = newUIHarness({
+        missingHookScript = true,
+    })
+    local UI = harness.addon.UI
+    UI.Minimize()
+
+    UI.hud.restoreButton.scripts.OnEnter(UI.hud.restoreButton)
+    testlib.equal(UI.hud.restoreButton:IsShown(), true)
+    testlib.equal(UI.hud.closeButton:IsShown(), true)
+    testlib.equal(harness.calls.tooltipOwner, UI.hud.restoreButton)
+    testlib.equal(harness.calls.tooltipText, "Restore")
+    testlib.equal(harness.calls.tooltipShown, true)
+
+    UI.hud.restoreButton.mouseOver = false
+    UI.hud.restoreButton.scripts.OnLeave(UI.hud.restoreButton)
+    testlib.equal(UI.hud.restoreButton:IsShown(), false)
+    testlib.equal(UI.hud.closeButton:IsShown(), false)
+    testlib.equal(harness.calls.tooltipHidden, true)
 end)
 
 testlib.case("ui HUD resets hover state after restore and minimize", function()

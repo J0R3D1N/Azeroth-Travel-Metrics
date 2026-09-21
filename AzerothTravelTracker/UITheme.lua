@@ -499,11 +499,24 @@ local function addGlyphLine(button, width, height, x, y, rotation)
     line:SetColorTexture(1, 0.82, 0.18, 1)
     line:SetSize(width, height)
     line:SetPoint("CENTER", button, "CENTER", x, y)
+    local rotationApplied = rotation == nil
     if rotation and type(line.SetRotation) == "function" then
-        pcall(line.SetRotation, line, rotation)
+        local succeeded, accepted = pcall(line.SetRotation, line, rotation)
+        rotationApplied = succeeded and accepted ~= false
     end
     table.insert(button.GlyphTextures, line)
-    return line
+    return line, rotationApplied
+end
+
+local function replaceWithRestoreFallback(button)
+    for _, texture in ipairs(button.GlyphTextures) do
+        texture:Hide()
+    end
+    button.GlyphTextures = {}
+
+    addGlyphLine(button, 10, 2, -1, 0)
+    addGlyphLine(button, 5, 2, 3, 4)
+    addGlyphLine(button, 2, 5, 5, 2)
 end
 
 function Theme.CreateTitleControl(parent, kind, tooltip, size)
@@ -533,9 +546,30 @@ function Theme.CreateTitleControl(parent, kind, tooltip, size)
     if kind == "minimize" then
         addGlyphLine(button, 9, 2, 0, -4)
     elseif kind == "restore" then
-        addGlyphLine(button, 10, 2, -1, 0, math.rad(45))
-        addGlyphLine(button, 5, 2, 3, 4, 0)
-        addGlyphLine(button, 5, 2, 5, 2, math.rad(90))
+        local restoreRotated = false
+        local _, shaftRotated = addGlyphLine(
+            button,
+            10,
+            2,
+            -1,
+            0,
+            math.rad(45)
+        )
+        if shaftRotated then
+            local _, topRotated = addGlyphLine(button, 5, 2, 3, 4, 0)
+            local _, rightRotated = addGlyphLine(
+                button,
+                5,
+                2,
+                5,
+                2,
+                math.rad(90)
+            )
+            restoreRotated = topRotated and rightRotated
+        end
+        if not restoreRotated then
+            replaceWithRestoreFallback(button)
+        end
     else
         error("unsupported title control: " .. tostring(kind))
     end

@@ -34,8 +34,12 @@ local function newRegion(kind, parent, options)
     end
 
     function region:SetRotation(radians)
+        options.rotationCalls = (options.rotationCalls or 0) + 1
         if options.rejectRotations then
             error("rotation unavailable")
+        end
+        if options.rejectRotationCall == options.rotationCalls then
+            error("rotation rejected")
         end
         self.rotation = radians
     end
@@ -583,10 +587,55 @@ testlib.case("title controls expose compact minimize and restore glyphs", functi
     testlib.equal(restore.height, 20)
     testlib.equal(restore.controlKind, "restore")
     testlib.equal(#restore.GlyphTextures, 3)
+    testlib.equal(restore.GlyphTextures[1].width, 10)
+    testlib.equal(restore.GlyphTextures[1].height, 2)
+    testlib.equal(restore.GlyphTextures[1].point[4], -1)
+    testlib.equal(restore.GlyphTextures[1].point[5], 0)
+    for _, texture in ipairs(restore.GlyphTextures) do
+        testlib.equal(texture.color[1], 1)
+        testlib.equal(texture.color[2], 0.82)
+        testlib.equal(texture.color[3], 0.18)
+        testlib.equal(texture.color[4], 1)
+    end
     testlib.near(restore.GlyphTextures[1].rotation, math.rad(45), 0.001)
+    testlib.equal(restore.GlyphTextures[2].width, 5)
+    testlib.equal(restore.GlyphTextures[2].height, 2)
+    testlib.equal(restore.GlyphTextures[2].point[4], 3)
+    testlib.equal(restore.GlyphTextures[2].point[5], 4)
+    testlib.equal(restore.GlyphTextures[2].rotation, 0)
+    testlib.equal(restore.GlyphTextures[3].width, 5)
+    testlib.equal(restore.GlyphTextures[3].height, 2)
+    testlib.equal(restore.GlyphTextures[3].point[4], 5)
+    testlib.equal(restore.GlyphTextures[3].point[5], 2)
+    testlib.near(restore.GlyphTextures[3].rotation, math.rad(90), 0.001)
 end)
 
-testlib.case("restore title control tolerates unavailable texture rotation", function()
+local function assertRestoreFallbackGeometry(restore)
+    testlib.equal(#restore.GlyphTextures, 3)
+    testlib.equal(restore.GlyphTextures[1].width, 10)
+    testlib.equal(restore.GlyphTextures[1].height, 2)
+    testlib.equal(restore.GlyphTextures[1].point[4], -1)
+    testlib.equal(restore.GlyphTextures[1].point[5], 0)
+    testlib.equal(restore.GlyphTextures[1].rotation, nil)
+    testlib.equal(restore.GlyphTextures[2].width, 5)
+    testlib.equal(restore.GlyphTextures[2].height, 2)
+    testlib.equal(restore.GlyphTextures[2].point[4], 3)
+    testlib.equal(restore.GlyphTextures[2].point[5], 4)
+    testlib.equal(restore.GlyphTextures[2].rotation, nil)
+    testlib.equal(restore.GlyphTextures[3].width, 2)
+    testlib.equal(restore.GlyphTextures[3].height, 5)
+    testlib.equal(restore.GlyphTextures[3].point[4], 5)
+    testlib.equal(restore.GlyphTextures[3].point[5], 2)
+    testlib.equal(restore.GlyphTextures[3].rotation, nil)
+    for _, texture in ipairs(restore.GlyphTextures) do
+        testlib.equal(texture.color[1], 1)
+        testlib.equal(texture.color[2], 0.82)
+        testlib.equal(texture.color[3], 0.18)
+        testlib.equal(texture.color[4], 1)
+    end
+end
+
+testlib.case("restore title control uses axis-aligned glyph when rotation rejects", function()
     local rejectedAddon, rejectedParent = newHarness({
         rejectRotations = true,
     })
@@ -597,10 +646,24 @@ testlib.case("restore title control tolerates unavailable texture rotation", fun
         "Restore"
     )
     testlib.equal(rejectedSucceeded, true)
-    testlib.equal(#rejected.GlyphTextures, 3)
-    testlib.equal(rejected.GlyphTextures[1].point[4], -1)
-    testlib.equal(rejected.GlyphTextures[1].point[5], 0)
+    assertRestoreFallbackGeometry(rejected)
+end)
 
+testlib.case("restore title control rebuilds fallback when later rotation rejects", function()
+    local addon, parent = newHarness({
+        rejectRotationCall = 3,
+    })
+    local succeeded, restore = pcall(
+        addon.UITheme.CreateTitleControl,
+        parent,
+        "restore",
+        "Restore"
+    )
+    testlib.equal(succeeded, true)
+    assertRestoreFallbackGeometry(restore)
+end)
+
+testlib.case("restore title control uses axis-aligned glyph without rotation API", function()
     local missingAddon, missingParent = newHarness({
         missingRotation = true,
     })
@@ -611,7 +674,5 @@ testlib.case("restore title control tolerates unavailable texture rotation", fun
         "Restore"
     )
     testlib.equal(missingSucceeded, true)
-    testlib.equal(#missing.GlyphTextures, 3)
-    testlib.equal(missing.GlyphTextures[3].point[4], 5)
-    testlib.equal(missing.GlyphTextures[3].point[5], 2)
+    assertRestoreFallbackGeometry(missing)
 end)

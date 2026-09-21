@@ -395,6 +395,39 @@ local function updateHUDHover()
     )
 end
 
+local function composeScript(frame, scriptName, callback)
+    if type(frame.HookScript) == "function" then
+        local succeeded, accepted = pcall(
+            frame.HookScript,
+            frame,
+            scriptName,
+            callback
+        )
+        if succeeded and accepted ~= false then
+            return
+        end
+    end
+
+    local previous
+    if type(frame.GetScript) == "function" then
+        local succeeded, existing = pcall(
+            frame.GetScript,
+            frame,
+            scriptName
+        )
+        if succeeded then
+            previous = existing
+        end
+    end
+
+    frame:SetScript(scriptName, function(...)
+        if previous then
+            previous(...)
+        end
+        callback(...)
+    end)
+end
+
 local function createHUDCell(parent, index, labelText, iconTexture)
     local cell = CreateFrame("Frame", nil, parent)
     cell:SetSize(104, 29)
@@ -535,10 +568,10 @@ local function createHUD()
     restoreButton:SetScript("OnClick", function()
         UI.ShowMain()
     end)
-    restoreButton:SetScript("OnEnter", function()
+    composeScript(restoreButton, "OnEnter", function()
         setHUDHovering(true)
     end)
-    restoreButton:SetScript("OnLeave", updateHUDHover)
+    composeScript(restoreButton, "OnLeave", updateHUDHover)
     restoreButton:Hide()
 
     frame:SetScript("OnDragStart", function(self)
