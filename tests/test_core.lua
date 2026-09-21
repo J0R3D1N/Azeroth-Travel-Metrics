@@ -2103,7 +2103,12 @@ testlib.case("ui diagnostics retain and scroll realistic multi-reason output", f
     testlib.equal(UI.diagnosticsScrollFrame.point[3], "TOPLEFT")
     testlib.equal(UI.diagnosticsScrollFrame.point[5], -310)
     testlib.equal(UI.overviewPanel.height, 332)
-    testlib.truthy(UI.overviewPanel.height <= UI.contentFrame.height)
+    local overviewTopOffset =
+        UI.contentFrame.point[5] - UI.overviewPanel.point[5]
+    testlib.truthy(
+        overviewTopOffset + UI.overviewPanel.height
+            <= UI.contentFrame.height
+    )
     testlib.truthy(
         UI.diagnosticsScrollChild.height > UI.diagnosticsScrollFrame.height
     )
@@ -2132,8 +2137,14 @@ testlib.case("ui errors replace overview content inside the compact inset", func
     testlib.equal(harness.addon.UI.overviewPanel:IsShown(), false)
     testlib.equal(harness.addon.UI.levelPanel:IsShown(), false)
     testlib.equal(harness.addon.UI.errorPanel.parent, harness.addon.UI.contentFrame)
+    local errorTopOffset = -harness.addon.UI.errorPanel.point[5]
     testlib.truthy(
-        harness.addon.UI.errorPanel.height <= harness.addon.UI.contentFrame.height
+        errorTopOffset + harness.addon.UI.errorPanel.height
+            <= harness.addon.UI.contentFrame.height
+    )
+    testlib.equal(
+        errorTopOffset + harness.addon.UI.errorPanel.height,
+        harness.addon.UI.contentFrame.height
     )
 
     harness.addon.UI.ShowError("after create")

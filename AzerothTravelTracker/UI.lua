@@ -869,7 +869,7 @@ function UI.Create()
 
     UI.contentFrame = CreateFrame("Frame", nil, frame)
     UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -46)
-    UI.contentFrame:SetSize(388, 332)
+    UI.contentFrame:SetSize(388, 340)
     UI.contentInset = ATT.UITheme.CreateInset(UI.contentFrame)
 
     UI.errorPanel = CreateFrame("Frame", nil, UI.contentFrame)
@@ -880,7 +880,7 @@ function UI.Create()
         6,
         -8
     )
-    UI.errorPanel:SetSize(376, 310)
+    UI.errorPanel:SetSize(376, 332)
     UI.errorInset = ATT.UITheme.CreateInset(UI.errorPanel)
 
     UI.errorText = createLabel(
