@@ -218,6 +218,15 @@ function Storage.StartSession(character, now)
     return Storage.ResetSession(character, now)
 end
 
+function Storage.IsValidSession(session)
+    return type(session) == "table"
+        and isFiniteNumber(session.startedAt)
+        and session.startedAt > 0
+        and isFiniteNonnegativeNumber(session.onFoot)
+        and isFiniteNonnegativeNumber(session.swimming)
+        and isFiniteNonnegativeNumber(session.taxi)
+end
+
 function Storage.GetCharacter(db, key, identity)
     local character = db.characters[key]
     local resolution = "exact"

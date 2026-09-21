@@ -202,6 +202,16 @@ local function newCoreHarness(options)
             }
             return receivedCharacter.session
         end,
+        IsValidSession = function(session)
+            return type(session) == "table"
+                and type(session.startedAt) == "number"
+                and type(session.onFoot) == "number"
+                and session.onFoot >= 0
+                and type(session.swimming) == "number"
+                and session.swimming >= 0
+                and type(session.taxi) == "number"
+                and session.taxi >= 0
+        end,
     }
 
     addon.Compat = {
@@ -360,7 +370,8 @@ local function newCoreHarness(options)
     }
 end
 
-local function newRelogIntegrationHarness()
+local function newRelogIntegrationHarness(options)
+    options = options or {}
     local globals, eventFrame = newEventGlobals()
     local identity = {
         name = "Traveler",
@@ -415,7 +426,9 @@ local function newRelogIntegrationHarness()
             ["Traveler-TestRealm"] = character,
         },
     }
-    globals.AzerothTravelTrackerDB = db
+    if not options.deferSavedDB then
+        globals.AzerothTravelTrackerDB = db
+    end
 
     local addon, environment = testlib.loadAddon(
         RELOG_INTEGRATION_FILES,
@@ -524,6 +537,9 @@ local function newRelogIntegrationHarness()
         character = character,
         identity = identity,
         tracker = tracker,
+        loadSavedDB = function()
+            environment.AzerothTravelTrackerDB = db
+        end,
         fire = function(eventName, ...)
             eventFrame.scripts.OnEvent(eventFrame, eventName, ...)
         end,
@@ -534,8 +550,12 @@ local function initialize(harness)
     harness.fire("ADDON_LOADED", "AzerothTravelTracker")
 end
 
-local function enterWorld(harness)
-    harness.fire("PLAYER_ENTERING_WORLD")
+local function enterWorld(harness, isInitialLogin, isReloadingUi)
+    harness.fire(
+        "PLAYER_ENTERING_WORLD",
+        isInitialLogin,
+        isReloadingUi
+    )
 end
 
 local function makeReady(harness)
@@ -598,7 +618,7 @@ testlib.case("first entering world binds runtime and starts one fresh session", 
     local harness = newCoreHarness()
     initialize(harness)
 
-    enterWorld(harness)
+    enterWorld(harness, true, false)
 
     testlib.equal(harness.calls.identity, 1)
     testlib.equal(harness.calls.getCharacter, 1)
@@ -641,6 +661,171 @@ testlib.case("first entering world binds runtime and starts one fresh session", 
     testlib.equal(harness.calls.uiContext.getCurrentLevel(), 42)
     testlib.equal(harness.calls.uiContext.capabilities.position, true)
     testlib.equal(harness.addon.Core.GetState().ready, true)
+end)
+
+testlib.case("reload preserves an existing session", function()
+    local session = {
+        startedAt = 7000,
+        onFoot = 11,
+        swimming = 22,
+        taxi = 33,
+    }
+    local character = {
+        identity = {
+            name = "Traveler",
+            realm = "TestRealm",
+            raceFile = "Human",
+            firstSeenAt = 1000,
+        },
+        lifetime = {
+            onFoot = 111,
+            swimming = 222,
+            taxi = 333,
+        },
+        session = session,
+        levels = {
+            [42] = {
+                onFoot = 44,
+                swimming = 55,
+                taxi = 66,
+                reachedAt = 8000,
+            },
+        },
+        diagnostics = {},
+    }
+    local harness = newCoreHarness({
+        character = character,
+    })
+    initialize(harness)
+
+    enterWorld(harness, false, true)
+
+    testlib.equal(harness.calls.startSession, 0)
+    testlib.equal(character.session, session)
+    testlib.equal(character.session.onFoot, 11)
+    testlib.equal(harness.calls.trackerDependencies.character, character)
+    testlib.equal(harness.addon.Core.GetState().ready, true)
+end)
+
+testlib.case("reload replaces a malformed persisted session", function()
+    local character = {
+        identity = {
+            name = "Traveler",
+            realm = "TestRealm",
+            raceFile = "Human",
+            firstSeenAt = 1000,
+        },
+        lifetime = {
+            onFoot = 111,
+            swimming = 222,
+            taxi = 333,
+        },
+        session = {},
+        levels = {
+            [42] = {
+                onFoot = 44,
+                swimming = 55,
+                taxi = 66,
+                reachedAt = 8000,
+            },
+        },
+        diagnostics = {},
+    }
+    local harness = newCoreHarness({
+        character = character,
+    })
+    initialize(harness)
+
+    enterWorld(harness, false, true)
+
+    testlib.equal(harness.calls.startSession, 1)
+    testlib.equal(character.session.startedAt, 1000)
+    testlib.equal(character.session.onFoot, 0)
+    testlib.equal(character.session.swimming, 0)
+    testlib.equal(character.session.taxi, 0)
+end)
+
+testlib.case("reload intent survives a transient identity failure", function()
+    local session = {
+        startedAt = 7000,
+        onFoot = 11,
+        swimming = 22,
+        taxi = 33,
+    }
+    local character = {
+        identity = {
+            name = "Traveler",
+            realm = "TestRealm",
+            raceFile = "Human",
+            firstSeenAt = 1000,
+        },
+        lifetime = {
+            onFoot = 111,
+            swimming = 222,
+            taxi = 333,
+        },
+        session = session,
+        levels = {
+            [42] = {
+                onFoot = 44,
+                swimming = 55,
+                taxi = 66,
+                reachedAt = 8000,
+            },
+        },
+        diagnostics = {},
+    }
+    local harness = newCoreHarness({
+        character = character,
+        identityError = "identityUnavailable",
+    })
+    initialize(harness)
+
+    enterWorld(harness, false, true)
+    testlib.equal(harness.calls.startSession, 0)
+    testlib.equal(harness.addon.Core.GetState().ready, false)
+
+    harness.options.identityError = nil
+    enterWorld(harness, false, false)
+
+    testlib.equal(harness.calls.startSession, 0)
+    testlib.equal(character.session, session)
+    testlib.equal(character.session.onFoot, 11)
+    testlib.equal(harness.addon.Core.GetState().ready, true)
+end)
+
+testlib.case("reload waits for late SavedVariables before binding runtime", function()
+    local harness = newRelogIntegrationHarness({
+        deferSavedDB = true,
+    })
+    local character = harness.character
+    local session = character.session
+    local lifetime = character.lifetime
+    local levels = character.levels
+
+    initialize(harness)
+
+    local state = harness.addon.Core.GetState()
+    testlib.equal(state.databaseReady, false)
+    testlib.equal(state.db, nil)
+    testlib.equal(harness.environment.AzerothTravelTrackerDB, nil)
+
+    harness.loadSavedDB()
+    enterWorld(harness, false, true)
+
+    testlib.equal(state.databaseReady, true)
+    testlib.equal(state.db, harness.db)
+    testlib.equal(state.character, character)
+    testlib.equal(character.session, session)
+    testlib.equal(character.lifetime, lifetime)
+    testlib.equal(character.levels, levels)
+    testlib.equal(character.session.onFoot, 11)
+    testlib.equal(character.lifetime.onFoot, 111)
+    testlib.equal(character.levels[42].onFoot, 44)
+    testlib.equal(countKeys(harness.db.characters), 1)
+    testlib.equal(harness.calls.trackerNew, 1)
+    testlib.equal(harness.calls.uiInitialize, 1)
+    testlib.equal(#harness.calls.tickers, 1)
 end)
 
 testlib.case("production storage lifecycle recovers canonical relog character", function()

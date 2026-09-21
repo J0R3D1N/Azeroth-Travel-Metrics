@@ -230,6 +230,31 @@ testlib.case("storage exact lookup refreshes identity without resetting data", f
     testlib.equal(character.diagnostics.samples, 7)
 end)
 
+testlib.case("storage validates persisted session totals", function()
+    local addon = loadStorage()
+
+    testlib.equal(addon.Storage.IsValidSession({
+        startedAt = 1000,
+        onFoot = 1,
+        swimming = 2,
+        taxi = 3,
+    }), true)
+    testlib.equal(addon.Storage.IsValidSession({
+        startedAt = 1000,
+        onFoot = -1,
+        swimming = 2,
+        taxi = 3,
+    }), false)
+    testlib.equal(addon.Storage.IsValidSession({
+        startedAt = 1000,
+        onFoot = 1,
+        swimming = "2",
+        taxi = 3,
+    }), false)
+    testlib.equal(addon.Storage.IsValidSession({}), false)
+    testlib.equal(addon.Storage.IsValidSession(nil), false)
+end)
+
 testlib.case("storage uniquely rekeys a normalized identity without losing data", function()
     local addon = loadStorage()
     local character = {

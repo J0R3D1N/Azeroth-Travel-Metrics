@@ -78,9 +78,9 @@ The main window can be moved by left-dragging it. Left-click the minimap launche
 
 ## Data and reset behavior
 
-`AzerothTravelTrackerDB` is the account SavedVariables table. It stores settings and per-character lifetime and level totals across logout and `/reload`.
+`AzerothTravelTrackerDB` is the account SavedVariables table. It stores settings and per-character lifetime, session, and level totals across `/reload`. Lifetime and level totals also persist across logout.
 
-The current session is reset when the character is initialized on login/reload, or when **Reset Session** is confirmed. A manual session reset does not erase lifetime totals or per-level history. Level-up starts or selects the new level bucket while preserving earlier levels.
+The current session is reset on a full character login or when **Reset Session** is confirmed. `/reload` preserves the active session. A manual session reset does not erase lifetime totals or per-level history. Level-up starts or selects the new level bucket while preserving earlier levels.
 
 Distances are accumulated internally in yards. Unit selection changes display formatting only. Step counts are estimates derived from on-foot distance and the character race; swimming and taxi distance do not produce steps.
 

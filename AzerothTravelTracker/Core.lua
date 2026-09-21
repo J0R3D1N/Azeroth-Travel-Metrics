@@ -44,6 +44,7 @@ local state = {
     capabilities = {},
     ticker = nil,
     reportedReasons = {},
+    preserveSessionOnStartup = false,
 }
 
 local function isFinitePositiveInteger(value)
@@ -167,9 +168,9 @@ local function refreshCapabilities()
     end
 end
 
-function Core.Initialize()
-    if state.initialized then
-        return state.databaseReady
+function Core.Initialize(allowCreate)
+    if state.databaseReady then
+        return true
     end
     state.initialized = true
 
@@ -179,6 +180,10 @@ function Core.Initialize()
     end
 
     local savedDB = AzerothTravelTrackerDB
+    if savedDB == nil and allowCreate ~= true then
+        return false
+    end
+
     local initializeCallSucceeded, db, initializationError = pcall(
         ATT.Storage.Initialize,
         savedDB
@@ -198,7 +203,7 @@ function Core.Initialize()
     return true
 end
 
-local function initializeRuntime()
+local function initializeRuntime(preserveSession)
     if not state.databaseReady or state.ready then
         return state.ready
     end
@@ -244,19 +249,32 @@ local function initializeRuntime()
             return false
         end
 
-        if type(ATT.Storage.StartSession) ~= "function" then
-            failRuntimeInitialization("sessionInitializeFailed")
-            return false
+        local validSavedSession = false
+        if preserveSession
+            and type(ATT.Storage.IsValidSession) == "function"
+        then
+            local validationSucceeded, isValid = pcall(
+                ATT.Storage.IsValidSession,
+                character.session
+            )
+            validSavedSession = validationSucceeded and isValid == true
         end
 
-        local sessionCallSucceeded, session = pcall(
-            ATT.Storage.StartSession,
-            character,
-            identity.now
-        )
-        if not sessionCallSucceeded or type(session) ~= "table" then
-            failRuntimeInitialization("sessionInitializeFailed")
-            return false
+        if not validSavedSession then
+            if type(ATT.Storage.StartSession) ~= "function" then
+                failRuntimeInitialization("sessionInitializeFailed")
+                return false
+            end
+
+            local sessionCallSucceeded, session = pcall(
+                ATT.Storage.StartSession,
+                character,
+                identity.now
+            )
+            if not sessionCallSucceeded or type(session) ~= "table" then
+                failRuntimeInitialization("sessionInitializeFailed")
+                return false
+            end
         end
 
         state.character = character
@@ -543,11 +561,22 @@ function Core.OnEvent(eventName, ...)
     if eventName == "ADDON_LOADED" then
         local loadedAddon = ...
         if loadedAddon == addonName then
-            Core.Initialize()
+            Core.Initialize(false)
         end
     elseif eventName == "PLAYER_ENTERING_WORLD" then
+        local isInitialLogin, isReloadingUi = ...
+        if isReloadingUi == true then
+            state.preserveSessionOnStartup = true
+        elseif isInitialLogin == true then
+            state.preserveSessionOnStartup = false
+        end
+        if not state.databaseReady and not Core.Initialize(true) then
+            return
+        end
         if not state.ready then
-            initializeRuntime()
+            if initializeRuntime(state.preserveSessionOnStartup) then
+                state.preserveSessionOnStartup = false
+            end
         else
             refreshCapabilities()
             if state.ticker == nil then
