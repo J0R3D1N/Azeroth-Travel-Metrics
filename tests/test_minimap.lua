@@ -133,12 +133,18 @@ local function newHarness(options)
     end
     if not options.omitDimensions then
         function minimapFrame:GetWidth()
+            if options.widthThrows then
+                error("width unavailable")
+            end
             if options.width ~= nil then
                 return options.width
             end
             return 140
         end
         function minimapFrame:GetHeight()
+            if options.heightThrows then
+                error("height unavailable")
+            end
             if options.height ~= nil then
                 return options.height
             end
@@ -185,6 +191,14 @@ local function newHarness(options)
             end,
         },
     }
+    if options.shape ~= nil or options.shapeThrows then
+        globals.GetMinimapShape = function()
+            if options.shapeThrows then
+                error("shape unavailable")
+            end
+            return options.shape
+        end
+    end
 
     local addon, environment = testlib.loadAddon(MINIMAP_FILES, globals)
     addon.UI = {
@@ -253,9 +267,96 @@ testlib.case("minimap calculates offsets from live rectangular dimensions", func
     x, y = addon.Minimap.CalculateMinimapOffset(90, 200, 160)
     testlib.near(x, 0, 0.0001)
     testlib.near(y, 85, 0.0001)
+
+    x, y = addon.Minimap.CalculateMinimapOffset(45, 200, 160)
+    testlib.near(x, 66.0050, 0.0001)
+    testlib.near(y, 66.0050, 0.0001)
+    testlib.near(math.deg(math.atan(y / x)), 45, 0.0001)
 end)
 
-testlib.case("minimap dimension offsets reject invalid geometry", function()
+testlib.case("minimap square diagonals stay outside the rim", function()
+    local addon = testlib.loadAddon(MINIMAP_FILES, {
+        CreateFrame = function()
+            error("not needed")
+        end,
+    })
+
+    local x, y = addon.Minimap.CalculateMinimapOffset(
+        45,
+        140,
+        140,
+        5,
+        "SQUARE"
+    )
+    testlib.near(x, 73.5355, 0.0001)
+    testlib.near(y, 73.5355, 0.0001)
+    testlib.near(math.deg(math.atan(y / x)), 45, 0.0001)
+end)
+
+testlib.case("minimap shape table selects curved quadrants", function()
+    local addon = testlib.loadAddon(MINIMAP_FILES, {
+        CreateFrame = function()
+            error("not needed")
+        end,
+    })
+
+    local quadrantAngles = { 315, 225, 45, 135 }
+    local shapes = {
+        ROUND = { true, true, true, true },
+        SQUARE = { false, false, false, false },
+        ["CORNER-TOPLEFT"] = { false, false, false, true },
+        ["CORNER-TOPRIGHT"] = { false, false, true, false },
+        ["CORNER-BOTTOMLEFT"] = { false, true, false, false },
+        ["CORNER-BOTTOMRIGHT"] = { true, false, false, false },
+        ["SIDE-LEFT"] = { false, true, false, true },
+        ["SIDE-RIGHT"] = { true, false, true, false },
+        ["SIDE-TOP"] = { false, false, true, true },
+        ["SIDE-BOTTOM"] = { true, true, false, false },
+        ["TRICORNER-TOPLEFT"] = { false, true, true, true },
+        ["TRICORNER-TOPRIGHT"] = { true, false, true, true },
+        ["TRICORNER-BOTTOMLEFT"] = { true, true, false, true },
+        ["TRICORNER-BOTTOMRIGHT"] = { true, true, true, false },
+    }
+
+    for shape, curvedQuadrants in pairs(shapes) do
+        for quadrant, angle in ipairs(quadrantAngles) do
+            local x, y = addon.Minimap.CalculateMinimapOffset(
+                angle,
+                140,
+                140,
+                5,
+                shape
+            )
+            local expectedMagnitude = curvedQuadrants[quadrant]
+                and 53.0330
+                or 73.5355
+            testlib.near(math.abs(x), expectedMagnitude, 0.0001)
+            testlib.near(math.abs(y), expectedMagnitude, 0.0001)
+        end
+    end
+end)
+
+testlib.case("minimap dimensions fall back independently", function()
+    local addon = testlib.loadAddon(MINIMAP_FILES, {
+        CreateFrame = function()
+            error("not needed")
+        end,
+    })
+
+    local x, y = addon.Minimap.CalculateMinimapOffset(0, 200, 0 / 0)
+    testlib.near(x, 105, 0.0001)
+    testlib.near(y, 0, 0.0001)
+
+    x, y = addon.Minimap.CalculateMinimapOffset(90, -1, 160)
+    testlib.near(x, 0, 0.0001)
+    testlib.near(y, 85, 0.0001)
+
+    x, y = addon.Minimap.CalculateMinimapOffset(0, nil, nil)
+    testlib.near(x, 80, 0.0001)
+    testlib.near(y, 0, 0.0001)
+end)
+
+testlib.case("minimap offsets reject invalid angle and padding", function()
     local addon = testlib.loadAddon(MINIMAP_FILES, {
         CreateFrame = function()
             error("not needed")
@@ -264,8 +365,6 @@ testlib.case("minimap dimension offsets reject invalid geometry", function()
 
     local invalidCases = {
         { 0 / 0, 200, 160, 5 },
-        { 0, 0, 160, 5 },
-        { 0, 200, -1, 5 },
         { 0, 200, 160, 0 },
         { 0, 200, 160, math.huge },
     }
@@ -296,12 +395,12 @@ end)
 testlib.case("minimap placement falls back when dimensions are invalid", function()
     local harness = newHarness({
         angle = 0,
-        width = 0 / 0,
+        width = 200,
         height = -1,
     })
     local button = harness.addon.Minimap.Create()
 
-    testlib.near(button.point[4], 80, 0.0001)
+    testlib.near(button.point[4], 105, 0.0001)
     testlib.near(button.point[5], 0, 0.0001)
 
     local missingHarness = newHarness({
@@ -311,6 +410,44 @@ testlib.case("minimap placement falls back when dimensions are invalid", functio
     local missingButton = missingHarness.addon.Minimap.Create()
     testlib.near(missingButton.point[4], 0, 0.0001)
     testlib.near(missingButton.point[5], 80, 0.0001)
+end)
+
+testlib.case("minimap shape lookup safely defaults to round", function()
+    local cases = {
+        {},
+        { shapeThrows = true },
+        { shape = "UNKNOWN-SHAPE" },
+    }
+
+    for _, options in ipairs(cases) do
+        options.angle = 45
+        options.width = 140
+        options.height = 140
+        local harness = newHarness(options)
+        local button = harness.addon.Minimap.Create()
+        testlib.near(button.point[4], 53.0330, 0.0001)
+        testlib.near(button.point[5], 53.0330, 0.0001)
+    end
+end)
+
+testlib.case("minimap live shape selects the current quadrant geometry", function()
+    local curvedHarness = newHarness({
+        angle = 135,
+        width = 140,
+        height = 140,
+        shape = "CORNER-TOPLEFT",
+    })
+    testlib.near(curvedHarness.addon.Minimap.button.point[4], -53.0330, 0.0001)
+    testlib.near(curvedHarness.addon.Minimap.button.point[5], 53.0330, 0.0001)
+
+    local edgeHarness = newHarness({
+        angle = 45,
+        width = 140,
+        height = 140,
+        shape = "CORNER-TOPLEFT",
+    })
+    testlib.near(edgeHarness.addon.Minimap.button.point[4], 73.5355, 0.0001)
+    testlib.near(edgeHarness.addon.Minimap.button.point[5], 73.5355, 0.0001)
 end)
 
 testlib.case("minimap normalizes angles and rejects invalid values", function()
@@ -387,6 +524,44 @@ testlib.case("minimap drag uses UI parent scale when minimap scale differs", fun
     testlib.near(harness.db.settings.minimapAngle, 45, 0.0001)
     testlib.near(button.point[4], 53.0330, 0.0001)
     testlib.near(button.point[5], 53.0330, 0.0001)
+end)
+
+testlib.case("minimap drag persists angle across recreation", function()
+    local db = {
+        settings = {
+            showMinimap = true,
+            minimapAngle = 225,
+        },
+    }
+    local dragHarness = newHarness({
+        db = db,
+        centerX = 300,
+        centerY = 200,
+        cursorX = 400,
+        cursorY = 300,
+        shape = "SQUARE",
+    })
+    local button = dragHarness.addon.Minimap.button
+    button.scripts.OnDragStart(button, "LeftButton")
+    button.scripts.OnUpdate(button)
+    button.scripts.OnDragStop(button)
+
+    testlib.near(db.settings.minimapAngle, 45, 0.0001)
+
+    local recreatedHarness = newHarness({
+        db = db,
+        width = 140,
+        height = 140,
+        shape = "SQUARE",
+    })
+    local recreatedButton = recreatedHarness.addon.Minimap.button
+    testlib.near(recreatedButton.point[4], 73.5355, 0.0001)
+    testlib.near(recreatedButton.point[5], 73.5355, 0.0001)
+    testlib.near(
+        math.deg(math.atan(recreatedButton.point[5] / recreatedButton.point[4])),
+        db.settings.minimapAngle,
+        0.0001
+    )
 end)
 
 testlib.case("minimap drag release suppresses only its generated click", function()
