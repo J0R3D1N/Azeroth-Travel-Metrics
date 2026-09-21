@@ -4,10 +4,10 @@ ATT.Minimap = {}
 
 local MinimapLauncher = ATT.Minimap
 local DEFAULT_ANGLE = 225
-local BUTTON_RADIUS = 80
-local DEFAULT_OUTER_PADDING = 5
-local BUTTON_OUTER_PADDING = 18
-local DEFAULT_MINIMAP_DIAMETER = (BUTTON_RADIUS - DEFAULT_OUTER_PADDING) * 2
+local BUTTON_SIZE = 32
+local BORDER_SIZE = 54
+local BUTTON_OUTER_RADIUS = BORDER_SIZE / 2
+local DEFAULT_MINIMAP_DIAMETER = 150
 local DEFAULT_MINIMAP_SHAPE = "ROUND"
 local MINIMAP_SHAPE_QUADRANTS = {
     ROUND = { true, true, true, true },
@@ -90,7 +90,7 @@ function MinimapLauncher.CalculateMinimapOffset(
     padding,
     shape
 )
-    padding = padding == nil and DEFAULT_OUTER_PADDING or padding
+    padding = padding == nil and BUTTON_OUTER_RADIUS or padding
     if not isFiniteNumber(angleDegrees)
         or not isFiniteNumber(padding)
         or padding <= 0
@@ -183,7 +183,7 @@ local function positionButton(angle)
         angle,
         width,
         height,
-        BUTTON_OUTER_PADDING,
+        BUTTON_OUTER_RADIUS,
         getMinimapShape()
     )
     if not isFiniteNumber(x) or not isFiniteNumber(y) then
@@ -279,7 +279,7 @@ function MinimapLauncher.Create()
         Minimap
     )
     MinimapLauncher.button = button
-    button:SetSize(32, 32)
+    button:SetSize(BUTTON_SIZE, BUTTON_SIZE)
     if type(button.SetFrameLevel) == "function"
         and type(Minimap.GetFrameLevel) == "function"
     then
@@ -305,8 +305,8 @@ function MinimapLauncher.Create()
 
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-    border:SetSize(54, 54)
-    border:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
+    border:SetSize(BORDER_SIZE, BORDER_SIZE)
+    border:SetPoint("CENTER", button, "CENTER", 0, 0)
     MinimapLauncher.border = border
 
     button:SetScript("OnEnter", function(self)
