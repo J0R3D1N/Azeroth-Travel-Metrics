@@ -1931,6 +1931,17 @@ local function newUIHarness(options)
             if not options.levelScrollbarDirectChildOnly then
                 frame.ScrollBar = scrollBar
             end
+            if options.levelScrollUnrelatedDirectChild then
+                local unrelated = newFrame(
+                    "Frame",
+                    nil,
+                    frame,
+                    nil,
+                    options
+                )
+                unrelated:Show()
+                table.insert(frame.children, unrelated)
+            end
         end
         if name == "AzerothTravelTrackerFrame"
             or name == "AzerothTravelTrackerHUD"
@@ -3491,10 +3502,10 @@ testlib.case("ui protects level scrollbar range checks", function()
     testlib.equal(UI.levelScrollFrame:GetVerticalScroll(), 100)
 end)
 
-testlib.case("ui manages a level scrollbar exposed only as a direct child", function()
-    local rows = {}
+testlib.case("ui toggles only direct-child level scrollbar chrome", function()
+    local overflowRows = {}
     for level = 16, 1, -1 do
-        table.insert(rows, {
+        table.insert(overflowRows, {
             level = level,
             steps = level,
             onFoot = level .. " m",
@@ -3503,8 +3514,20 @@ testlib.case("ui manages a level scrollbar exposed only as a direct child", func
         })
     end
     local harness = newUIHarness({
-        levelRows = rows,
+        levelRowsSequence = {
+            {
+                {
+                    level = 1,
+                    steps = "1",
+                    onFoot = "1 m",
+                    swimming = "0 m",
+                    taxi = "0 m",
+                },
+            },
+            overflowRows,
+        },
         levelScrollbarDirectChildOnly = true,
+        levelScrollUnrelatedDirectChild = true,
     })
     local UI = harness.addon.UI
 
@@ -3512,13 +3535,23 @@ testlib.case("ui manages a level scrollbar exposed only as a direct child", func
     UI.Refresh()
 
     local scrollBar = UI.levelScrollFrame.children[1]
+    local unrelated = UI.levelScrollFrame.children[2]
     testlib.equal(UI.levelScrollFrame.ScrollBar, nil)
+    testlib.equal(scrollBar:IsShown(), false)
+    testlib.equal(scrollBar.ScrollUpButton:IsShown(), false)
+    testlib.equal(scrollBar.ScrollDownButton:IsShown(), false)
+    testlib.equal(scrollBar.ThumbTexture:IsShown(), false)
+    testlib.equal(unrelated:IsShown(), true)
+
+    UI.Refresh()
+
     testlib.equal(scrollBar:IsShown(), true)
     testlib.equal(scrollBar.points[1][1], "TOPLEFT")
     testlib.equal(scrollBar.points[1][2], UI.levelScrollFrame)
     testlib.equal(scrollBar.ScrollUpButton:IsShown(), true)
     testlib.equal(scrollBar.ScrollDownButton:IsShown(), true)
     testlib.equal(scrollBar.ThumbTexture:IsShown(), true)
+    testlib.equal(unrelated:IsShown(), true)
 end)
 
 testlib.case("ui preserves valid level scroll offsets and clamps after shrinking", function()

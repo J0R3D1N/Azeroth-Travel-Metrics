@@ -708,7 +708,6 @@ local function collectLevelScrollbarChrome(scrollFrame)
                 then
                     chrome.scrollBar = child
                 end
-                addRegion(child)
             end
         end
     end
