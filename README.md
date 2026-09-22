@@ -124,7 +124,7 @@ Or specify another TOC/package version:
 .\tools\Package-Addon.ps1 -Version '1.0.0-beta'
 ```
 
-Packaging reruns the Lua tests, validates required TOC metadata and file entries, recreates only `artifacts\AzerothTravelMetrics`, writes `artifacts\AzerothTravelMetrics-1.0.0-beta.zip`, and verifies that every archive entry is beneath one `AzerothTravelMetrics` top-level directory. Archive paths are ordered and entry timestamps are normalized to a fixed ZIP-safe value, so the same tracked addon tree and package version produce byte-identical ZIPs even when unrelated commits change repository metadata.
+Packaging reruns the Lua tests, validates required TOC metadata and file entries, recreates only `artifacts\AzerothTravelMetrics`, writes `artifacts\AzerothTravelMetrics-1.0.0-beta.zip`, and verifies that every archive entry is beneath one `AzerothTravelMetrics` top-level directory. Archive entries are stored without compression, paths are ordered, and timestamps are normalized to a fixed ZIP-safe value, so the same tracked addon tree and package version produce byte-identical ZIPs across supported PowerShell runtimes even when unrelated commits change repository metadata.
 
 The clean package intentionally excludes `X-ForeverSVFix` markers, `ForeverSVFixData`, generated files, and account-specific junctions. After replacing an installed addon folder or TOC during development, keep WoW closed, reapply ForeverSVFix, and run its `doctor` command before launching WoW.
 

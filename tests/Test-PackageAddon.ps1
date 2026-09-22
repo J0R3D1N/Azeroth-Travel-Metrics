@@ -143,11 +143,14 @@ function Save-PackageRepoFixture {
 }
 
 function Invoke-PackageFixture {
-    param([string]$RepoRoot)
+    param(
+        [string]$RepoRoot,
+        [string]$HostExecutable = (Get-Process -Id $PID).Path
+    )
 
-    $hostExecutable = (Get-Process -Id $PID).Path
-    $output = & $hostExecutable `
+    $output = & $HostExecutable `
         -NoProfile `
+        -ExecutionPolicy Bypass `
         -File (Join-Path $RepoRoot 'tools\Package-Addon.ps1') 2>&1 |
         Out-String
 
@@ -550,6 +553,73 @@ Present.lua
                 )
             }
         }
+
+    $windowsPowerShell = Get-Command powershell.exe -ErrorAction SilentlyContinue
+    $powerShell = Get-Command pwsh -ErrorAction SilentlyContinue
+    if ($null -eq $windowsPowerShell -or $null -eq $powerShell) {
+        $missingRuntimes = @(
+            if ($null -eq $windowsPowerShell) {
+                'powershell.exe'
+            }
+            if ($null -eq $powerShell) {
+                'pwsh'
+            }
+        )
+        Write-Output (
+            'SKIP packages are byte-reproducible across PowerShell runtimes ' +
+            "(missing: $([string]::Join(', ', $missingRuntimes)))"
+        )
+        $skipped++
+    }
+    else {
+        $crossRuntimeRepo = Join-Path $fixtureRoot 'cross-runtime-reproducibility-repo'
+        New-PackageRepoFixture -Path $crossRuntimeRepo | Out-Null
+        $windowsPowerShellPackage = Join-Path $fixtureRoot 'windows-powershell-package.zip'
+
+        Test-DoesNotThrow `
+            -Name 'packages are byte-reproducible across PowerShell runtimes' `
+            -Action {
+                $windowsPowerShellResult = Invoke-PackageFixture `
+                    -RepoRoot $crossRuntimeRepo `
+                    -HostExecutable $windowsPowerShell.Source
+                if ($windowsPowerShellResult.ExitCode -ne 0) {
+                    throw $windowsPowerShellResult.Output
+                }
+                Copy-Item `
+                    -LiteralPath (
+                        Join-Path $crossRuntimeRepo `
+                            'artifacts\AzerothTravelMetrics-1.0.0-beta.zip'
+                    ) `
+                    -Destination $windowsPowerShellPackage
+
+                $powerShellResult = Invoke-PackageFixture `
+                    -RepoRoot $crossRuntimeRepo `
+                    -HostExecutable $powerShell.Source
+                if ($powerShellResult.ExitCode -ne 0) {
+                    throw $powerShellResult.Output
+                }
+
+                $windowsPowerShellHash = (
+                    Get-FileHash `
+                        -LiteralPath $windowsPowerShellPackage `
+                        -Algorithm SHA256
+                ).Hash
+                $powerShellHash = (
+                    Get-FileHash `
+                        -LiteralPath (
+                            Join-Path $crossRuntimeRepo `
+                                'artifacts\AzerothTravelMetrics-1.0.0-beta.zip'
+                        ) `
+                        -Algorithm SHA256
+                ).Hash
+                if ($windowsPowerShellHash -cne $powerShellHash) {
+                    throw (
+                        'Packages from different PowerShell runtimes were not identical: ' +
+                        "$windowsPowerShellHash != $powerShellHash"
+                    )
+                }
+            }
+    }
 
     $replacedAddonRoot = Join-Path $fixtureRoot 'validated-addon-root'
     Move-Item -LiteralPath $snapshotAddonRoot -Destination $replacedAddonRoot
