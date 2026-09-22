@@ -342,6 +342,33 @@ try {
             -Message 'A lexical decoy was replaced or the real root was missed.'
     }
 
+    Invoke-Test 'rejects an existing ATM root among lexical decoys before output' {
+        $fixture = New-TestCase 'existing-atm-root'
+        $sourceText = (
+            "-- $newRoot = {}`n" +
+            "--[=[`n$newRoot = {}`n]=]`n" +
+            "text = [==[`n$newRoot = {}`n]==]`n" +
+            "quoted = `"$newRoot = {}`"`n" +
+            "$newRoot == {}`n" +
+            "$newRoot = = {}`n" +
+            "$oldRoot = { legacy = true }`n" +
+            "$newRoot = { existing = true }`n"
+        )
+        Write-Utf8Fixture -Path $fixture.OldPath -Text $sourceText
+        $sourceBytes = [System.IO.File]::ReadAllBytes($fixture.OldPath)
+        Assert-Throws `
+            -MessagePattern 'existing.*ATM|ATM.*root|AzerothTravelMetricsDB' `
+            -Action { Invoke-FixtureMigration -Fixture $fixture }
+        Assert-BytesEqual `
+            -Expected $sourceBytes `
+            -Actual ([System.IO.File]::ReadAllBytes($fixture.OldPath)) `
+            -Message 'Source changed.'
+        Assert-True -Condition (-not (Test-Path -LiteralPath $fixture.NewPath)) `
+            -Message 'Destination was created.'
+        Assert-True -Condition (-not (Test-Path -LiteralPath $fixture.BackupRoot)) `
+            -Message 'Backup directory was created.'
+    }
+
     Invoke-Test 'fails closed on an unterminated multiline comment' {
         $fixture = New-TestCase 'unterminated-multiline-comment'
         $sourceText = "--[[`n$oldRoot = {}`n"

@@ -415,6 +415,7 @@ function Invoke-LocalSavedVariablesMigration {
         }
 
         $oldRootName = 'AzerothTravelTrackerDB'
+        $newRootName = 'AzerothTravelMetricsDB'
         $rootScan = Find-LuaRootAssignments -Text $text -RootName $oldRootName
         $rootMatches = [int[]]$rootScan.Indexes
         if ($rootMatches.Count -ne 1) {
@@ -424,11 +425,20 @@ function Invoke-LocalSavedVariablesMigration {
             )
         }
 
+        $newRootScan = Find-LuaRootAssignments -Text $text -RootName $newRootName
+        $newRootMatches = [int[]]$newRootScan.Indexes
+        if ($newRootMatches.Count -ne 0) {
+            throw (
+                'Expected zero top-level ATM SavedVariables roots, ' +
+                "found $($newRootMatches.Count)."
+            )
+        }
+
         $oldRootBytes = [System.Text.Encoding]::ASCII.GetBytes(
             $oldRootName
         )
         $newRootBytes = [System.Text.Encoding]::ASCII.GetBytes(
-            'AzerothTravelMetricsDB'
+            $newRootName
         )
         if ($oldRootBytes.Length -ne $newRootBytes.Length) {
             throw 'SavedVariables root names must have equal byte lengths.'
