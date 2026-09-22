@@ -1,6 +1,10 @@
-param([string]$Version = '0.1.0-beta')
+param([string]$Version = '1.0.0-beta')
 
 $ErrorActionPreference = 'Stop'
+$addonDirectoryName = 'AzerothTravelMetrics'
+$expectedTitle = 'Azeroth Travel Metrics - WoW: Forever (beta)'
+$expectedSavedVariables = 'AzerothTravelMetricsDB'
+$expectedLogo = 'AzerothTravelMetrics/Media/ATMLogo.tga'
 
 function Get-TocMetadata {
     param(
@@ -21,7 +25,7 @@ function Assert-AddonManifest {
     param(
         [string]$TocPath,
         [string]$AddonRoot,
-        [string]$ExpectedVersion = '0.1.0-beta'
+        [string]$ExpectedVersion = '1.0.0-beta'
     )
 
     if (-not (Test-Path -LiteralPath $TocPath -PathType Leaf)) {
@@ -38,9 +42,9 @@ function Assert-AddonManifest {
     }
 
     $expectedMetadata = @{
-        Title = 'Azeroth Travel Tracker - WoW: Forever (beta)'
+        Title = $expectedTitle
         Version = $ExpectedVersion
-        SavedVariables = 'AzerothTravelTrackerDB'
+        SavedVariables = $expectedSavedVariables
     }
     foreach ($name in $expectedMetadata.Keys) {
         $actual = Get-TocMetadata -Lines $lines -Name $name
@@ -165,7 +169,7 @@ function Assert-CleanAddonWorktree {
 
     $status = Invoke-GitText `
         -RepoRoot $RepoRoot `
-        -Arguments 'status --porcelain=v1 -z --untracked-files=all -- AzerothTravelTracker'
+        -Arguments "status --porcelain=v1 -z --untracked-files=all -- $addonDirectoryName"
     if ($status.Length -ne 0) {
         $details = ($status -replace "`0", ', ').Trim(' ', ',')
         throw "Addon working tree must be clean before packaging: $details"
@@ -180,7 +184,8 @@ function Get-TrackedAddonFilesAtHead {
 
     $tree = Invoke-GitText `
         -RepoRoot $RepoRoot `
-        -Arguments "ls-tree -r -z $Commit -- AzerothTravelTracker"
+        -Arguments "ls-tree -r -z $Commit -- $addonDirectoryName"
+    $addonPrefix = "$addonDirectoryName/"
     $files = [System.Collections.Generic.List[string]]::new()
     foreach ($record in [regex]::Split($tree, "`0")) {
         if ($record.Length -eq 0) {
@@ -197,13 +202,13 @@ function Get-TrackedAddonFilesAtHead {
             throw "Tracked addon entry is not a regular file: $path"
         }
         if (-not $path.StartsWith(
-            'AzerothTravelTracker/',
+            $addonPrefix,
             [System.StringComparison]::Ordinal
         )) {
             throw "Tracked addon entry is outside the addon directory: $path"
         }
 
-        $files.Add($path.Substring('AzerothTravelTracker/'.Length))
+        $files.Add($path.Substring($addonPrefix.Length))
     }
 
     if ($files.Count -eq 0) {
@@ -227,7 +232,7 @@ function New-GitAddonSnapshot {
         --format=zip `
         "--output=$SnapshotZipPath" `
         $Commit `
-        AzerothTravelTracker
+        $addonDirectoryName
     if ($LASTEXITCODE -ne 0) {
         throw "Could not create addon snapshot from Git commit $Commit."
     }
@@ -322,14 +327,16 @@ function Assert-IconAssetArchiveEntries {
             Where-Object { -not $_.EndsWith('/') }
     )
     $requiredTextures = @(
-        'AzerothTravelTracker/Media/ATTLogo.tga',
-        'AzerothTravelTracker/Media/ByLevel.tga',
-        'AzerothTravelTracker/Media/Overview.tga'
+        $expectedLogo,
+        "$addonDirectoryName/Media/ByLevel.tga",
+        "$addonDirectoryName/Media/Overview.tga"
     )
+    $mediaEntryPattern =
+        '\A' + [regex]::Escape($addonDirectoryName) + '/Media/[^/]+\.tga\z'
     $actualTextures = @(
         $normalizedEntries |
             Where-Object {
-                $_ -match '\AAzerothTravelTracker/Media/[^/]+\.tga\z'
+                $_ -match $mediaEntryPattern
             }
     )
     [System.Array]::Sort($requiredTextures, [System.StringComparer]::Ordinal)
@@ -364,7 +371,7 @@ function Assert-SafeStagingPath {
     $resolvedArtifactsRoot = [System.IO.Path]::GetFullPath($ArtifactsRoot).TrimEnd('\')
     $resolvedStagingPath = [System.IO.Path]::GetFullPath($StagingPath).TrimEnd('\')
     $expectedArtifactsRoot = Join-Path $resolvedRepoRoot 'artifacts'
-    $expectedStagingPath = Join-Path $expectedArtifactsRoot 'AzerothTravelTracker'
+    $expectedStagingPath = Join-Path $expectedArtifactsRoot $addonDirectoryName
 
     if ($resolvedArtifactsRoot -cne $expectedArtifactsRoot) {
         throw "Refusing to use unexpected artifacts path: $resolvedArtifactsRoot"
@@ -391,7 +398,7 @@ function Assert-SafeStagingPath {
     return $resolvedStagingPath
 }
 
-if ($env:ATT_PACKAGE_VALIDATION_ONLY -eq '1') {
+if ($env:ATM_PACKAGE_VALIDATION_ONLY -eq '1') {
     return
 }
 
@@ -400,12 +407,12 @@ if ($Version -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
 }
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$addonRoot = Join-Path $repoRoot 'AzerothTravelTracker'
+$addonRoot = Join-Path $repoRoot $addonDirectoryName
 $testsPath = Join-Path $repoRoot 'tests\run.lua'
 $artifactsRoot = Join-Path $repoRoot 'artifacts'
-$stagingPath = Join-Path $artifactsRoot 'AzerothTravelTracker'
-$zipPath = Join-Path $artifactsRoot "AzerothTravelTracker-$Version.zip"
-$snapshotZipPath = Join-Path $artifactsRoot '.AzerothTravelTracker-head.zip'
+$stagingPath = Join-Path $artifactsRoot $addonDirectoryName
+$zipPath = Join-Path $artifactsRoot "$addonDirectoryName-$Version.zip"
+$snapshotZipPath = Join-Path $artifactsRoot ".$addonDirectoryName-head.zip"
 
 $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') `
     + ';' `
@@ -449,7 +456,7 @@ try {
         -Commit $headCommit
     Assert-ZipLayout `
         -ZipPath $snapshotZipPath `
-        -ExpectedTopLevelDirectory 'AzerothTravelTracker' `
+        -ExpectedTopLevelDirectory $addonDirectoryName `
         -ExpectedFilePaths $trackedFiles
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $snapshotArchive = [System.IO.Compression.ZipFile]::OpenRead($snapshotZipPath)
@@ -467,7 +474,7 @@ try {
         $artifactsRoot
     )
     $interface = Assert-AddonManifest `
-        -TocPath (Join-Path $resolvedStagingPath 'AzerothTravelTracker.toc') `
+        -TocPath (Join-Path $resolvedStagingPath "$addonDirectoryName.toc") `
         -AddonRoot $resolvedStagingPath `
         -ExpectedVersion $Version
     Write-Output "Validated addon manifest for Interface $interface."

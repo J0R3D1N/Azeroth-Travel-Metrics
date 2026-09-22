@@ -17,11 +17,29 @@ $allowedLegacyFiles = @(
 )
 $legacyPattern =
     'Azeroth Travel Tracker|AzerothTravelTracker|AZEROTHTRAVELTRACKER|ATTLogo|(?<![A-Za-z0-9_])ATT(?![A-Za-z0-9_])|(?<![A-Za-z0-9])/att(?![A-Za-z0-9])'
+$ignoredDirectoryNames = @(
+    '.git',
+    '.mypy_cache',
+    '.pytest_cache',
+    '.ruff_cache',
+    '__pycache__',
+    'artifacts',
+    'node_modules'
+)
 
-$files = @(
+function Test-IgnoredPath {
+    param([string]$Path)
+
+    $relativePath = [System.IO.Path]::GetRelativePath($repoRoot, $Path)
+    $segments = @($relativePath -split '[\\/]')
+    return @($segments | Where-Object { $_ -in $ignoredDirectoryNames }).Count -gt 0
+}
+
+$activeItems = @(
     foreach ($root in $activeRoots) {
         if (Test-Path -LiteralPath $root) {
-            Get-ChildItem -LiteralPath $root -File -Recurse
+            Get-Item -LiteralPath $root
+            Get-ChildItem -LiteralPath $root -Force -Recurse
         }
     }
     foreach ($path in $activeFiles) {
@@ -31,16 +49,28 @@ $files = @(
     }
 ) | Where-Object {
     $_.FullName -notin $allowedLegacyFiles -and
-        $_.Extension -in @('.lua', '.ps1', '.py', '.md', '.toc')
+        -not (Test-IgnoredPath -Path $_.FullName)
 }
 
-$violations = @(
-    $files | Select-String -Pattern $legacyPattern
+$nameViolations = @(
+    $activeItems |
+        Where-Object { $_.Name -match $legacyPattern } |
+        ForEach-Object { "$($_.FullName): legacy identity in active name" }
 )
-if ($violations.Count -gt 0) {
-    $details = $violations |
+
+$contentViolations = @(
+    $activeItems |
+        Where-Object {
+            -not $_.PSIsContainer -and
+            $_.Attributes -band [System.IO.FileAttributes]::ReparsePoint -eq 0
+        } |
+        Select-String -Pattern $legacyPattern
+) |
         ForEach-Object { "$($_.Path):$($_.LineNumber): $($_.Line.Trim())" }
-    throw "Legacy ATT identity remains in active release surfaces:`n$($details -join "`n")"
+
+$violations = @($nameViolations) + @($contentViolations)
+if ($violations.Count -gt 0) {
+    throw "Legacy ATT identity remains in active release surfaces:`n$($violations -join "`n")"
 }
 
 Write-Output 'PASS active release surfaces use only the ATM identity'

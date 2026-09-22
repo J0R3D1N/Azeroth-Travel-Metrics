@@ -7,9 +7,9 @@ if (-not (Test-Path -LiteralPath $packageScript -PathType Leaf)) {
     throw "Package script does not exist: $packageScript"
 }
 
-$env:ATT_PACKAGE_VALIDATION_ONLY = '1'
+$env:ATM_PACKAGE_VALIDATION_ONLY = '1'
 . $packageScript
-Remove-Item Env:\ATT_PACKAGE_VALIDATION_ONLY
+Remove-Item Env:\ATM_PACKAGE_VALIDATION_ONLY
 
 $passed = 0
 $failed = 0

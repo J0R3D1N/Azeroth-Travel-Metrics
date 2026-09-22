@@ -22,7 +22,8 @@ if (-not $interfaceVersions) {
 }
 
 $interfaceVersion = ($interfaceVersions | Measure-Object -Maximum).Maximum
-$addonTocPath = Join-Path $PSScriptRoot '..\AzerothTravelTracker\AzerothTravelTracker.toc'
+$addonTocPath = Join-Path $PSScriptRoot `
+    '..\AzerothTravelMetrics\AzerothTravelMetrics.toc'
 $addonTocPath = (Resolve-Path -LiteralPath $addonTocPath).Path
 $addonToc = Get-Content -LiteralPath $addonTocPath -Raw
 $interfacePattern = [regex]::new('(?m)^## Interface:[^\S\r\n]*\d+[^\S\r\n]*(?=\r?$)')

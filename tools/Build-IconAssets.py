@@ -5,10 +5,10 @@ from PIL import Image, ImageChops, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "artwork" / "source"
-TARGET = ROOT / "AzerothTravelTracker" / "Media"
+TARGET = ROOT / "AzerothTravelMetrics" / "Media"
 ASSETS = {
     "azeroth_travel_metrics.jpg": {
-        "target": "ATTLogo.tga",
+        "target": "ATMLogo.tga",
         "mask": "circle",
         "isolate": "boot",
         "crop": (

@@ -9,9 +9,9 @@ from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MEDIA = ROOT / "AzerothTravelTracker" / "Media"
+MEDIA = ROOT / "AzerothTravelMetrics" / "Media"
 BUILDER_PATH = ROOT / "tools" / "Build-IconAssets.py"
-ASSET_NAMES = ("ATTLogo.tga", "Overview.tga", "ByLevel.tga")
+ASSET_NAMES = ("ATMLogo.tga", "Overview.tga", "ByLevel.tga")
 CORNER_BOXES = (
     (range(0, 12), range(0, 12)),
     (range(52, 64), range(0, 12)),
@@ -47,7 +47,7 @@ class IconAssetTests(unittest.TestCase):
         self.assertEqual(
             {
                 "azeroth_travel_metrics.jpg": {
-                    "target": "ATTLogo.tga",
+                    "target": "ATMLogo.tga",
                     "mask": "circle",
                     "isolate": "boot",
                     "crop": (
@@ -69,8 +69,8 @@ class IconAssetTests(unittest.TestCase):
             builder.ASSETS,
         )
 
-    def test_att_logo_retains_boot_contrast_at_actual_minimap_size(self):
-        with Image.open(MEDIA / "ATTLogo.tga") as source:
+    def test_atm_logo_retains_boot_contrast_at_actual_minimap_size(self):
+        with Image.open(MEDIA / "ATMLogo.tga") as source:
             image = (
                 source.convert("RGBA")
                 .convert("RGBa")
@@ -121,8 +121,8 @@ class IconAssetTests(unittest.TestCase):
             0.15,
         )
 
-    def test_att_logo_excludes_terrain_colors_at_small_sizes(self):
-        with Image.open(MEDIA / "ATTLogo.tga") as source:
+    def test_atm_logo_excludes_terrain_colors_at_small_sizes(self):
+        with Image.open(MEDIA / "ATMLogo.tga") as source:
             for size in (20, 32):
                 with self.subTest(size=size):
                     image = (
@@ -141,8 +141,8 @@ class IconAssetTests(unittest.TestCase):
 
                     self.assertEqual([], terrain)
 
-    def test_att_logo_excludes_fish_blue_from_upper_region_at_small_sizes(self):
-        with Image.open(MEDIA / "ATTLogo.tga") as source:
+    def test_atm_logo_excludes_fish_blue_from_upper_region_at_small_sizes(self):
+        with Image.open(MEDIA / "ATMLogo.tga") as source:
             for size in (20, 32):
                 with self.subTest(size=size):
                     image = (
@@ -200,8 +200,8 @@ class IconAssetTests(unittest.TestCase):
                         0.30,
                     )
 
-    def test_att_logo_uses_circular_alpha_mask(self):
-        with Image.open(MEDIA / "ATTLogo.tga") as source:
+    def test_atm_logo_uses_circular_alpha_mask(self):
+        with Image.open(MEDIA / "ATMLogo.tga") as source:
             image = source.convert("RGBA")
 
         self.assertEqual((64, 64), image.size)

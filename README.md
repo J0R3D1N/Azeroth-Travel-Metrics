@@ -1,8 +1,8 @@
-# Azeroth Travel Tracker
+# Azeroth Travel Metrics
 
-Azeroth Travel Tracker is a dependency-free addon for the **World of Warcraft: Forever beta**. It records travel distance and estimates race-scaled on-foot steps while keeping the underlying totals authoritative in yards.
+Azeroth Travel Metrics is a dependency-free addon for the **World of Warcraft: Forever beta**. It records travel distance and estimates race-scaled on-foot steps while keeping the underlying totals authoritative in yards.
 
-The WoW AddOns menu lists this build as **Azeroth Travel Tracker - WoW: Forever (beta)** so it cannot be confused with a release for another client.
+The WoW AddOns menu lists this build as **Azeroth Travel Metrics - WoW: Forever (beta)** so it cannot be confused with a release for another client. The UI footer identifies the release as **ATM v1.0.0-beta**.
 
 This repository produces a beta candidate. Automated validation does not replace the pending in-game checks in [`docs/BETA-SMOKE-TESTS.md`](docs/BETA-SMOKE-TESTS.md).
 
@@ -54,35 +54,35 @@ The beta may omit or change movement-state and position APIs. The addon probes r
 3. Confirm the resulting folder is exactly:
 
    ```text
-   <World of Warcraft>\_classic_beta_\Interface\AddOns\AzerothTravelTracker\
+   <World of Warcraft>\_classic_beta_\Interface\AddOns\AzerothTravelMetrics\
    ```
 
-4. Confirm that folder directly contains `AzerothTravelTracker.toc`; do not leave an extra archive directory level.
-5. Enable **Azeroth Travel Tracker - WoW: Forever (beta)** in the character-select AddOns list.
+4. Confirm that folder directly contains `AzerothTravelMetrics.toc`; do not leave an extra archive directory level.
+5. Enable **Azeroth Travel Metrics - WoW: Forever (beta)** in the character-select AddOns list.
 
-Do not overwrite an existing `AzerothTravelTracker` directory without first preserving or intentionally replacing it.
+Do not overwrite an existing `AzerothTravelMetrics` directory without first preserving or intentionally replacing it.
 
 After replacing the installed addon folder or TOC, keep WoW closed, reapply ForeverSVFix, and then run its `doctor` command before launching WoW.
 
 ## Controls
 
-Both `/att` and `/azerothtraveltracker` accept the same commands:
+`/atm` is the only slash command:
 
 | Command | Action |
 |---|---|
-| `/att` or `/att show` | Open or close the statistics window. |
-| `/att reset session` | Open a confirmation before resetting current-session totals. |
-| `/att units metric` | Use meters and kilometers. |
-| `/att units imperial` | Use yards and miles. |
-| `/att diagnostics on` | Show diagnostic counters in the main window. |
-| `/att diagnostics off` | Hide diagnostic counters. |
-| `/att status` | Print capability state and diagnostic counters to chat. |
+| `/atm` or `/atm show` | Open or close the statistics window. |
+| `/atm reset session` | Open a confirmation before resetting current-session totals. |
+| `/atm units metric` | Use meters and kilometers. |
+| `/atm units imperial` | Use yards and miles. |
+| `/atm diagnostics on` | Show diagnostic counters in the main window. |
+| `/atm diagnostics off` | Hide diagnostic counters. |
+| `/atm status` | Print capability state and diagnostic counters to chat. |
 
 The main window can be moved by left-dragging it. Left-click the minimap launcher to always open the regular panel; if the minimized HUD is visible, the regular panel replaces it. The launcher does not toggle the regular panel closed. Drag the launcher to reposition it. Use **Settings** in the main window for units, minimap visibility, and diagnostic visibility.
 
 ## Data and reset behavior
 
-`AzerothTravelTrackerDB` is the account SavedVariables table. It stores settings and per-character lifetime, session, and level totals across `/reload`. Lifetime and level totals also persist across logout.
+`AzerothTravelMetricsDB` is the account SavedVariables table. It stores settings and per-character lifetime, session, and level totals across `/reload`. Lifetime and level totals also persist across logout.
 
 The current session is reset on a full character login or when **Reset Session** is confirmed. `/reload` preserves the active session. A manual session reset does not erase lifetime totals or per-level history. Level-up starts or selects the new level bucket while preserving earlier levels.
 
@@ -114,10 +114,10 @@ Build the beta candidate:
 Or specify another TOC/package version:
 
 ```powershell
-.\tools\Package-Addon.ps1 -Version '0.1.0-beta'
+.\tools\Package-Addon.ps1 -Version '1.0.0-beta'
 ```
 
-Packaging reruns the Lua tests, validates required TOC metadata and file entries, recreates only `artifacts\AzerothTravelTracker`, writes `artifacts\AzerothTravelTracker-<version>.zip`, and verifies that every archive entry is beneath one `AzerothTravelTracker` top-level directory.
+Packaging reruns the Lua tests, validates required TOC metadata and file entries, recreates only `artifacts\AzerothTravelMetrics`, writes `artifacts\AzerothTravelMetrics-1.0.0-beta.zip`, and verifies that every archive entry is beneath one `AzerothTravelMetrics` top-level directory.
 
 The clean package intentionally excludes `X-ForeverSVFix` markers, `ForeverSVFixData`, generated files, and account-specific junctions. After replacing an installed addon folder or TOC during development, keep WoW closed, reapply ForeverSVFix, and run its `doctor` command before launching WoW.
 
@@ -133,11 +133,11 @@ python .\tools\Build-IconAssets.py
 ```
 
 The distribution package includes only the three
-`AzerothTravelTracker/Media/*.tga` outputs. Source JPGs and the
+`AzerothTravelMetrics/Media/*.tga` outputs. Source JPGs and the
 `tab_iconography.jpg` comparison sheet are not packaged.
 
 ## Beta limitations and direction
 
-Tracking depends on the Forever beta exposing usable position, map, timer, taxi, swimming, mounted, and falling-state APIs. Missing or malformed capabilities appear through `/att status` and optional diagnostics; affected samples are excluded. Zoning, portals, hearths, teleports, instances, long sample gaps, implausible speeds, and unsupported state transitions are rejected to avoid false distance.
+Tracking depends on the Forever beta exposing usable position, map, timer, taxi, swimming, mounted, and falling-state APIs. Missing or malformed capabilities appear through `/atm status` and optional diagnostics; affected samples are excluded. Zoning, portals, hearths, teleports, instances, long sample gaps, implausible speeds, and unsupported state transitions are rejected to avoid false distance.
 
 Future work may revisit mounted travel and a breadcrumb or route-map view after beta APIs and gameplay behavior are understood. Neither is promised for a particular release.
