@@ -12,6 +12,9 @@ local function completeGlobals(overrides)
         UnitPosition = function()
             return 111, 222, 333, 444
         end,
+        GetInstanceInfo = function()
+            return "Test Zone", "none", 1, "Normal", 5, 0, false, 888
+        end,
         C_Map = {
             GetBestMapForUnit = function()
                 return 50
@@ -65,10 +68,10 @@ testlib.case("compat reads a complete normalized sample", function()
     local value, reason = addon.Compat.ReadSample()
 
     testlib.equal(reason, nil)
-    testlib.equal(value.x, 222)
-    testlib.equal(value.y, 111)
+    testlib.equal(value.x, 111)
+    testlib.equal(value.y, 222)
     testlib.equal(value.z, 333)
-    testlib.equal(value.instanceID, 444)
+    testlib.equal(value.instanceID, 888)
     testlib.equal(value.mapID, 50)
     testlib.equal(value.time, 60)
     testlib.equal(value.onTaxi, true)

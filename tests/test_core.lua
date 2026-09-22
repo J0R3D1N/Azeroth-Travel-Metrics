@@ -586,6 +586,23 @@ testlib.case("core registers one frame for all lifecycle events and slash comman
     )
 end)
 
+testlib.case("core does not replace a missing Blizzard slash command table", function()
+    local eventFrame = {
+        RegisterEvent = function() end,
+        SetScript = function() end,
+    }
+    local globals = {
+        CreateFrame = function()
+            return eventFrame
+        end,
+    }
+
+    local succeeded, _, environment = pcall(testlib.loadAddon, CORE_FILES, globals)
+
+    testlib.equal(succeeded, true)
+    testlib.equal(environment.SlashCmdList, nil)
+end)
+
 testlib.case("ADDON_LOADED initializes only the database once", function()
     local harness = newCoreHarness({
         savedDB = {

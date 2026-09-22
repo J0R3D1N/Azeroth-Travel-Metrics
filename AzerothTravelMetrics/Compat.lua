@@ -41,12 +41,18 @@ local function callBoolean(api, ...)
 end
 
 local function readPosition()
-    if type(UnitPosition) ~= "function" then
+    if type(UnitPosition) ~= "function"
+        or type(GetInstanceInfo) ~= "function"
+    then
         return nil
     end
 
-    local succeeded, y, x, z, instanceID = pcall(UnitPosition, "player")
-    if not succeeded
+    local positionSucceeded, x, y, z = pcall(UnitPosition, "player")
+    local instanceSucceeded, _, _, _, _, _, _, _, instanceID = pcall(
+        GetInstanceInfo
+    )
+    if not positionSucceeded
+        or not instanceSucceeded
         or not isFiniteNumber(x)
         or not isFiniteNumber(y)
         or not isFiniteNumber(z)

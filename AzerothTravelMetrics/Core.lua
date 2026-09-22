@@ -613,7 +613,8 @@ eventFrame:SetScript("OnEvent", function(_, eventName, ...)
 end)
 
 SLASH_AZEROTHTRAVELMETRICS1 = "/atm"
-SlashCmdList = SlashCmdList or {}
-SlashCmdList.AZEROTHTRAVELMETRICS = function(message)
-    Core.HandleSlashCommand(message)
+if type(SlashCmdList) == "table" then
+    SlashCmdList.AZEROTHTRAVELMETRICS = function(message)
+        Core.HandleSlashCommand(message)
+    end
 end
