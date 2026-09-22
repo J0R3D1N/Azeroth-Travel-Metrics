@@ -1,8 +1,8 @@
-local _, ATT = ...
+local _, ATM = ...
 
-ATT.UIModel = {}
+ATM.UIModel = {}
 
-local UIModel = ATT.UIModel
+local UIModel = ATM.UIModel
 
 local function isFiniteNumber(value)
     return type(value) == "number"
@@ -53,20 +53,20 @@ local function normalizedUnits(units)
 end
 
 local function buildSummary(totals, raceFile, units)
-    local rawSteps = ATT.Stride.EstimateSteps(totals.onFoot, raceFile)
+    local rawSteps = ATM.Stride.EstimateSteps(totals.onFoot, raceFile)
     local totalYards = totals.onFoot + totals.swimming + totals.taxi
 
     return {
         rawSteps = rawSteps,
-        steps = ATT.Distance.FormatNumber(rawSteps),
+        steps = ATM.Distance.FormatNumber(rawSteps),
         onFootYards = totals.onFoot,
         swimmingYards = totals.swimming,
         taxiYards = totals.taxi,
         totalYards = totalYards,
-        onFoot = ATT.Distance.Format(totals.onFoot, units),
-        swimming = ATT.Distance.Format(totals.swimming, units),
-        taxi = ATT.Distance.Format(totals.taxi, units),
-        total = ATT.Distance.Format(totalYards, units),
+        onFoot = ATM.Distance.Format(totals.onFoot, units),
+        swimming = ATM.Distance.Format(totals.swimming, units),
+        taxi = ATM.Distance.Format(totals.taxi, units),
+        total = ATM.Distance.Format(totalYards, units),
     }
 end
 

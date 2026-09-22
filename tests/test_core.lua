@@ -1,20 +1,20 @@
 local testlib = require("testlib")
 
 local CORE_FILES = {
-    "AzerothTravelTracker\\Namespace.lua",
-    "AzerothTravelTracker\\Core.lua",
+    "AzerothTravelMetrics\\Namespace.lua",
+    "AzerothTravelMetrics\\Core.lua",
 }
 
 local RELOG_INTEGRATION_FILES = {
-    "AzerothTravelTracker\\Namespace.lua",
-    "AzerothTravelTracker\\Storage.lua",
-    "AzerothTravelTracker\\Core.lua",
+    "AzerothTravelMetrics\\Namespace.lua",
+    "AzerothTravelMetrics\\Storage.lua",
+    "AzerothTravelMetrics\\Core.lua",
 }
 
 local UI_FILES = {
-    "AzerothTravelTracker\\Namespace.lua",
-    "AzerothTravelTracker\\UITheme.lua",
-    "AzerothTravelTracker\\UI.lua",
+    "AzerothTravelMetrics\\Namespace.lua",
+    "AzerothTravelMetrics\\UITheme.lua",
+    "AzerothTravelMetrics\\UI.lua",
 }
 
 local function countKeys(value)
@@ -58,7 +58,7 @@ local function newCoreHarness(options)
     options = options or {}
 
     local globals, eventFrame = newEventGlobals()
-    globals.AzerothTravelTrackerDB = options.savedDB
+    globals.AzerothTravelMetricsDB = options.savedDB
 
     local addon, environment = testlib.loadAddon(CORE_FILES, globals)
     local calls = {
@@ -427,7 +427,7 @@ local function newRelogIntegrationHarness(options)
         },
     }
     if not options.deferSavedDB then
-        globals.AzerothTravelTrackerDB = db
+        globals.AzerothTravelMetricsDB = db
     end
 
     local addon, environment = testlib.loadAddon(
@@ -538,7 +538,7 @@ local function newRelogIntegrationHarness(options)
         identity = identity,
         tracker = tracker,
         loadSavedDB = function()
-            environment.AzerothTravelTrackerDB = db
+            environment.AzerothTravelMetricsDB = db
         end,
         fire = function(eventName, ...)
             eventFrame.scripts.OnEvent(eventFrame, eventName, ...)
@@ -547,7 +547,7 @@ local function newRelogIntegrationHarness(options)
 end
 
 local function initialize(harness)
-    harness.fire("ADDON_LOADED", "AzerothTravelTracker")
+    harness.fire("ADDON_LOADED", "AzerothTravelMetrics")
 end
 
 local function enterWorld(harness, isInitialLogin, isReloadingUi)
@@ -571,14 +571,18 @@ testlib.case("core registers one frame for all lifecycle events and slash comman
     testlib.equal(harness.eventFrame.events.PLAYER_ENTERING_WORLD, true)
     testlib.equal(harness.eventFrame.events.PLAYER_LEVEL_UP, true)
     testlib.equal(harness.eventFrame.events.PLAYER_LOGOUT, true)
-    testlib.equal(harness.environment.SLASH_AZEROTHTRAVELTRACKER1, "/att")
+    testlib.equal(harness.environment.SLASH_AZEROTHTRAVELMETRICS1, "/atm")
     testlib.equal(
-        harness.environment.SLASH_AZEROTHTRAVELTRACKER2,
-        "/azerothtraveltracker"
+        harness.environment.SLASH_AZEROTHTRAVELMETRICS2,
+        nil
     )
     testlib.equal(
-        type(harness.environment.SlashCmdList.AZEROTHTRAVELTRACKER),
+        type(harness.environment.SlashCmdList.AZEROTHTRAVELMETRICS),
         "function"
+    )
+    testlib.equal(
+        harness.environment.SlashCmdList["AZEROTH" .. "TRAVELTRACKER"],
+        nil
     )
 end)
 
@@ -602,7 +606,7 @@ testlib.case("ADDON_LOADED initializes only the database once", function()
     testlib.equal(harness.calls.uiInitialize, 0)
     testlib.equal(harness.calls.minimapInitialize, 0)
     testlib.equal(#harness.calls.tickers, 0)
-    testlib.equal(harness.environment.AzerothTravelTrackerDB, harness.db)
+    testlib.equal(harness.environment.AzerothTravelMetricsDB, harness.db)
     local state = harness.addon.Core.GetState()
     testlib.equal(state.initialized, true)
     testlib.equal(state.databaseReady, true)
@@ -808,7 +812,7 @@ testlib.case("reload waits for late SavedVariables before binding runtime", func
     local state = harness.addon.Core.GetState()
     testlib.equal(state.databaseReady, false)
     testlib.equal(state.db, nil)
-    testlib.equal(harness.environment.AzerothTravelTrackerDB, nil)
+    testlib.equal(harness.environment.AzerothTravelMetricsDB, nil)
 
     harness.loadSavedDB()
     enterWorld(harness, false, true)
@@ -843,7 +847,7 @@ testlib.case("production storage lifecycle recovers canonical relog character", 
 
     local state = harness.addon.Core.GetState()
     local freshSession = character.session
-    testlib.equal(harness.environment.AzerothTravelTrackerDB, harness.db)
+    testlib.equal(harness.environment.AzerothTravelMetricsDB, harness.db)
     testlib.equal(state.db, harness.db)
     testlib.equal(
         harness.db.characters["Traveler-TestRealm"],
@@ -1067,7 +1071,7 @@ testlib.case("unsupported storage preserves the saved DB and reports once", func
     initialize(harness)
     enterWorld(harness)
 
-    testlib.equal(harness.environment.AzerothTravelTrackerDB, savedDB)
+    testlib.equal(harness.environment.AzerothTravelMetricsDB, savedDB)
     testlib.equal(harness.calls.identity, 0)
     testlib.equal(harness.calls.getCharacter, 0)
     testlib.equal(#harness.calls.tickers, 0)
@@ -1088,7 +1092,7 @@ testlib.case("identity failure retains the database and retries without an empty
     initialize(harness)
     enterWorld(harness)
 
-    testlib.equal(harness.environment.AzerothTravelTrackerDB, harness.db)
+    testlib.equal(harness.environment.AzerothTravelMetricsDB, harness.db)
     testlib.equal(harness.addon.Core.GetState().databaseReady, true)
     testlib.equal(harness.addon.Core.GetState().ready, false)
     testlib.equal(harness.calls.identity, 1)
@@ -1400,7 +1404,7 @@ end)
 testlib.case("slash commands toggle and persist units and diagnostics", function()
     local harness = newCoreHarness()
     makeReady(harness)
-    local slash = harness.environment.SlashCmdList.AZEROTHTRAVELTRACKER
+    local slash = harness.environment.SlashCmdList.AZEROTHTRAVELMETRICS
 
     slash("")
     slash("show")
@@ -1421,7 +1425,7 @@ testlib.case("reset command opens confirmation without resetting immediately", f
     local harness = newCoreHarness()
     makeReady(harness)
 
-    harness.environment.SlashCmdList.AZEROTHTRAVELTRACKER("reset session")
+    harness.environment.SlashCmdList.AZEROTHTRAVELMETRICS("reset session")
 
     testlib.equal(harness.calls.uiConfirmReset, 1)
 end)
@@ -1443,7 +1447,7 @@ testlib.case("status prints capabilities and sorted diagnostic counts", function
     })
     makeReady(harness)
 
-    harness.environment.SlashCmdList.AZEROTHTRAVELTRACKER("status")
+    harness.environment.SlashCmdList.AZEROTHTRAVELMETRICS("status")
 
     testlib.equal(#harness.calls.prints, 4)
     testlib.truthy(contains(harness.calls.prints[1], "position=true"))
@@ -1455,7 +1459,7 @@ end)
 
 testlib.case("slash commands report not-ready and concise usage without throwing", function()
     local harness = newCoreHarness()
-    local slash = harness.environment.SlashCmdList.AZEROTHTRAVELTRACKER
+    local slash = harness.environment.SlashCmdList.AZEROTHTRAVELMETRICS
 
     local readySucceeded = pcall(slash, "status")
     testlib.equal(readySucceeded, true)
@@ -1849,7 +1853,7 @@ local function newUIHarness(options)
                 if options.metadataValue ~= nil then
                     return options.metadataValue
                 end
-                return "0.1.0-beta"
+                return "1.0.0-beta"
             end,
         }
     end
@@ -1967,12 +1971,12 @@ local function newUIHarness(options)
                 table.insert(frame.children, unrelated)
             end
         end
-        if name == "AzerothTravelTrackerFrame"
-            or name == "AzerothTravelTrackerHUD"
+        if name == "AzerothTravelMetricsFrame"
+            or name == "AzerothTravelMetricsHUD"
         then
             local original = frame.SetFrameStrata
             frame.SetFrameStrata = function(self, strata)
-                local attempts = name == "AzerothTravelTrackerFrame"
+                local attempts = name == "AzerothTravelMetricsFrame"
                     and strataAttempts
                     or calls.hudStrataAttempts
                 table.insert(attempts, strata)
@@ -2297,7 +2301,7 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     )
     testlib.equal(
         harness.addon.UITheme.Icons.TITLE,
-        "Interface\\AddOns\\AzerothTravelTracker\\Media\\ATTLogo"
+        "Interface\\AddOns\\AzerothTravelMetrics\\Media\\ATMLogo"
     )
     testlib.equal(harness.addon.UI.titleRegion.height, 44)
     testlib.equal(harness.addon.UI.titleRegion.point[1], "TOPLEFT")
@@ -2331,7 +2335,7 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
         harness.addon.UI.titleIconFrame.frameLevel
             > harness.addon.UI.shell.topGlow.parent:GetFrameLevel()
     )
-    testlib.equal(harness.addon.UI.title:GetText(), "Azeroth Travel Tracker")
+    testlib.equal(harness.addon.UI.title:GetText(), "Azeroth Travel Metrics")
     testlib.equal(harness.addon.UI.title.justifyH, "LEFT")
     testlib.equal(harness.addon.UI.title.points[1][1], "LEFT")
     testlib.equal(
@@ -2446,7 +2450,7 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     testlib.equal(harness.addon.UI.settingsButton.point[3], "LEFT")
     testlib.equal(harness.addon.UI.settingsButton.point[4], -8)
     testlib.equal(harness.addon.UI.settingsButton.point[5], 0)
-    testlib.equal(harness.addon.UI.versionLabel:GetText(), "ATT v0.1.0-beta")
+    testlib.equal(harness.addon.UI.versionLabel:GetText(), "ATM v1.0.0-beta")
     testlib.equal(harness.addon.UI.versionLabel.template, "GameFontDisableSmall")
     testlib.equal(harness.addon.UI.versionLabel.justifyH, "RIGHT")
     testlib.equal(harness.addon.UI.versionLabel.point[1], "BOTTOMRIGHT")
@@ -2455,7 +2459,7 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     testlib.equal(harness.addon.UI.shell.topGlow.height, 44)
     testlib.equal(harness.calls.modernMetadata, 1)
     testlib.equal(harness.calls.legacyMetadata, 0)
-    testlib.equal(harness.calls.metadataAddonName, "AzerothTravelTracker")
+    testlib.equal(harness.calls.metadataAddonName, "AzerothTravelMetrics")
     testlib.equal(harness.calls.metadataField, "Version")
     testlib.equal(harness.addon.UI.contentInset, nil)
     testlib.truthy(harness.addon.UI.errorInset ~= nil)
@@ -2479,11 +2483,11 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     )
     testlib.equal(
         harness.addon.UITheme.Icons.OVERVIEW,
-        "Interface\\AddOns\\AzerothTravelTracker\\Media\\Overview"
+        "Interface\\AddOns\\AzerothTravelMetrics\\Media\\Overview"
     )
     testlib.equal(
         harness.addon.UITheme.Icons.LEVELS,
-        "Interface\\AddOns\\AzerothTravelTracker\\Media\\ByLevel"
+        "Interface\\AddOns\\AzerothTravelMetrics\\Media\\ByLevel"
     )
     testlib.equal(
         harness.addon.UI.overviewTab.Icon.texture,
@@ -2595,7 +2599,7 @@ testlib.case("ui explicitly owns title icon text and controls without native chr
     testlib.truthy(harness.addon.UI.titleIconFrame ~= nil)
     testlib.truthy(harness.addon.UI.closeButton ~= nil)
     testlib.truthy(harness.addon.UI.minimizeButton ~= nil)
-    testlib.equal(harness.addon.UI.title:GetText(), "Azeroth Travel Tracker")
+    testlib.equal(harness.addon.UI.title:GetText(), "Azeroth Travel Metrics")
 end)
 
 testlib.case("ui remains visible when all shell side-tab and atlas assets fail", function()
@@ -2626,7 +2630,7 @@ testlib.case("ui remains visible when all shell side-tab and atlas assets fail",
         noTemplate.addon.UI.summarySections[1].rows[1].label:GetText(),
         "Estimated Steps"
     )
-    testlib.equal(noTemplate.addon.UI.title:GetText(), "Azeroth Travel Tracker")
+    testlib.equal(noTemplate.addon.UI.title:GetText(), "Azeroth Travel Metrics")
     testlib.truthy(noTemplate.addon.UI.shell.fallbackBackground.color ~= nil)
     testlib.equal(#noTemplate.addon.UI.shell.fallbackBorder, 4)
 end)
@@ -2636,7 +2640,7 @@ testlib.case("ui version footer trims metadata and falls back safely", function(
         metadataValue = "  2.4.6-rc1  ",
     })
     metadata.addon.UI.Create()
-    testlib.equal(metadata.addon.UI.versionLabel:GetText(), "ATT v2.4.6-rc1")
+    testlib.equal(metadata.addon.UI.versionLabel:GetText(), "ATM v2.4.6-rc1")
     testlib.equal(metadata.calls.modernMetadata, 1)
     testlib.equal(metadata.calls.legacyMetadata, 0)
 
@@ -2645,7 +2649,7 @@ testlib.case("ui version footer trims metadata and falls back safely", function(
         legacyMetadataValue = "  3.5.7  ",
     })
     legacy.addon.UI.Create()
-    testlib.equal(legacy.addon.UI.versionLabel:GetText(), "ATT v3.5.7")
+    testlib.equal(legacy.addon.UI.versionLabel:GetText(), "ATM v3.5.7")
     testlib.equal(legacy.calls.modernMetadata, 0)
     testlib.equal(legacy.calls.legacyMetadata, 1)
 
@@ -2670,7 +2674,7 @@ testlib.case("ui version footer trims metadata and falls back safely", function(
         testlib.equal(succeeded, true)
         testlib.equal(
             harness.addon.UI.versionLabel:GetText(),
-            "ATT v" .. harness.addon.VERSION_FALLBACK
+            "ATM v" .. harness.addon.VERSION_FALLBACK
         )
         testlib.equal(harness.addon.UI.errorText:IsShown(), false)
     end
@@ -2740,7 +2744,7 @@ testlib.case("ui registers the regular frame once for Escape handling", function
     testlib.equal(#harness.environment.UISpecialFrames, 1)
     testlib.equal(
         harness.environment.UISpecialFrames[1],
-        "AzerothTravelTrackerFrame"
+        "AzerothTravelMetricsFrame"
     )
 end)
 
@@ -2748,7 +2752,7 @@ testlib.case("ui does not duplicate an existing Escape registration", function()
     local harness = newUIHarness({
         uispecialframes = {
             "OtherFrame",
-            "AzerothTravelTrackerFrame",
+            "AzerothTravelMetricsFrame",
         },
     })
 
@@ -2757,14 +2761,14 @@ testlib.case("ui does not duplicate an existing Escape registration", function()
     testlib.equal(#harness.environment.UISpecialFrames, 2)
     testlib.equal(
         harness.environment.UISpecialFrames[2],
-        "AzerothTravelTrackerFrame"
+        "AzerothTravelMetricsFrame"
     )
 end)
 
 testlib.case("ui finds an existing Escape registration after sparse entries", function()
     local specialFrames = {
         [1] = "OtherFrame",
-        [3] = "AzerothTravelTrackerFrame",
+        [3] = "AzerothTravelMetricsFrame",
     }
     local harness = newUIHarness({
         uispecialframes = specialFrames,
@@ -2774,7 +2778,7 @@ testlib.case("ui finds an existing Escape registration after sparse entries", fu
 
     local registrations = 0
     for _, frameName in pairs(harness.environment.UISpecialFrames) do
-        if frameName == "AzerothTravelTrackerFrame" then
+        if frameName == "AzerothTravelMetricsFrame" then
             registrations = registrations + 1
         end
     end
@@ -2933,7 +2937,7 @@ testlib.case("ui action buttons remain visible and interactive without panel tem
     UI.resetButton.scripts.OnClick()
     testlib.equal(
         harness.environment.shownPopup,
-        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+        "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
     )
 
     UI.Minimize()
@@ -3185,7 +3189,7 @@ testlib.case("ui regular close hides only the window and reopens without state m
 
     UI.ConfirmResetSession()
     local dialog = harness.environment.StaticPopupDialogs[
-        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+        "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
     ]
     dialog.OnAccept()
 
@@ -4021,12 +4025,12 @@ testlib.case("ui confirmation resets only the session after acceptance", functio
     harness.addon.UI.ConfirmResetSession()
     testlib.equal(
         harness.environment.shownPopup,
-        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+        "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
     )
     testlib.equal(harness.calls.reset, 0)
 
     local dialog = harness.environment.StaticPopupDialogs[
-        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+        "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
     ]
     dialog.OnAccept()
 
@@ -4071,7 +4075,7 @@ testlib.case("ui reset clears the prior baseline before the next sample", functi
     harness.addon.UI.Create()
     harness.addon.UI.ConfirmResetSession()
     local dialog = harness.environment.StaticPopupDialogs[
-        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+        "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
     ]
     dialog.OnAccept()
 
@@ -4092,7 +4096,7 @@ testlib.case("ui preserves a successful reset when baseline reset errors", funct
 
     harness.addon.UI.ConfirmResetSession()
     local dialog = harness.environment.StaticPopupDialogs[
-        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+        "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
     ]
     local succeeded = pcall(dialog.OnAccept)
 
@@ -4122,7 +4126,7 @@ testlib.case("ui reset preserves session and reports unavailable time", function
 
     harness.addon.UI.ConfirmResetSession()
     local dialog = harness.environment.StaticPopupDialogs[
-        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+        "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
     ]
     local succeeded = pcall(dialog.OnAccept)
 
@@ -4146,7 +4150,7 @@ testlib.case("ui reset preserves session and reports storage exceptions", functi
 
     harness.addon.UI.ConfirmResetSession()
     local dialog = harness.environment.StaticPopupDialogs[
-        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+        "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
     ]
     local succeeded = pcall(dialog.OnAccept)
 
@@ -4170,7 +4174,7 @@ testlib.case("ui reset preserves session and reports storage rejection", functio
 
     harness.addon.UI.ConfirmResetSession()
     local dialog = harness.environment.StaticPopupDialogs[
-        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+        "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
     ]
     local succeeded = pcall(dialog.OnAccept)
 
@@ -4211,7 +4215,7 @@ testlib.case("ui lifecycle remains safe during combat lockdown", function()
     testlib.equal(harness.addon.UI.levelPanel:IsShown(), false)
     testlib.equal(
         harness.environment.shownPopup,
-        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+        "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
     )
 end)
 
@@ -4228,7 +4232,7 @@ testlib.case("ui reset button opens confirmation and toggle reflects visibility"
     harness.addon.UI.resetButton.scripts.OnClick()
     testlib.equal(
         harness.environment.shownPopup,
-        "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+        "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
     )
     testlib.equal(harness.calls.reset, 0)
     testlib.equal(frame:IsShown(), false)
@@ -4241,9 +4245,9 @@ testlib.case("addon manifest references only files present in this task", functi
     local separator = package.config:sub(1, 1)
     local tocPath = projectDirectory
         .. separator
-        .. "AzerothTravelTracker"
+        .. "AzerothTravelMetrics"
         .. separator
-        .. "AzerothTravelTracker.toc"
+        .. "AzerothTravelMetrics.toc"
     local toc = assert(io.open(tocPath, "r"))
 
     local files = {}
@@ -4253,7 +4257,7 @@ testlib.case("addon manifest references only files present in this task", functi
             local relativePath = line:gsub("[\\/]", separator)
             local filePath = projectDirectory
                 .. separator
-                .. "AzerothTravelTracker"
+                .. "AzerothTravelMetrics"
                 .. separator
                 .. relativePath
             local referenced = io.open(filePath, "r")
@@ -4296,9 +4300,9 @@ testlib.case("addon manifest declares the sprint listing icon", function()
     local separator = package.config:sub(1, 1)
     local tocPath = projectDirectory
         .. separator
-        .. "AzerothTravelTracker"
+        .. "AzerothTravelMetrics"
         .. separator
-        .. "AzerothTravelTracker.toc"
+        .. "AzerothTravelMetrics.toc"
     local toc = assert(io.open(tocPath, "r"))
     local iconTextureLines = {}
 
@@ -4323,9 +4327,9 @@ testlib.case("fallback version matches the single addon manifest version", funct
     local separator = package.config:sub(1, 1)
     local tocPath = projectDirectory
         .. separator
-        .. "AzerothTravelTracker"
+        .. "AzerothTravelMetrics"
         .. separator
-        .. "AzerothTravelTracker.toc"
+        .. "AzerothTravelMetrics.toc"
     local toc = assert(io.open(tocPath, "r"))
     local versions = {}
 
@@ -4346,7 +4350,7 @@ testlib.case("fallback version matches the single addon manifest version", funct
         )
     )
 
-    local addon = testlib.loadAddon("AzerothTravelTracker\\Namespace.lua")
+    local addon = testlib.loadAddon("AzerothTravelMetrics\\Namespace.lua")
     testlib.equal(
         versions[1],
         addon.VERSION_FALLBACK,

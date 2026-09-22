@@ -2,8 +2,8 @@ local testlib = require("testlib")
 
 local function loadDistance()
     return testlib.loadAddon({
-        "AzerothTravelTracker\\Namespace.lua",
-        "AzerothTravelTracker\\Distance.lua",
+        "AzerothTravelMetrics\\Namespace.lua",
+        "AzerothTravelMetrics\\Distance.lua",
     })
 end
 

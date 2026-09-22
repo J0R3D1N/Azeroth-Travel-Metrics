@@ -1,13 +1,13 @@
-local _, ATT = ...
+local _, ATM = ...
 
-ATT.Movement = {}
+ATM.Movement = {}
 
-local Movement = ATT.Movement
+local Movement = ATM.Movement
 
 local maxSpeedByCategory = {
-    [ATT.Categories.ON_FOOT] = 20,
-    [ATT.Categories.SWIMMING] = 15,
-    [ATT.Categories.TAXI] = 200,
+    [ATM.Categories.ON_FOOT] = 20,
+    [ATM.Categories.SWIMMING] = 15,
+    [ATM.Categories.TAXI] = 200,
 }
 
 local function isFiniteNumber(value)
@@ -37,7 +37,7 @@ function Movement.Classify(sample)
             return nil, "unsupportedState"
         end
 
-        return ATT.Categories.TAXI
+        return ATM.Categories.TAXI
     end
 
     if type(sample.swimming) ~= "boolean" or type(sample.mounted) ~= "boolean" then
@@ -49,7 +49,7 @@ function Movement.Classify(sample)
     end
 
     if sample.swimming then
-        return ATT.Categories.SWIMMING
+        return ATM.Categories.SWIMMING
     end
 
     if type(sample.grounded) ~= "boolean" then
@@ -57,7 +57,7 @@ function Movement.Classify(sample)
     end
 
     if sample.grounded then
-        return ATT.Categories.ON_FOOT
+        return ATM.Categories.ON_FOOT
     end
 
     return nil, "unsupportedState"
@@ -120,7 +120,7 @@ function Movement.BuildSegment(from, to)
         return nil, "invalidElapsed"
     end
 
-    if elapsed > ATT.MAX_SAMPLE_GAP_SECONDS then
+    if elapsed > ATM.MAX_SAMPLE_GAP_SECONDS then
         return nil, "sampleGap"
     end
 

@@ -2,8 +2,8 @@ local testlib = require("testlib")
 
 local function loadMovement()
     return testlib.loadAddon({
-        "AzerothTravelTracker\\Namespace.lua",
-        "AzerothTravelTracker\\Movement.lua",
+        "AzerothTravelMetrics\\Namespace.lua",
+        "AzerothTravelMetrics\\Movement.lua",
     })
 end
 

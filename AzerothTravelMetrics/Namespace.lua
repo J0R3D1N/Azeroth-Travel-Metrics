@@ -1,12 +1,12 @@
-local addonName, ATT = ...
+local addonName, ATM = ...
 
-ATT.name = addonName
-ATT.SCHEMA_VERSION = 1
-ATT.VERSION_FALLBACK = "0.1.0-beta"
-ATT.SAMPLE_INTERVAL_SECONDS = 0.5
-ATT.MAX_SAMPLE_GAP_SECONDS = 3
+ATM.name = addonName
+ATM.SCHEMA_VERSION = 1
+ATM.VERSION_FALLBACK = "1.0.0-beta"
+ATM.SAMPLE_INTERVAL_SECONDS = 0.5
+ATM.MAX_SAMPLE_GAP_SECONDS = 3
 
-ATT.Categories = {
+ATM.Categories = {
     ON_FOOT = "onFoot",
     SWIMMING = "swimming",
     TAXI = "taxi",
@@ -14,12 +14,12 @@ ATT.Categories = {
 
 local callbacks = {}
 
-function ATT.Subscribe(eventName, callback)
+function ATM.Subscribe(eventName, callback)
     callbacks[eventName] = callbacks[eventName] or {}
     table.insert(callbacks[eventName], callback)
 end
 
-function ATT.Emit(eventName, payload)
+function ATM.Emit(eventName, payload)
     local failures = {}
 
     for index, callback in ipairs(callbacks[eventName] or {}) do

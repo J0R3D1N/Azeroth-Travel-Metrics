@@ -91,7 +91,7 @@ function New-ZipFixture {
 function New-PackageRepoFixture {
     param([string]$Path)
 
-    $fixtureAddonRoot = Join-Path $Path 'AzerothTravelTracker'
+    $fixtureAddonRoot = Join-Path $Path 'AzerothTravelMetrics'
     New-Item -ItemType Directory -Path (Join-Path $Path 'tools') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $Path 'tests') -Force | Out-Null
     New-Item -ItemType Directory -Path $fixtureAddonRoot -Force | Out-Null
@@ -104,7 +104,7 @@ function New-PackageRepoFixture {
     )
     $fixtureMediaRoot = Join-Path $fixtureAddonRoot 'Media'
     New-Item -ItemType Directory -Path $fixtureMediaRoot -Force | Out-Null
-    foreach ($textureName in @('ATTLogo.tga', 'Overview.tga', 'ByLevel.tga')) {
+    foreach ($textureName in @('ATMLogo.tga', 'Overview.tga', 'ByLevel.tga')) {
         [System.IO.File]::WriteAllBytes(
             (Join-Path $fixtureMediaRoot $textureName),
             [byte[]](0, 1, 2, 3)
@@ -112,12 +112,12 @@ function New-PackageRepoFixture {
     }
     @'
 ## Interface: 16001
-## Title: Azeroth Travel Tracker - WoW: Forever (beta)
-## Version: 0.1.0-beta
-## SavedVariables: AzerothTravelTrackerDB
+## Title: Azeroth Travel Metrics - WoW: Forever (beta)
+## Version: 1.0.0-beta
+## SavedVariables: AzerothTravelMetricsDB
 
 Present.lua
-'@ | Set-Content -LiteralPath (Join-Path $fixtureAddonRoot 'AzerothTravelTracker.toc')
+'@ | Set-Content -LiteralPath (Join-Path $fixtureAddonRoot 'AzerothTravelMetrics.toc')
 
     & git -C $Path init --quiet
     & git -C $Path config user.name 'Package Fixture'
@@ -158,20 +158,20 @@ function Invoke-PackageFixture {
 }
 
 $fixtureRoot = Join-Path ([System.IO.Path]::GetTempPath()) (
-    'AzerothTravelTracker-package-tests-' + [guid]::NewGuid().ToString('N')
+    'AzerothTravelMetrics-package-tests-' + [guid]::NewGuid().ToString('N')
 )
 
 try {
-    $addonRoot = Join-Path $fixtureRoot 'AzerothTravelTracker'
+    $addonRoot = Join-Path $fixtureRoot 'AzerothTravelMetrics'
     New-Item -ItemType Directory -Path $addonRoot | Out-Null
     Set-Content -LiteralPath (Join-Path $addonRoot 'Present.lua') -Value '-- fixture'
 
     $missingFileToc = Join-Path $addonRoot 'MissingFile.toc'
     @'
 ## Interface: 16001
-## Title: Azeroth Travel Tracker - WoW: Forever (beta)
-## Version: 0.1.0-beta
-## SavedVariables: AzerothTravelTrackerDB
+## Title: Azeroth Travel Metrics - WoW: Forever (beta)
+## Version: 1.0.0-beta
+## SavedVariables: AzerothTravelMetricsDB
 
 Present.lua
 Missing.lua
@@ -185,9 +185,9 @@ Missing.lua
     $nonnumericToc = Join-Path $addonRoot 'Nonnumeric.toc'
     @'
 ## Interface: beta
-## Title: Azeroth Travel Tracker - WoW: Forever (beta)
-## Version: 0.1.0-beta
-## SavedVariables: AzerothTravelTrackerDB
+## Title: Azeroth Travel Metrics - WoW: Forever (beta)
+## Version: 1.0.0-beta
+## SavedVariables: AzerothTravelMetricsDB
 
 Present.lua
 '@ | Set-Content -LiteralPath $nonnumericToc
@@ -200,9 +200,9 @@ Present.lua
     $oldTitleToc = Join-Path $addonRoot 'OldTitle.toc'
     @'
 ## Interface: 16001
-## Title: Azeroth Travel Tracker
-## Version: 0.1.0-beta
-## SavedVariables: AzerothTravelTrackerDB
+## Title: Azeroth Travel Metrics
+## Version: 1.0.0-beta
+## SavedVariables: AzerothTravelMetricsDB
 
 Present.lua
 '@ | Set-Content -LiteralPath $oldTitleToc
@@ -211,7 +211,7 @@ Present.lua
         -Name 'manifest rejects the ambiguous pre-Forever title' `
         -MessagePattern (
             '\A' + [regex]::Escape(
-                "Addon TOC Title must be 'Azeroth Travel Tracker - WoW: Forever (beta)', found 'Azeroth Travel Tracker'."
+                "Addon TOC Title must be 'Azeroth Travel Metrics - WoW: Forever (beta)', found 'Azeroth Travel Metrics'."
             ) + '\z'
         ) `
         -Action {
@@ -223,10 +223,10 @@ Present.lua
     $duplicateMetadataToc = Join-Path $addonRoot 'DuplicateMetadata.toc'
     @'
 ## Interface: 16001
-## Title: Azeroth Travel Tracker - WoW: Forever (beta)
-## Version: 0.1.0-beta
+## Title: Azeroth Travel Metrics - WoW: Forever (beta)
+## Version: 1.0.0-beta
 ## Version: conflicting
-## SavedVariables: AzerothTravelTrackerDB
+## SavedVariables: AzerothTravelMetricsDB
 
 Present.lua
 '@ | Set-Content -LiteralPath $duplicateMetadataToc
@@ -245,17 +245,17 @@ Present.lua
     Test-Throws `
         -Name 'zip validation rejects files at archive root' `
         -MessagePattern 'top-level directory' `
-        -Action { Assert-ZipLayout -ZipPath $badZip -ExpectedTopLevelDirectory 'AzerothTravelTracker' }
+        -Action { Assert-ZipLayout -ZipPath $badZip -ExpectedTopLevelDirectory 'AzerothTravelMetrics' }
 
     $validZip = Join-Path $fixtureRoot 'valid-layout.zip'
     New-ZipFixture -Path $validZip -EntryNames @(
-        'AzerothTravelTracker/',
-        'AzerothTravelTracker/Present.lua',
-        'AzerothTravelTracker\Nested\Present.lua'
+        'AzerothTravelMetrics/',
+        'AzerothTravelMetrics/Present.lua',
+        'AzerothTravelMetrics\Nested\Present.lua'
     )
     Test-DoesNotThrow `
         -Name 'zip validation accepts normal entries and directory markers' `
-        -Action { Assert-ZipLayout -ZipPath $validZip -ExpectedTopLevelDirectory 'AzerothTravelTracker' }
+        -Action { Assert-ZipLayout -ZipPath $validZip -ExpectedTopLevelDirectory 'AzerothTravelMetrics' }
 
     Test-Throws `
         -Name 'zip validation rejects an omitted regular source file' `
@@ -263,14 +263,14 @@ Present.lua
         -Action {
             Assert-ZipLayout `
                 -ZipPath $validZip `
-                -ExpectedTopLevelDirectory 'AzerothTravelTracker' `
+                -ExpectedTopLevelDirectory 'AzerothTravelMetrics' `
                 -ExpectedFilePaths @('Present.lua', 'Nested/Present.lua', 'Missing.lua')
         }
 
     $requiredTextures = @(
-        'AzerothTravelTracker/Media/ATTLogo.tga',
-        'AzerothTravelTracker/Media/Overview.tga',
-        'AzerothTravelTracker/Media/ByLevel.tga'
+        'AzerothTravelMetrics/Media/ATMLogo.tga',
+        'AzerothTravelMetrics/Media/Overview.tga',
+        'AzerothTravelMetrics/Media/ByLevel.tga'
     )
     Test-DoesNotThrow `
         -Name 'icon archive accepts exactly the three runtime TGA entries' `
@@ -289,8 +289,8 @@ Present.lua
         -Action {
             Assert-IconAssetArchiveEntries -EntryNames (
                 $requiredTextures + @(
-                    'AzerothTravelTracker\artwork\source\overview_icon.jpg',
-                    'AzerothTravelTracker/source.jpeg'
+                    'AzerothTravelMetrics\artwork\source\overview_icon.jpg',
+                    'AzerothTravelMetrics/source.jpeg'
                 )
             )
         }
@@ -300,22 +300,22 @@ Present.lua
         -Action {
             Assert-IconAssetArchiveEntries -EntryNames (
                 $requiredTextures + @(
-                    'AzerothTravelTracker\Media\tab_iconography.jpg'
+                    'AzerothTravelMetrics\Media\tab_iconography.jpg'
                 )
             )
         }
 
     $invalidZipEntries = @(
-        'AzerothTravelTracker/../escaped.lua',
-        'AzerothTravelTracker/./Present.lua',
-        'AzerothTravelTracker//Present.lua',
-        'AzerothTravelTracker\..\escaped.lua',
-        'AzerothTravelTracker\.\Present.lua',
-        'AzerothTravelTracker\\Present.lua',
-        '/AzerothTravelTracker/Present.lua',
-        '\AzerothTravelTracker\Present.lua',
-        'C:/AzerothTravelTracker/Present.lua',
-        'C:\AzerothTravelTracker\Present.lua',
+        'AzerothTravelMetrics/../escaped.lua',
+        'AzerothTravelMetrics/./Present.lua',
+        'AzerothTravelMetrics//Present.lua',
+        'AzerothTravelMetrics\..\escaped.lua',
+        'AzerothTravelMetrics\.\Present.lua',
+        'AzerothTravelMetrics\\Present.lua',
+        '/AzerothTravelMetrics/Present.lua',
+        '\AzerothTravelMetrics\Present.lua',
+        'C:/AzerothTravelMetrics/Present.lua',
+        'C:\AzerothTravelMetrics\Present.lua',
         'OtherAddon/Present.lua'
     )
     foreach ($invalidEntryName in $invalidZipEntries) {
@@ -330,7 +330,7 @@ Present.lua
             -Action {
                 Assert-ZipLayout `
                     -ZipPath $invalidZip `
-                    -ExpectedTopLevelDirectory 'AzerothTravelTracker'
+                    -ExpectedTopLevelDirectory 'AzerothTravelMetrics'
             }
     }
 
@@ -350,7 +350,7 @@ Present.lua
             Assert-SafeStagingPath `
                 -RepoRoot $fixtureRepo `
                 -ArtifactsRoot $artifactsJunction `
-                -StagingPath (Join-Path $artifactsJunction 'AzerothTravelTracker')
+                -StagingPath (Join-Path $artifactsJunction 'AzerothTravelMetrics')
         }
 
     $junctionRepo = Join-Path $fixtureRoot 'junction-source-repo'
@@ -498,12 +498,12 @@ Present.lua
                 -SnapshotZipPath $snapshotZip
             Assert-ZipLayout `
                 -ZipPath $snapshotZip `
-                -ExpectedTopLevelDirectory 'AzerothTravelTracker' `
+                -ExpectedTopLevelDirectory 'AzerothTravelMetrics' `
                 -ExpectedFilePaths $trackedSnapshotFiles
 
             $archive = [System.IO.Compression.ZipFile]::OpenRead($snapshotZip)
             try {
-                $entry = $archive.GetEntry('AzerothTravelTracker/Present.lua')
+                $entry = $archive.GetEntry('AzerothTravelMetrics/Present.lua')
                 if ($null -eq $entry) {
                     throw 'The immutable snapshot omitted Present.lua.'
                 }
@@ -582,7 +582,7 @@ Present.lua
                 throw $result.Output
             }
             if (-not (Test-Path -LiteralPath (
-                Join-Path $normalRepo 'artifacts\AzerothTravelTracker-0.1.0-beta.zip'
+                Join-Path $normalRepo 'artifacts\AzerothTravelMetrics-1.0.0-beta.zip'
             ) -PathType Leaf)) {
                 throw 'Expected package zip was not created.'
             }

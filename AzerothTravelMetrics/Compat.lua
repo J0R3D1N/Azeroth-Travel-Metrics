@@ -1,8 +1,8 @@
-local _, ATT = ...
+local _, ATM = ...
 
-ATT.Compat = {}
+ATM.Compat = {}
 
-local Compat = ATT.Compat
+local Compat = ATM.Compat
 
 local function isFiniteNumber(value)
     return type(value) == "number"

@@ -1,8 +1,8 @@
-local addonName, ATT = ...
+local addonName, ATM = ...
 
-ATT.Core = {}
+ATM.Core = {}
 
-local Core = ATT.Core
+local Core = ATM.Core
 
 local CAPABILITY_KEYS = {
     "position",
@@ -64,14 +64,14 @@ local function safeText(value)
 end
 
 local function printMessage(message)
-    if ATT.Compat and type(ATT.Compat.Print) == "function" then
-        pcall(ATT.Compat.Print, "[Azeroth Travel Tracker] " .. message)
+    if ATM.Compat and type(ATM.Compat.Print) == "function" then
+        pcall(ATM.Compat.Print, "[Azeroth Travel Metrics] " .. message)
     end
 end
 
 local function showError(message)
-    if ATT.UI and type(ATT.UI.ShowError) == "function" then
-        pcall(ATT.UI.ShowError, message)
+    if ATM.UI and type(ATM.UI.ShowError) == "function" then
+        pcall(ATM.UI.ShowError, message)
     end
 end
 
@@ -143,12 +143,12 @@ local function failRuntimeInitialization(reason)
 end
 
 local function readCapabilities()
-    if not ATT.Compat or type(ATT.Compat.GetCapabilities) ~= "function" then
+    if not ATM.Compat or type(ATM.Compat.GetCapabilities) ~= "function" then
         Core.ReportOnce("capabilitiesUnavailable")
         return {}
     end
 
-    local succeeded, capabilities = pcall(ATT.Compat.GetCapabilities)
+    local succeeded, capabilities = pcall(ATM.Compat.GetCapabilities)
     if not succeeded or type(capabilities) ~= "table" then
         Core.ReportOnce("capabilitiesUnavailable")
         return {}
@@ -174,18 +174,18 @@ function Core.Initialize(allowCreate)
     end
     state.initialized = true
 
-    if not ATT.Storage or type(ATT.Storage.Initialize) ~= "function" then
+    if not ATM.Storage or type(ATM.Storage.Initialize) ~= "function" then
         failDatabaseInitialization("storageUnavailable")
         return false
     end
 
-    local savedDB = AzerothTravelTrackerDB
+    local savedDB = AzerothTravelMetricsDB
     if savedDB == nil and allowCreate ~= true then
         return false
     end
 
     local initializeCallSucceeded, db, initializationError = pcall(
-        ATT.Storage.Initialize,
+        ATM.Storage.Initialize,
         savedDB
     )
     if not initializeCallSucceeded then
@@ -199,7 +199,7 @@ function Core.Initialize(allowCreate)
 
     state.db = db
     state.databaseReady = true
-    AzerothTravelTrackerDB = db
+    AzerothTravelMetricsDB = db
     return true
 end
 
@@ -209,15 +209,15 @@ local function initializeRuntime(preserveSession)
     end
 
     if state.character == nil then
-        if not ATT.Compat
-            or type(ATT.Compat.GetCharacterIdentity) ~= "function"
+        if not ATM.Compat
+            or type(ATM.Compat.GetCharacterIdentity) ~= "function"
         then
             failRuntimeInitialization("identityUnavailable")
             return false
         end
 
         local identityCallSucceeded, identity, identityError = pcall(
-            ATT.Compat.GetCharacterIdentity
+            ATM.Compat.GetCharacterIdentity
         )
         if not identityCallSucceeded
             or type(identity) ~= "table"
@@ -232,14 +232,14 @@ local function initializeRuntime(preserveSession)
             return false
         end
 
-        if not ATT.Storage or type(ATT.Storage.GetCharacter) ~= "function" then
+        if not ATM.Storage or type(ATM.Storage.GetCharacter) ~= "function" then
             failRuntimeInitialization("characterInitializeFailed")
             return false
         end
 
         local characterKey = identity.name .. "-" .. identity.realm
         local characterCallSucceeded, character = pcall(
-            ATT.Storage.GetCharacter,
+            ATM.Storage.GetCharacter,
             state.db,
             characterKey,
             identity
@@ -251,23 +251,23 @@ local function initializeRuntime(preserveSession)
 
         local validSavedSession = false
         if preserveSession
-            and type(ATT.Storage.IsValidSession) == "function"
+            and type(ATM.Storage.IsValidSession) == "function"
         then
             local validationSucceeded, isValid = pcall(
-                ATT.Storage.IsValidSession,
+                ATM.Storage.IsValidSession,
                 character.session
             )
             validSavedSession = validationSucceeded and isValid == true
         end
 
         if not validSavedSession then
-            if type(ATT.Storage.StartSession) ~= "function" then
+            if type(ATM.Storage.StartSession) ~= "function" then
                 failRuntimeInitialization("sessionInitializeFailed")
                 return false
             end
 
             local sessionCallSucceeded, session = pcall(
-                ATT.Storage.StartSession,
+                ATM.Storage.StartSession,
                 character,
                 identity.now
             )
@@ -282,19 +282,19 @@ local function initializeRuntime(preserveSession)
     end
 
     if state.tracker == nil then
-        if not ATT.Tracker or type(ATT.Tracker.New) ~= "function" then
+        if not ATM.Tracker or type(ATM.Tracker.New) ~= "function" then
             failRuntimeInitialization("trackerInitializeFailed")
             return false
         end
 
-        local trackerCallSucceeded, tracker = pcall(ATT.Tracker.New, {
-            compat = ATT.Compat,
-            storage = ATT.Storage,
-            movement = ATT.Movement,
+        local trackerCallSucceeded, tracker = pcall(ATM.Tracker.New, {
+            compat = ATM.Compat,
+            storage = ATM.Storage,
+            movement = ATM.Movement,
             character = state.character,
             level = state.currentLevel,
             emit = function(eventName, payload)
-                return ATT.Emit(eventName, payload)
+                return ATM.Emit(eventName, payload)
             end,
         })
         if not trackerCallSucceeded or type(tracker) ~= "table" then
@@ -307,7 +307,7 @@ local function initializeRuntime(preserveSession)
 
     refreshCapabilities()
 
-    if not ATT.UI or type(ATT.UI.Initialize) ~= "function" then
+    if not ATM.UI or type(ATM.UI.Initialize) ~= "function" then
         failRuntimeInitialization("uiUnavailable")
         return false
     end
@@ -321,15 +321,15 @@ local function initializeRuntime(preserveSession)
             return state.currentLevel
         end,
     }
-    local uiCallSucceeded = pcall(ATT.UI.Initialize, runtimeContext)
+    local uiCallSucceeded = pcall(ATM.UI.Initialize, runtimeContext)
     if not uiCallSucceeded then
         failRuntimeInitialization("uiInitializeFailed")
         return false
     end
 
-    if ATT.Minimap and type(ATT.Minimap.Initialize) == "function" then
+    if ATM.Minimap and type(ATM.Minimap.Initialize) == "function" then
         local minimapCallSucceeded = pcall(
-            ATT.Minimap.Initialize,
+            ATM.Minimap.Initialize,
             runtimeContext
         )
         if not minimapCallSucceeded then
@@ -365,12 +365,12 @@ local function sample()
     end
 
     if segment ~= nil
-        and ATT.UI
-        and type(ATT.UI.IsShown) == "function"
-        and ATT.UI.IsShown()
-        and type(ATT.UI.Refresh) == "function"
+        and ATM.UI
+        and type(ATM.UI.IsShown) == "function"
+        and ATM.UI.IsShown()
+        and type(ATM.UI.Refresh) == "function"
     then
-        ATT.UI.Refresh()
+        ATM.UI.Refresh()
     end
 end
 
@@ -394,7 +394,7 @@ function Core.StartTicker()
 
     local succeeded, ticker = pcall(
         C_Timer.NewTicker,
-        ATT.SAMPLE_INTERVAL_SECONDS,
+        ATM.SAMPLE_INTERVAL_SECONDS,
         sample
     )
     if not succeeded or getTickerCancel(ticker) == nil then
@@ -407,8 +407,8 @@ function Core.StartTicker()
 end
 
 local function refreshUI()
-    if ATT.UI and type(ATT.UI.Refresh) == "function" then
-        ATT.UI.Refresh()
+    if ATM.UI and type(ATM.UI.Refresh) == "function" then
+        ATM.UI.Refresh()
     end
 end
 
@@ -426,7 +426,7 @@ local function handleLevelUp(newLevel)
         return
     end
 
-    local timeCallSucceeded, now, timeError = pcall(ATT.Compat.GetNow)
+    local timeCallSucceeded, now, timeError = pcall(ATM.Compat.GetNow)
     if not timeCallSucceeded or not isFinitePositiveInteger(now) then
         Core.ReportOnce(
             timeError or "timeUnavailable",
@@ -503,14 +503,14 @@ end
 
 local function usage()
     printMessage(
-        "Usage: /att [show | reset session | units metric|imperial"
+        "Usage: /atm [show | reset session | units metric|imperial"
             .. " | diagnostics on|off | status]"
     )
 end
 
 function Core.HandleSlashCommand(message)
     if not state.ready then
-        printMessage("Azeroth Travel Tracker is not ready.")
+        printMessage("Azeroth Travel Metrics is not ready.")
         return
     end
 
@@ -518,12 +518,12 @@ function Core.HandleSlashCommand(message)
     message = message:lower():match("^%s*(.-)%s*$")
 
     if message == "" or message == "show" then
-        ATT.UI.Toggle()
+        ATM.UI.Toggle()
         return
     end
 
     if message == "reset session" then
-        ATT.UI.ConfirmResetSession()
+        ATM.UI.ConfirmResetSession()
         return
     end
 
@@ -612,9 +612,8 @@ eventFrame:SetScript("OnEvent", function(_, eventName, ...)
     Core.OnEvent(eventName, ...)
 end)
 
-SLASH_AZEROTHTRAVELTRACKER1 = "/att"
-SLASH_AZEROTHTRAVELTRACKER2 = "/azerothtraveltracker"
+SLASH_AZEROTHTRAVELMETRICS1 = "/atm"
 SlashCmdList = SlashCmdList or {}
-SlashCmdList.AZEROTHTRAVELTRACKER = function(message)
+SlashCmdList.AZEROTHTRAVELMETRICS = function(message)
     Core.HandleSlashCommand(message)
 end

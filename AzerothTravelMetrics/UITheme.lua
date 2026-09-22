@@ -1,11 +1,11 @@
-local _, ATT = ...
+local _, ATM = ...
 
 local Theme = {
     Icons = {
         PORTRAIT = "Interface\\Icons\\INV_Misc_Map_01",
-        TITLE = "Interface\\AddOns\\AzerothTravelTracker\\Media\\ATTLogo",
-        OVERVIEW = "Interface\\AddOns\\AzerothTravelTracker\\Media\\Overview",
-        LEVELS = "Interface\\AddOns\\AzerothTravelTracker\\Media\\ByLevel",
+        TITLE = "Interface\\AddOns\\AzerothTravelMetrics\\Media\\ATMLogo",
+        OVERVIEW = "Interface\\AddOns\\AzerothTravelMetrics\\Media\\Overview",
+        LEVELS = "Interface\\AddOns\\AzerothTravelMetrics\\Media\\ByLevel",
         SETTINGS = "Interface\\Icons\\INV_Misc_Gear_01",
     },
     Atlases = {
@@ -16,7 +16,7 @@ local Theme = {
     },
 }
 
-ATT.UITheme = Theme
+ATM.UITheme = Theme
 
 local SIDE_TAB_SIZE = 50
 local SECTION_HEADER_HEIGHT = 20

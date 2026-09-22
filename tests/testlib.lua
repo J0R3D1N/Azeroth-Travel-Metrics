@@ -75,7 +75,7 @@ local function loadChunk(path, environment)
     return chunk
 end
 
-function testlib.loadAddon(files, globals)
+function testlib.loadAddon(files, globals, addonName)
     if type(files) == "string" then
         files = { files }
     end
@@ -89,7 +89,7 @@ function testlib.loadAddon(files, globals)
     local addon = {}
     for _, path in ipairs(files) do
         local chunk = loadChunk(path, environment)
-        chunk("AzerothTravelTracker", addon)
+        chunk(addonName or "AzerothTravelMetrics", addon)
     end
 
     return addon, environment

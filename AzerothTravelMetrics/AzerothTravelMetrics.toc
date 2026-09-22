@@ -1,10 +1,10 @@
 ## Interface: 16001
-## Title: Azeroth Travel Tracker - WoW: Forever (beta)
+## Title: Azeroth Travel Metrics - WoW: Forever (beta)
 ## Notes: Tracks estimated steps and travel distance.
 ## Author: Jason Parker
-## Version: 0.1.0-beta
+## Version: 1.0.0-beta
 ## IconTexture: Interface\Icons\Ability_Rogue_Sprint
-## SavedVariables: AzerothTravelTrackerDB
+## SavedVariables: AzerothTravelMetricsDB
 
 Namespace.lua
 Distance.lua

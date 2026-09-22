@@ -2,8 +2,8 @@ local testlib = require("testlib")
 
 local function loadStorage()
     return testlib.loadAddon({
-        "AzerothTravelTracker\\Namespace.lua",
-        "AzerothTravelTracker\\Storage.lua",
+        "AzerothTravelMetrics\\Namespace.lua",
+        "AzerothTravelMetrics\\Storage.lua",
     })
 end
 

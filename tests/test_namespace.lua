@@ -4,9 +4,13 @@ testlib.case("namespace defines schema version and travel categories", function(
     local globals = {
         suppliedGlobal = "available",
     }
-    local addon, environment = testlib.loadAddon("AzerothTravelTracker\\Namespace.lua", globals)
+    local addon, environment = testlib.loadAddon(
+        "AzerothTravelMetrics\\Namespace.lua",
+        globals,
+        "AzerothTravelMetrics"
+    )
 
-    testlib.equal(addon.name, "AzerothTravelTracker")
+    testlib.equal(addon.name, "AzerothTravelMetrics")
     testlib.equal(addon.SCHEMA_VERSION, 1)
     testlib.near(addon.SAMPLE_INTERVAL_SECONDS, 0.5, 0.0001)
     testlib.equal(addon.MAX_SAMPLE_GAP_SECONDS, 3)
@@ -26,7 +30,7 @@ testlib.case("namespace defines schema version and travel categories", function(
 end)
 
 testlib.case("namespace isolates throwing subscribers and reports failures", function()
-    local addon = testlib.loadAddon("AzerothTravelTracker\\Namespace.lua")
+    local addon = testlib.loadAddon("AzerothTravelMetrics\\Namespace.lua")
     local callbacks = {}
 
     addon.Subscribe("movementSegment", function()
@@ -66,7 +70,7 @@ testlib.case("namespace isolates throwing subscribers and reports failures", fun
 end)
 
 testlib.case("namespace preserves unprintable subscriber errors without aborting", function()
-    local addon = testlib.loadAddon("AzerothTravelTracker\\Namespace.lua")
+    local addon = testlib.loadAddon("AzerothTravelMetrics\\Namespace.lua")
     local hostileError = setmetatable({}, {
         __tostring = function()
             error("error formatting failed")

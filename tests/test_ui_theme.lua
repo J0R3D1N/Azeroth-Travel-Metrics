@@ -1,8 +1,8 @@
 local testlib = require("testlib")
 
 local FILES = {
-    "AzerothTravelTracker\\Namespace.lua",
-    "AzerothTravelTracker\\UITheme.lua",
+    "AzerothTravelMetrics\\Namespace.lua",
+    "AzerothTravelMetrics\\UITheme.lua",
 }
 
 local function newRegion(kind, parent, options)
@@ -295,15 +295,15 @@ testlib.case("ui theme exposes approved custom icons and native atlases", functi
     testlib.equal(addon.UITheme.Icons.PORTRAIT, "Interface\\Icons\\INV_Misc_Map_01")
     testlib.equal(
         addon.UITheme.Icons.TITLE,
-        "Interface\\AddOns\\AzerothTravelTracker\\Media\\ATTLogo"
+        "Interface\\AddOns\\AzerothTravelMetrics\\Media\\ATMLogo"
     )
     testlib.equal(
         addon.UITheme.Icons.OVERVIEW,
-        "Interface\\AddOns\\AzerothTravelTracker\\Media\\Overview"
+        "Interface\\AddOns\\AzerothTravelMetrics\\Media\\Overview"
     )
     testlib.equal(
         addon.UITheme.Icons.LEVELS,
-        "Interface\\AddOns\\AzerothTravelTracker\\Media\\ByLevel"
+        "Interface\\AddOns\\AzerothTravelMetrics\\Media\\ByLevel"
     )
     testlib.equal(addon.UITheme.Icons.SETTINGS, "Interface\\Icons\\INV_Misc_Gear_01")
     testlib.equal(addon.UITheme.Atlases.SECTION, "UI-Character-Info-Title")

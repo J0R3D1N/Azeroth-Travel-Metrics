@@ -1,8 +1,8 @@
-local _, ATT = ...
+local _, ATM = ...
 
-ATT.Tracker = {}
+ATM.Tracker = {}
 
-local Tracker = ATT.Tracker
+local Tracker = ATM.Tracker
 local TrackerPrototype = {}
 TrackerPrototype.__index = TrackerPrototype
 

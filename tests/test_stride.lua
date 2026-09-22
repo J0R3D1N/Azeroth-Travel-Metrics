@@ -2,9 +2,9 @@ local testlib = require("testlib")
 
 local function loadStride()
     return testlib.loadAddon({
-        "AzerothTravelTracker\\Namespace.lua",
-        "AzerothTravelTracker\\Distance.lua",
-        "AzerothTravelTracker\\Stride.lua",
+        "AzerothTravelMetrics\\Namespace.lua",
+        "AzerothTravelMetrics\\Distance.lua",
+        "AzerothTravelMetrics\\Stride.lua",
     })
 end
 

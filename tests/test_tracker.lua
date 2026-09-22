@@ -2,8 +2,8 @@ local testlib = require("testlib")
 
 local function loadTracker()
     return testlib.loadAddon({
-        "AzerothTravelTracker\\Namespace.lua",
-        "AzerothTravelTracker\\Tracker.lua",
+        "AzerothTravelMetrics\\Namespace.lua",
+        "AzerothTravelMetrics\\Tracker.lua",
     })
 end
 
@@ -349,9 +349,9 @@ end)
 
 testlib.case("tracker does not aggregate mounted movement rejected by Movement", function()
     local addon = testlib.loadAddon({
-        "AzerothTravelTracker\\Namespace.lua",
-        "AzerothTravelTracker\\Movement.lua",
-        "AzerothTravelTracker\\Tracker.lua",
+        "AzerothTravelMetrics\\Namespace.lua",
+        "AzerothTravelMetrics\\Movement.lua",
+        "AzerothTravelMetrics\\Tracker.lua",
     })
     local first = sample({ mounted = true })
     local second = sample({ x = 5, time = 11, mounted = true })
@@ -631,9 +631,9 @@ end)
 
 testlib.case("tracker keeps its baseline isolated from subscriber mutation", function()
     local addon = testlib.loadAddon({
-        "AzerothTravelTracker\\Namespace.lua",
-        "AzerothTravelTracker\\Movement.lua",
-        "AzerothTravelTracker\\Tracker.lua",
+        "AzerothTravelMetrics\\Namespace.lua",
+        "AzerothTravelMetrics\\Movement.lua",
+        "AzerothTravelMetrics\\Tracker.lua",
     })
     local first = sample()
     local second = sample({ x = 5, time = 11 })

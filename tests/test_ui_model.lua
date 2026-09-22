@@ -2,10 +2,10 @@ local testlib = require("testlib")
 
 local function loadUIModel()
     return testlib.loadAddon({
-        "AzerothTravelTracker\\Namespace.lua",
-        "AzerothTravelTracker\\Distance.lua",
-        "AzerothTravelTracker\\Stride.lua",
-        "AzerothTravelTracker\\UIModel.lua",
+        "AzerothTravelMetrics\\Namespace.lua",
+        "AzerothTravelMetrics\\Distance.lua",
+        "AzerothTravelMetrics\\Stride.lua",
+        "AzerothTravelMetrics\\UIModel.lua",
     })
 end
 

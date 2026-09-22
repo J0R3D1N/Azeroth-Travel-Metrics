@@ -1,8 +1,8 @@
-local _, ATT = ...
+local _, ATM = ...
 
-ATT.Distance = {}
+ATM.Distance = {}
 
-local Distance = ATT.Distance
+local Distance = ATM.Distance
 
 Distance.YARDS_TO_METERS = 0.9144
 Distance.YARDS_PER_MILE = 1760

@@ -2,8 +2,8 @@ local testlib = require("testlib")
 
 local function loadCompat(globals)
     return testlib.loadAddon({
-        "AzerothTravelTracker\\Namespace.lua",
-        "AzerothTravelTracker\\Compat.lua",
+        "AzerothTravelMetrics\\Namespace.lua",
+        "AzerothTravelMetrics\\Compat.lua",
     }, globals)
 end
 

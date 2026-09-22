@@ -1,8 +1,8 @@
-local _, ATT = ...
+local _, ATM = ...
 
-ATT.Stride = {}
+ATM.Stride = {}
 
-local Stride = ATT.Stride
+local Stride = ATM.Stride
 
 Stride.DEFAULT_METERS = 0.80
 
@@ -39,6 +39,6 @@ function Stride.GetMeters(raceFile)
 end
 
 function Stride.EstimateSteps(yards, raceFile)
-    local meters = ATT.Distance.YardsToMeters(yards)
+    local meters = ATM.Distance.YardsToMeters(yards)
     return math.floor(meters / Stride.GetMeters(raceFile) + 0.5)
 end

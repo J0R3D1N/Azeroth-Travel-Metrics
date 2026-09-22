@@ -1,13 +1,13 @@
-local _, ATT = ...
+local _, ATM = ...
 
-ATT.Storage = {}
+ATM.Storage = {}
 
-local Storage = ATT.Storage
+local Storage = ATM.Storage
 
 local validCategories = {
-    [ATT.Categories.ON_FOOT] = true,
-    [ATT.Categories.SWIMMING] = true,
-    [ATT.Categories.TAXI] = true,
+    [ATM.Categories.ON_FOOT] = true,
+    [ATM.Categories.SWIMMING] = true,
+    [ATM.Categories.TAXI] = true,
 }
 
 local migrations = {}
@@ -124,7 +124,7 @@ local function refreshCharacter(character, identity)
 end
 
 local function initializeVersionOne(db)
-    db.schemaVersion = ATT.SCHEMA_VERSION
+    db.schemaVersion = ATM.SCHEMA_VERSION
     db.settings = db.settings or {}
 
     if db.settings.units == nil then
@@ -172,11 +172,11 @@ function Storage.Initialize(existing)
         return db, "unsupportedSchema"
     end
 
-    if schemaVersion > ATT.SCHEMA_VERSION then
+    if schemaVersion > ATM.SCHEMA_VERSION then
         return db, "unsupportedSchema"
     end
 
-    while schemaVersion < ATT.SCHEMA_VERSION do
+    while schemaVersion < ATM.SCHEMA_VERSION do
         local migrate = migrations[schemaVersion]
         if migrate == nil then
             return db, "unsupportedSchema"

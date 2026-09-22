@@ -1,9 +1,9 @@
 local testlib = require("testlib")
 
 local MINIMAP_FILES = {
-    "AzerothTravelTracker\\Namespace.lua",
-    "AzerothTravelTracker\\UITheme.lua",
-    "AzerothTravelTracker\\Minimap.lua",
+    "AzerothTravelMetrics\\Namespace.lua",
+    "AzerothTravelMetrics\\UITheme.lua",
+    "AzerothTravelMetrics\\Minimap.lua",
 }
 local VISIBLE_RING_RADIUS = 16
 local SHAPE_QUADRANTS = {
@@ -687,7 +687,7 @@ testlib.case("minimap create is idempotent native and interactive", function()
     testlib.truthy(contains(first.textures[1].texture, "Minimap"))
     testlib.equal(
         first.textures[2].texture,
-        "Interface\\AddOns\\AzerothTravelTracker\\Media\\ATTLogo"
+        "Interface\\AddOns\\AzerothTravelMetrics\\Media\\ATMLogo"
     )
     local background = harness.addon.Minimap.background
     testlib.equal(background.width, 20)
@@ -700,7 +700,7 @@ testlib.case("minimap create is idempotent native and interactive", function()
     local icon = harness.addon.Minimap.icon
     testlib.equal(
         icon.texture,
-        "Interface\\AddOns\\AzerothTravelTracker\\Media\\ATTLogo"
+        "Interface\\AddOns\\AzerothTravelMetrics\\Media\\ATMLogo"
     )
     testlib.equal(icon.width, 20)
     testlib.equal(icon.height, 20)
@@ -728,7 +728,7 @@ testlib.case("minimap create is idempotent native and interactive", function()
     testlib.equal(harness.calls.tooltipOwner, first)
     testlib.equal(harness.calls.tooltipShown, true)
     testlib.equal(harness.calls.tooltipClears, 1)
-    testlib.truthy(contains(harness.calls.tooltipLines[1], "Azeroth Travel Tracker"))
+    testlib.truthy(contains(harness.calls.tooltipLines[1], "Azeroth Travel Metrics"))
     testlib.equal(harness.calls.tooltipLines[2], "Left-click to open")
     testlib.truthy(contains(harness.calls.tooltipLines[3], "Drag"))
     first.scripts.OnLeave(first)

@@ -1,9 +1,9 @@
-local addonName, ATT = ...
+local addonName, ATM = ...
 
-ATT.UI = {}
+ATM.UI = {}
 
-local UI = ATT.UI
-local RESET_DIALOG_KEY = "AZEROTH_TRAVEL_TRACKER_RESET_SESSION"
+local UI = ATM.UI
+local RESET_DIALOG_KEY = "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
 local SECTION_HEIGHT = 100
 local SECTION_GAP = 10
 local SUMMARY_CONTENT_HEIGHT = (SECTION_HEIGHT * 3) + (SECTION_GAP * 2)
@@ -89,7 +89,7 @@ local function createMainFrame()
     local succeeded, frame = pcall(
         CreateFrame,
         "Frame",
-        "AzerothTravelTrackerFrame",
+        "AzerothTravelMetricsFrame",
         UIParent,
         "BackdropTemplate"
     )
@@ -99,7 +99,7 @@ local function createMainFrame()
 
     return CreateFrame(
         "Frame",
-        "AzerothTravelTrackerFrame",
+        "AzerothTravelMetricsFrame",
         UIParent
     ), false
 end
@@ -142,7 +142,7 @@ local function getVersion()
         end
     end
 
-    return ATT.VERSION_FALLBACK
+    return ATM.VERSION_FALLBACK
 end
 
 local function createCheckButton(parent, text)
@@ -215,11 +215,11 @@ local function setPanelVisibility()
     end
 
     if activeTab == "levels" then
-        ATT.UITheme.SetSideTabSelected(UI.overviewTab, false)
-        ATT.UITheme.SetSideTabSelected(UI.levelTab, true)
+        ATM.UITheme.SetSideTabSelected(UI.overviewTab, false)
+        ATM.UITheme.SetSideTabSelected(UI.levelTab, true)
     else
-        ATT.UITheme.SetSideTabSelected(UI.levelTab, false)
-        ATT.UITheme.SetSideTabSelected(UI.overviewTab, true)
+        ATM.UITheme.SetSideTabSelected(UI.levelTab, false)
+        ATM.UITheme.SetSideTabSelected(UI.overviewTab, true)
     end
 end
 
@@ -480,7 +480,7 @@ local function createHUD()
 
     local frame = CreateFrame(
         "Frame",
-        "AzerothTravelTrackerHUD",
+        "AzerothTravelMetricsHUD",
         UIParent
     )
     frame:SetSize(HUD_WIDTH, HUD_HEIGHT)
@@ -568,7 +568,7 @@ local function createHUD()
     closeButton:Hide()
 
     local restoreControl, restoreButton =
-        ATT.UITheme.CreateWindowSizeControl(
+        ATM.UITheme.CreateWindowSizeControl(
             frame,
             "restore",
             "Restore"
@@ -786,7 +786,7 @@ end
 local function ensureLevelRows(count)
     while #UI.levelRows < count do
         local index = #UI.levelRows + 1
-        local card = ATT.UITheme.CreateSection(
+        local card = ATM.UITheme.CreateSection(
             UI.levelScrollChild,
             "",
             #SUMMARY_ROWS,
@@ -803,7 +803,7 @@ local function ensureLevelRows(count)
             -topOffset
         )
         card.frame:SetWidth(LEVEL_CONTENT_WIDTH)
-        ATT.UITheme.SetSectionValues(card, sectionValues({}))
+        ATM.UITheme.SetSectionValues(card, sectionValues({}))
         card.frame:Hide()
         table.insert(UI.levelRows, card)
     end
@@ -820,7 +820,7 @@ function UI.Create()
 
     local frame, useBackdrop = createMainFrame()
     UI.frame = frame
-    registerEscapeFrame("AzerothTravelTrackerFrame")
+    registerEscapeFrame("AzerothTravelMetricsFrame")
     frame:SetSize(420, 430)
     frame:SetPoint("CENTER")
     safeSetFrameStrata(frame)
@@ -835,7 +835,7 @@ function UI.Create()
         self:StopMovingOrSizing()
     end)
 
-    UI.shell = ATT.UITheme.ApplyWindowShell(frame, useBackdrop)
+    UI.shell = ATM.UITheme.ApplyWindowShell(frame, useBackdrop)
 
     UI.titleRegion = CreateFrame("Frame", nil, frame)
     UI.titleRegion:SetSize(404, 44)
@@ -846,9 +846,9 @@ function UI.Create()
     UI.titleIconFrame,
         UI.titleIcon,
         UI.titleIconBackground,
-        UI.titleIconBorder = ATT.UITheme.CreateFramedIcon(
+        UI.titleIconBorder = ATM.UITheme.CreateFramedIcon(
             UI.titleRegion,
-            ATT.UITheme.Icons.TITLE,
+            ATM.UITheme.Icons.TITLE,
             32
         )
     UI.titleIconFrame:SetPoint("LEFT", UI.titleRegion, "LEFT", 4, 0)
@@ -871,7 +871,7 @@ function UI.Create()
 
     UI.title = createLabel(
         UI.titleRegion,
-        "Azeroth Travel Tracker",
+        "Azeroth Travel Metrics",
         "GameFontNormalLarge"
     )
     UI.title:SetPoint("LEFT", UI.titleIconFrame, "RIGHT", 10, 0)
@@ -879,10 +879,10 @@ function UI.Create()
     UI.title:SetJustifyH("LEFT")
     UI.title:SetJustifyV("MIDDLE")
     UI.title:SetTextColor(1, 0.82, 0.32, 1)
-    UI.title:SetText("Azeroth Travel Tracker")
+    UI.title:SetText("Azeroth Travel Metrics")
 
     UI.minimizeControl, UI.minimizeButton =
-        ATT.UITheme.CreateWindowSizeControl(
+        ATM.UITheme.CreateWindowSizeControl(
             UI.titleRegion,
             "minimize",
             "Minimize"
@@ -901,11 +901,11 @@ function UI.Create()
         UI.Minimize()
     end)
 
-    UI.overviewTab = ATT.UITheme.CreateSideTab(
-        "AzerothTravelTrackerFrameOverviewTab",
+    UI.overviewTab = ATM.UITheme.CreateSideTab(
+        "AzerothTravelMetricsFrameOverviewTab",
         frame,
         {
-            icon = ATT.UITheme.Icons.OVERVIEW,
+            icon = ATM.UITheme.Icons.OVERVIEW,
             tooltip = "Overview",
         }
     )
@@ -916,11 +916,11 @@ function UI.Create()
         setPanelVisibility()
     end)
 
-    UI.levelTab = ATT.UITheme.CreateSideTab(
-        "AzerothTravelTrackerFrameLevelTab",
+    UI.levelTab = ATM.UITheme.CreateSideTab(
+        "AzerothTravelMetricsFrameLevelTab",
         frame,
         {
-            icon = ATT.UITheme.Icons.LEVELS,
+            icon = ATM.UITheme.Icons.LEVELS,
             tooltip = "By Level",
         }
     )
@@ -945,7 +945,7 @@ function UI.Create()
 
     UI.versionLabel = createLabel(
         frame,
-        "ATT v" .. getVersion(),
+        "ATM v" .. getVersion(),
         "GameFontDisableSmall"
     )
     UI.versionLabel:SetPoint(
@@ -960,9 +960,9 @@ function UI.Create()
     UI.versionLabel:SetJustifyV("BOTTOM")
     UI.versionLabel:SetTextColor(0.58, 0.50, 0.38, 1)
 
-    UI.settingsButton = ATT.UITheme.CreateIconButton(
+    UI.settingsButton = ATM.UITheme.CreateIconButton(
         frame,
-        ATT.UITheme.Icons.SETTINGS,
+        ATM.UITheme.Icons.SETTINGS,
         "Settings"
     )
     UI.settingsButton:SetPoint(
@@ -1049,10 +1049,10 @@ function UI.Create()
             return
         end
         context.db.settings.showMinimap = UI.minimapCheck:GetChecked() == true
-        if ATT.Minimap
-            and type(ATT.Minimap.UpdateVisibility) == "function"
+        if ATM.Minimap
+            and type(ATM.Minimap.UpdateVisibility) == "function"
         then
-            ATT.Minimap.UpdateVisibility()
+            ATM.Minimap.UpdateVisibility()
         end
     end)
 
@@ -1101,7 +1101,7 @@ function UI.Create()
         -8
     )
     UI.errorPanel:SetSize(376, 342)
-    UI.errorInset = ATT.UITheme.CreateInset(UI.errorPanel)
+    UI.errorInset = ATM.UITheme.CreateInset(UI.errorPanel)
 
     UI.errorText = createLabel(
         UI.errorPanel,
@@ -1120,7 +1120,7 @@ function UI.Create()
 
     UI.summarySections = {}
     for index, definition in ipairs(SUMMARY_DEFINITIONS) do
-        local section = ATT.UITheme.CreateSection(
+        local section = ATM.UITheme.CreateSection(
             UI.overviewPanel,
             definition.title,
             #SUMMARY_ROWS,
@@ -1145,7 +1145,7 @@ function UI.Create()
                 -SECTION_GAP
             )
         end
-        ATT.UITheme.SetSectionValues(section, sectionValues({}))
+        ATM.UITheme.SetSectionValues(section, sectionValues({}))
         table.insert(UI.summarySections, section)
     end
 
@@ -1209,7 +1209,7 @@ function UI.Create()
     UI.levelPanel = CreateFrame("Frame", nil, frame)
     UI.levelPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -54)
     UI.levelPanel:SetSize(LEVEL_PANEL_WIDTH, 310)
-    UI.levelHeadingSection = ATT.UITheme.CreateSection(
+    UI.levelHeadingSection = ATM.UITheme.CreateSection(
         UI.levelPanel,
         "Travel by Level",
         0
@@ -1318,7 +1318,7 @@ function UI.Refresh()
     syncSettingsControls()
     local currentLevel = context.getCurrentLevel()
 
-    local overview, overviewError = ATT.UIModel.BuildOverview(
+    local overview, overviewError = ATM.UIModel.BuildOverview(
         context.character,
         currentLevel,
         units
@@ -1328,7 +1328,7 @@ function UI.Refresh()
         return false
     end
 
-    local levelRows, levelError = ATT.UIModel.BuildLevelRows(
+    local levelRows, levelError = ATM.UIModel.BuildLevelRows(
         context.character,
         units
     )
@@ -1337,7 +1337,7 @@ function UI.Refresh()
         return false
     end
 
-    local diagnostics, diagnosticsError = ATT.UIModel.BuildDiagnostics(
+    local diagnostics, diagnosticsError = ATM.UIModel.BuildDiagnostics(
         context.character,
         context.db.settings.showDiagnostics
     )
@@ -1347,7 +1347,7 @@ function UI.Refresh()
     end
 
     for index, definition in ipairs(SUMMARY_DEFINITIONS) do
-        ATT.UITheme.SetSectionValues(
+        ATM.UITheme.SetSectionValues(
             UI.summarySections[index],
             sectionValues(overview[definition.key])
         )
@@ -1370,11 +1370,11 @@ function UI.Refresh()
         local row = levelRows[index]
         if row then
             card.title:SetText("Level " .. tostring(row.level))
-            ATT.UITheme.SetSectionValues(card, sectionValues(row))
+            ATM.UITheme.SetSectionValues(card, sectionValues(row))
             card.frame:Show()
         else
             card.title:SetText("")
-            ATT.UITheme.SetSectionValues(card, sectionValues({}))
+            ATM.UITheme.SetSectionValues(card, sectionValues({}))
             card.frame:Hide()
         end
     end
@@ -1486,12 +1486,12 @@ local function acceptReset()
         return
     end
 
-    if not ATT.Compat or type(ATT.Compat.GetNow) ~= "function" then
+    if not ATM.Compat or type(ATM.Compat.GetNow) ~= "function" then
         UI.ShowError("Session reset failed: timeUnavailable")
         return
     end
 
-    local timeCallSucceeded, now, reason = pcall(ATT.Compat.GetNow)
+    local timeCallSucceeded, now, reason = pcall(ATM.Compat.GetNow)
     if not timeCallSucceeded then
         UI.ShowError("Session reset failed: " .. tostring(now))
         return
@@ -1504,7 +1504,7 @@ local function acceptReset()
     end
 
     local resetCallSucceeded, resetResult, resetError = pcall(
-        ATT.Storage.ResetSession,
+        ATM.Storage.ResetSession,
         context.character,
         now
     )

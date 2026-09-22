@@ -1,8 +1,8 @@
-local addonName, ATT = ...
+local addonName, ATM = ...
 
-ATT.Minimap = {}
+ATM.Minimap = {}
 
-local MinimapLauncher = ATT.Minimap
+local MinimapLauncher = ATM.Minimap
 local DEFAULT_ANGLE = 225
 local BUTTON_SIZE = 32
 local BORDER_SIZE = 54
@@ -383,7 +383,7 @@ function MinimapLauncher.Create()
 
     local button = CreateFrame(
         "Button",
-        "AzerothTravelTrackerMinimapButton",
+        "AzerothTravelMetricsMinimapButton",
         Minimap
     )
     MinimapLauncher.button = button
@@ -406,7 +406,7 @@ function MinimapLauncher.Create()
     MinimapLauncher.background = background
 
     local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetTexture(ATT.UITheme.Icons.TITLE)
+    icon:SetTexture(ATM.UITheme.Icons.TITLE)
     icon:SetSize(20, 20)
     icon:SetPoint("TOPLEFT", button, "TOPLEFT", 7, -5)
     MinimapLauncher.icon = icon
@@ -425,7 +425,7 @@ function MinimapLauncher.Create()
             GameTooltip:ClearLines()
         end
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine("Azeroth Travel Tracker")
+        GameTooltip:AddLine("Azeroth Travel Metrics")
         GameTooltip:AddLine("Left-click to open")
         GameTooltip:AddLine("Drag to reposition")
         GameTooltip:Show()
@@ -441,10 +441,10 @@ function MinimapLauncher.Create()
             return
         end
         if mouseButton == "LeftButton"
-            and ATT.UI
-            and type(ATT.UI.ShowMain) == "function"
+            and ATM.UI
+            and type(ATM.UI.ShowMain) == "function"
         then
-            ATT.UI.ShowMain()
+            ATM.UI.ShowMain()
         end
     end)
     button:SetScript("OnDragStart", function(_, mouseButton)
