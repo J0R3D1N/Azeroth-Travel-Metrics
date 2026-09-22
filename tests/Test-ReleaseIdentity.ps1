@@ -28,25 +28,72 @@ $ignoredDirectoryNames = @(
     'node_modules'
 )
 
-function Test-IgnoredPath {
+function Get-NormalizedFullPath {
     param([string]$Path)
 
-    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
-    $resolvedAddonRoot = [System.IO.Path]::GetFullPath($addonRoot).TrimEnd('\')
-    if (
-        $resolvedPath.Equals(
-            $resolvedAddonRoot,
+    return [System.IO.Path]::GetFullPath($Path).TrimEnd(
+        [char[]]@('\', '/')
+    )
+}
+
+function Test-PathWithinRoot {
+    param(
+        [string]$Path,
+        [string]$Root
+    )
+
+    return (
+        $Path.Equals(
+            $Root,
             [System.StringComparison]::OrdinalIgnoreCase
         ) -or
-        $resolvedPath.StartsWith(
-            $resolvedAddonRoot + '\',
+        $Path.StartsWith(
+            $Root + '\',
+            [System.StringComparison]::OrdinalIgnoreCase
+        ) -or
+        $Path.StartsWith(
+            $Root + '/',
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+    )
+}
+
+function Get-RelativePathWithinRoot {
+    param(
+        [string]$Path,
+        [string]$Root
+    )
+
+    if (-not (Test-PathWithinRoot -Path $Path -Root $Root)) {
+        throw "Path is outside expected root '$Root': $Path"
+    }
+
+    if (
+        $Path.Equals(
+            $Root,
             [System.StringComparison]::OrdinalIgnoreCase
         )
     ) {
+        return ''
+    }
+
+    return $Path.Substring($Root.Length).TrimStart([char[]]@('\', '/'))
+}
+
+$resolvedRepoRoot = Get-NormalizedFullPath -Path $repoRoot
+$resolvedAddonRoot = Get-NormalizedFullPath -Path $addonRoot
+
+function Test-IgnoredPath {
+    param([string]$Path)
+
+    $resolvedPath = Get-NormalizedFullPath -Path $Path
+    if (Test-PathWithinRoot -Path $resolvedPath -Root $resolvedAddonRoot) {
         return $false
     }
 
-    $relativePath = [System.IO.Path]::GetRelativePath($repoRoot, $Path)
+    $relativePath = Get-RelativePathWithinRoot `
+        -Path $resolvedPath `
+        -Root $resolvedRepoRoot
     $segments = @($relativePath -split '[\\/]')
     return @($segments | Where-Object { $_ -in $ignoredDirectoryNames }).Count -gt 0
 }
