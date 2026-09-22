@@ -1,8 +1,9 @@
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
+$addonRoot = Join-Path $repoRoot 'AzerothTravelMetrics'
 $activeRoots = @(
-    (Join-Path $repoRoot 'AzerothTravelMetrics'),
+    $addonRoot,
     (Join-Path $repoRoot 'tests'),
     (Join-Path $repoRoot 'tools')
 )
@@ -29,6 +30,21 @@ $ignoredDirectoryNames = @(
 
 function Test-IgnoredPath {
     param([string]$Path)
+
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    $resolvedAddonRoot = [System.IO.Path]::GetFullPath($addonRoot).TrimEnd('\')
+    if (
+        $resolvedPath.Equals(
+            $resolvedAddonRoot,
+            [System.StringComparison]::OrdinalIgnoreCase
+        ) -or
+        $resolvedPath.StartsWith(
+            $resolvedAddonRoot + '\',
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+    ) {
+        return $false
+    }
 
     $relativePath = [System.IO.Path]::GetRelativePath($repoRoot, $Path)
     $segments = @($relativePath -split '[\\/]')
