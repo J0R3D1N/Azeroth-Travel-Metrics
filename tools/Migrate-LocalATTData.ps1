@@ -99,7 +99,7 @@ function Invoke-LocalSavedVariablesMigration {
         throw "Legacy SavedVariables source is not valid UTF-8: $OldSavedVariablesPath"
     }
 
-    $rootPattern = '(?m)^AzerothTravelTrackerDB(?=[ \t]*=)'
+    $rootPattern = '(?m)^AzerothTravelTrackerDB(?=[ \t]*=(?![ \t]*=))'
     $rootMatches = [regex]::Matches($text, $rootPattern)
     if ($rootMatches.Count -ne 1) {
         throw (

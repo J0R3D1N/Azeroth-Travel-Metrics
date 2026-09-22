@@ -208,6 +208,57 @@ try {
             -Message 'Backup directory was created.'
     }
 
+    Invoke-Test 'rejects a comparison root without mutation' {
+        $fixture = New-TestCase 'comparison-root'
+        Write-Utf8Fixture -Path $fixture.OldPath -Text "$oldRoot == {}`n"
+        $sourceBytes = [System.IO.File]::ReadAllBytes($fixture.OldPath)
+        Assert-Throws `
+            -MessagePattern 'exactly one.*found 0' `
+            -Action { Invoke-FixtureMigration -Fixture $fixture }
+        Assert-BytesEqual `
+            -Expected $sourceBytes `
+            -Actual ([System.IO.File]::ReadAllBytes($fixture.OldPath)) `
+            -Message 'Source changed.'
+        Assert-True -Condition (-not (Test-Path -LiteralPath $fixture.NewPath)) `
+            -Message 'Destination was created.'
+        Assert-True -Condition (-not (Test-Path -LiteralPath $fixture.BackupRoot)) `
+            -Message 'Backup directory was created.'
+    }
+
+    Invoke-Test 'rejects a space-separated multiple-equals root without mutation' {
+        $fixture = New-TestCase 'space-separated-equals-root'
+        Write-Utf8Fixture -Path $fixture.OldPath -Text "$oldRoot = = {}`n"
+        $sourceBytes = [System.IO.File]::ReadAllBytes($fixture.OldPath)
+        Assert-Throws `
+            -MessagePattern 'exactly one.*found 0' `
+            -Action { Invoke-FixtureMigration -Fixture $fixture }
+        Assert-BytesEqual `
+            -Expected $sourceBytes `
+            -Actual ([System.IO.File]::ReadAllBytes($fixture.OldPath)) `
+            -Message 'Source changed.'
+        Assert-True -Condition (-not (Test-Path -LiteralPath $fixture.NewPath)) `
+            -Message 'Destination was created.'
+        Assert-True -Condition (-not (Test-Path -LiteralPath $fixture.BackupRoot)) `
+            -Message 'Backup directory was created.'
+    }
+
+    Invoke-Test 'rejects a tab-separated multiple-equals root without mutation' {
+        $fixture = New-TestCase 'tab-separated-equals-root'
+        Write-Utf8Fixture -Path $fixture.OldPath -Text "$oldRoot =`t= {}`n"
+        $sourceBytes = [System.IO.File]::ReadAllBytes($fixture.OldPath)
+        Assert-Throws `
+            -MessagePattern 'exactly one.*found 0' `
+            -Action { Invoke-FixtureMigration -Fixture $fixture }
+        Assert-BytesEqual `
+            -Expected $sourceBytes `
+            -Actual ([System.IO.File]::ReadAllBytes($fixture.OldPath)) `
+            -Message 'Source changed.'
+        Assert-True -Condition (-not (Test-Path -LiteralPath $fixture.NewPath)) `
+            -Message 'Destination was created.'
+        Assert-True -Condition (-not (Test-Path -LiteralPath $fixture.BackupRoot)) `
+            -Message 'Backup directory was created.'
+    }
+
     Invoke-Test 'replaces only the equal-length root bytes' {
         $fixture = New-TestCase 'exact-replacement'
         $sourceText = "-- prefix $oldRoot`r`n$oldRoot`t = {`r`n  marker = '$oldRoot',`r`n}`r`n"
