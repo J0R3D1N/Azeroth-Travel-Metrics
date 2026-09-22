@@ -54,8 +54,17 @@ The release preparation workflow must separately record:
 
 - `tests\run.lua` result.
 - `tests\Test-PackageAddon.ps1` result, including rejection of a missing TOC file, nonnumeric Interface, and invalid zip layout.
+- `tests\Test-ReleaseIdentityContent.ps1` result, covering all seven release identity regression cases.
+- Standalone `tests\Test-ReleaseIdentity.ps1` result after the identity regression suite.
 - `tools\Package-Addon.ps1` result and final archive path.
 - Independent zip entry inspection confirming one `AzerothTravelMetrics` top-level directory in `AzerothTravelMetrics-1.0.0-beta.zip`.
 - Highest installed Blizzard/addon TOC Interface value and equality with `AzerothTravelMetrics.toc`.
+
+Run the identity checks in this order:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-ReleaseIdentityContent.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-ReleaseIdentity.ps1
+```
 
 These checks can qualify the archive as a beta candidate, but they do not change any smoke-test row from `PENDING`.

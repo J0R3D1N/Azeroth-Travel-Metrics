@@ -377,6 +377,7 @@ git commit -m "refactor: rename addon runtime to Azeroth Travel Metrics" `
 - Modify: `tools/Package-Addon.ps1`
 - Modify: `tests/test_icon_assets.py`
 - Modify: `tests/Test-PackageAddon.ps1`
+- Validate: `tests/Test-ReleaseIdentityContent.ps1`
 - Modify: `tests/Test-ReleaseIdentity.ps1`
 - Modify: `README.md`
 - Modify: `docs/BETA-SMOKE-TESTS.md`
@@ -476,7 +477,8 @@ Run:
 python -m pytest -q .\tests\test_icon_assets.py
 lua .\tests\run.lua
 .\tests\Test-PackageAddon.ps1
-.\tests\Test-ReleaseIdentity.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-ReleaseIdentityContent.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-ReleaseIdentity.ps1
 ```
 
 Expected:
@@ -485,6 +487,7 @@ Expected:
 7 passed
 all Lua tests passed, 0 failed
 32 passed, 0 failed, 1 skipped
+Release identity content tests: 7 passed, 0 failed
 PASS active release surfaces use only the ATM identity
 ```
 
@@ -757,16 +760,18 @@ python -m pytest -q .\tests\test_icon_assets.py
 lua .\tests\run.lua
 .\tests\Test-PackageAddon.ps1
 .\tests\Test-MigrateLocalATTData.ps1
-.\tests\Test-ReleaseIdentity.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-ReleaseIdentityContent.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-ReleaseIdentity.ps1
 .\tools\Package-Addon.ps1 -Version '1.0.0-beta'
 Get-FileHash `
   -LiteralPath '.\artifacts\AzerothTravelMetrics-1.0.0-beta.zip' `
   -Algorithm SHA256
 ```
 
-Require zero failures, only the existing privilege-dependent package skip,
-one `AzerothTravelMetrics` archive root, exactly three TGA assets, and no
-source artwork or ForeverSVFix artifacts.
+Require zero failures, seven passing release identity regression cases, only
+the existing privilege-dependent package skip, one `AzerothTravelMetrics`
+archive root, exactly three TGA assets, and no source artwork or ForeverSVFix
+artifacts.
 
 - [ ] **Step 2: Stop if WoW is running**
 
@@ -937,13 +942,15 @@ python -m pytest -q .\tests\test_icon_assets.py
 lua .\tests\run.lua
 .\tests\Test-PackageAddon.ps1
 .\tests\Test-MigrateLocalATTData.ps1
-.\tests\Test-ReleaseIdentity.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-ReleaseIdentityContent.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-ReleaseIdentity.ps1
 .\tools\Package-Addon.ps1 -Version '1.0.0-beta'
 git --no-pager status --short
 ```
 
-Expected: all tests pass, the package is reproducible, and the only working
-tree changes are intentional release artifacts ignored by Git.
+Expected: all tests pass, including all seven release identity regression
+cases and the standalone identity guard; the package is reproducible, and the
+only working tree changes are intentional release artifacts ignored by Git.
 
 ## Completion Criteria
 

@@ -105,6 +105,13 @@ Run the packaging validation fixtures:
 .\tests\Test-PackageAddon.ps1
 ```
 
+Run the release identity regression and standalone guard:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-ReleaseIdentityContent.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-ReleaseIdentity.ps1
+```
+
 Build the beta candidate:
 
 ```powershell
