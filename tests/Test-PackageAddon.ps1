@@ -478,6 +478,79 @@ Present.lua
             }
         }
 
+    $crossCommitRepo = Join-Path $fixtureRoot 'cross-commit-reproducibility-repo'
+    New-PackageRepoFixture -Path $crossCommitRepo | Out-Null
+    $firstAddonTree = (
+        Invoke-GitText `
+            -RepoRoot $crossCommitRepo `
+            -Arguments 'rev-parse HEAD:AzerothTravelMetrics'
+    ).Trim()
+    $firstPackage = Join-Path $fixtureRoot 'first-cross-commit-package.zip'
+
+    Test-DoesNotThrow `
+        -Name 'packages are byte-reproducible across commits with the same addon tree' `
+        -Action {
+            $firstResult = Invoke-PackageFixture -RepoRoot $crossCommitRepo
+            if ($firstResult.ExitCode -ne 0) {
+                throw $firstResult.Output
+            }
+            Copy-Item `
+                -LiteralPath (
+                    Join-Path $crossCommitRepo `
+                        'artifacts\AzerothTravelMetrics-1.0.0-beta.zip'
+                ) `
+                -Destination $firstPackage
+
+            Set-Content `
+                -LiteralPath (Join-Path $crossCommitRepo 'unrelated-root-file.txt') `
+                -Value 'changes the enclosing commit without changing addon bytes'
+            $env:GIT_AUTHOR_DATE = '2040-01-02T03:04:06+00:00'
+            $env:GIT_COMMITTER_DATE = '2040-01-02T03:04:06+00:00'
+            try {
+                & git -C $crossCommitRepo add -- unrelated-root-file.txt
+                & git -C $crossCommitRepo commit --quiet -m 'unrelated root change'
+                if ($LASTEXITCODE -ne 0) {
+                    throw 'Could not create the unrelated fixture commit.'
+                }
+            }
+            finally {
+                Remove-Item Env:\GIT_AUTHOR_DATE -ErrorAction SilentlyContinue
+                Remove-Item Env:\GIT_COMMITTER_DATE -ErrorAction SilentlyContinue
+            }
+
+            $secondAddonTree = (
+                Invoke-GitText `
+                    -RepoRoot $crossCommitRepo `
+                    -Arguments 'rev-parse HEAD:AzerothTravelMetrics'
+            ).Trim()
+            if ($firstAddonTree -cne $secondAddonTree) {
+                throw 'The unrelated fixture commit changed the addon tree.'
+            }
+
+            $secondResult = Invoke-PackageFixture -RepoRoot $crossCommitRepo
+            if ($secondResult.ExitCode -ne 0) {
+                throw $secondResult.Output
+            }
+
+            $firstHash = (
+                Get-FileHash -LiteralPath $firstPackage -Algorithm SHA256
+            ).Hash
+            $secondHash = (
+                Get-FileHash `
+                    -LiteralPath (
+                        Join-Path $crossCommitRepo `
+                            'artifacts\AzerothTravelMetrics-1.0.0-beta.zip'
+                    ) `
+                    -Algorithm SHA256
+            ).Hash
+            if ($firstHash -cne $secondHash) {
+                throw (
+                    'Packages from identical addon trees were not identical: ' +
+                    "$firstHash != $secondHash"
+                )
+            }
+        }
+
     $replacedAddonRoot = Join-Path $fixtureRoot 'validated-addon-root'
     Move-Item -LiteralPath $snapshotAddonRoot -Destination $replacedAddonRoot
     $maliciousAddonRoot = Join-Path $fixtureRoot 'malicious-addon-root'

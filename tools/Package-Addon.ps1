@@ -238,6 +238,59 @@ function New-GitAddonSnapshot {
     }
 }
 
+function New-DeterministicAddonPackage {
+    param(
+        [string]$AddonRoot,
+        [string]$ZipPath
+    )
+
+    $files = @(Get-ValidatedAddonFiles -AddonRoot $AddonRoot)
+    $entryTimestamp = [System.DateTimeOffset]::new(
+        1980,
+        1,
+        1,
+        0,
+        0,
+        0,
+        [System.TimeSpan]::Zero
+    )
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [System.IO.Compression.ZipFile]::Open(
+        $ZipPath,
+        [System.IO.Compression.ZipArchiveMode]::Create
+    )
+    try {
+        foreach ($file in $files) {
+            $entryName = (
+                $addonDirectoryName + '/' + ($file.RelativePath -replace '\\', '/')
+            )
+            $entry = $archive.CreateEntry(
+                $entryName,
+                [System.IO.Compression.CompressionLevel]::Optimal
+            )
+            $entry.LastWriteTime = $entryTimestamp
+
+            $source = [System.IO.File]::OpenRead($file.FullPath)
+            try {
+                $destination = $entry.Open()
+                try {
+                    $source.CopyTo($destination)
+                }
+                finally {
+                    $destination.Dispose()
+                }
+            }
+            finally {
+                $source.Dispose()
+            }
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
 function Assert-ZipLayout {
     param(
         [string]$ZipPath,
@@ -483,7 +536,22 @@ try {
     if (Test-Path -LiteralPath $zipPath) {
         Remove-Item -LiteralPath $zipPath -Force
     }
-    Move-Item -LiteralPath $snapshotZipPath -Destination $zipPath
+    New-DeterministicAddonPackage `
+        -AddonRoot $resolvedStagingPath `
+        -ZipPath $zipPath
+    Assert-ZipLayout `
+        -ZipPath $zipPath `
+        -ExpectedTopLevelDirectory $addonDirectoryName `
+        -ExpectedFilePaths $trackedFiles
+    $packageArchive = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+    try {
+        Assert-IconAssetArchiveEntries -EntryNames @(
+            $packageArchive.Entries | ForEach-Object { $_.FullName }
+        )
+    }
+    finally {
+        $packageArchive.Dispose()
+    }
 }
 finally {
     if (Test-Path -LiteralPath $snapshotZipPath) {
