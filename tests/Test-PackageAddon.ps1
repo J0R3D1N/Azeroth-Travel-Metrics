@@ -337,6 +337,208 @@ Present.lua
             }
     }
 
+    $failedPackageRoot = Join-Path $fixtureRoot 'failed-package'
+    $failedPackageSource = Join-Path $failedPackageRoot 'AzerothTravelMetrics'
+    $failedPackageOutput = Join-Path $failedPackageRoot 'output'
+    New-Item -ItemType Directory -Path $failedPackageSource -Force | Out-Null
+    New-Item -ItemType Directory -Path $failedPackageOutput -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $failedPackageSource 'A.lua') -Value '-- first'
+    $lockedPackageSource = Join-Path $failedPackageSource 'B.lua'
+    Set-Content -LiteralPath $lockedPackageSource -Value '-- locked'
+    $failedPackagePath = Join-Path $failedPackageOutput 'release.zip'
+
+    Test-Throws `
+        -Name 'package write failure does not publish a new destination' `
+        -MessagePattern 'being used by another process|cannot access the file' `
+        -Action {
+            $lockedStream = [System.IO.File]::Open(
+                $lockedPackageSource,
+                [System.IO.FileMode]::Open,
+                [System.IO.FileAccess]::ReadWrite,
+                [System.IO.FileShare]::None
+            )
+            try {
+                New-DeterministicAddonPackage `
+                    -AddonRoot $failedPackageSource `
+                    -ZipPath $failedPackagePath
+            }
+            finally {
+                $lockedStream.Dispose()
+            }
+        }
+    Test-DoesNotThrow `
+        -Name 'failed package write leaves no destination or temporary file' `
+        -Action {
+            $remainingFiles = @(Get-ChildItem -LiteralPath $failedPackageOutput -File -Force)
+            if ($remainingFiles.Count -ne 0) {
+                throw "Packaging failure left output files: $($remainingFiles.Name -join ', ')"
+            }
+        }
+
+    $existingPackagePath = Join-Path $failedPackageOutput 'existing-release.zip'
+    New-ZipFixture `
+        -Path $existingPackagePath `
+        -EntryNames @('AzerothTravelMetrics/Previous.lua')
+    $existingPackageHash = (
+        Get-FileHash -LiteralPath $existingPackagePath -Algorithm SHA256
+    ).Hash
+
+    Test-Throws `
+        -Name 'package write failure preserves a pre-existing destination' `
+        -MessagePattern 'being used by another process|cannot access the file' `
+        -Action {
+            $lockedStream = [System.IO.File]::Open(
+                $lockedPackageSource,
+                [System.IO.FileMode]::Open,
+                [System.IO.FileAccess]::ReadWrite,
+                [System.IO.FileShare]::None
+            )
+            try {
+                New-DeterministicAddonPackage `
+                    -AddonRoot $failedPackageSource `
+                    -ZipPath $existingPackagePath
+            }
+            finally {
+                $lockedStream.Dispose()
+            }
+        }
+    Test-DoesNotThrow `
+        -Name 'failed replacement leaves the existing destination unchanged and no temp file' `
+        -Action {
+            $actualHash = (
+                Get-FileHash -LiteralPath $existingPackagePath -Algorithm SHA256
+            ).Hash
+            if ($actualHash -cne $existingPackageHash) {
+                throw 'Packaging failure changed the pre-existing destination.'
+            }
+
+            $remainingFiles = @(Get-ChildItem -LiteralPath $failedPackageOutput -File -Force)
+            if (
+                $remainingFiles.Count -ne 1 -or
+                $remainingFiles[0].FullName -cne $existingPackagePath
+            ) {
+                throw "Packaging failure left unexpected files: $($remainingFiles.Name -join ', ')"
+            }
+        }
+
+    $successfulPackageRoot = Join-Path $fixtureRoot 'successful-package'
+    $successfulPackageSource = Join-Path $successfulPackageRoot 'AzerothTravelMetrics'
+    $successfulPackageOutput = Join-Path $successfulPackageRoot 'output'
+    New-Item -ItemType Directory -Path $successfulPackageSource -Force | Out-Null
+    New-Item -ItemType Directory -Path $successfulPackageOutput -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $successfulPackageSource 'Current.lua') -Value '-- current'
+    $successfulPackagePath = Join-Path $successfulPackageOutput 'release.zip'
+    New-ZipFixture `
+        -Path $successfulPackagePath `
+        -EntryNames @('AzerothTravelMetrics/Previous.lua')
+    $previousPackageHash = (
+        Get-FileHash -LiteralPath $successfulPackagePath -Algorithm SHA256
+    ).Hash
+
+    Test-DoesNotThrow `
+        -Name 'successful package atomically replaces a pre-existing destination' `
+        -Action {
+            New-DeterministicAddonPackage `
+                -AddonRoot $successfulPackageSource `
+                -ZipPath $successfulPackagePath
+            Assert-ZipLayout `
+                -ZipPath $successfulPackagePath `
+                -ExpectedTopLevelDirectory 'AzerothTravelMetrics' `
+                -ExpectedFilePaths @('Current.lua')
+
+            $currentPackageHash = (
+                Get-FileHash -LiteralPath $successfulPackagePath -Algorithm SHA256
+            ).Hash
+            if ($currentPackageHash -ceq $previousPackageHash) {
+                throw 'Successful packaging did not replace the previous destination.'
+            }
+
+            $remainingFiles = @(Get-ChildItem -LiteralPath $successfulPackageOutput -File -Force)
+            if (
+                $remainingFiles.Count -ne 1 -or
+                $remainingFiles[0].FullName -cne $successfulPackagePath
+            ) {
+                throw "Successful packaging left unexpected files: $($remainingFiles.Name -join ', ')"
+            }
+        }
+
+    $culturePackageRoot = Join-Path $fixtureRoot 'culture-package'
+    $cultureAddonRoot = Join-Path $culturePackageRoot 'AzerothTravelMetrics'
+    New-Item -ItemType Directory -Path $cultureAddonRoot -Force | Out-Null
+    $unicodeName = ([char]0x00E4) + '.lua'
+    foreach ($name in @('a.lua', 'z.lua', $unicodeName)) {
+        Set-Content -LiteralPath (Join-Path $cultureAddonRoot $name) -Value "-- $name"
+    }
+    $culturePackages = @{}
+    $originalCulture = [System.Threading.Thread]::CurrentThread.CurrentCulture
+    $originalUiCulture = [System.Threading.Thread]::CurrentThread.CurrentUICulture
+
+    Test-DoesNotThrow `
+        -Name 'Unicode package order and hash are ordinal across cultures' `
+        -Action {
+            try {
+                foreach ($cultureName in @('en-US', 'sv-SE')) {
+                    $culture = [System.Globalization.CultureInfo]::GetCultureInfo(
+                        $cultureName
+                    )
+                    [System.Threading.Thread]::CurrentThread.CurrentCulture = $culture
+                    [System.Threading.Thread]::CurrentThread.CurrentUICulture = $culture
+                    $packagePath = Join-Path $culturePackageRoot "$cultureName.zip"
+                    New-DeterministicAddonPackage `
+                        -AddonRoot $cultureAddonRoot `
+                        -ZipPath $packagePath
+                    $culturePackages[$cultureName] = $packagePath
+                }
+            }
+            finally {
+                [System.Threading.Thread]::CurrentThread.CurrentCulture = $originalCulture
+                [System.Threading.Thread]::CurrentThread.CurrentUICulture = $originalUiCulture
+            }
+
+            $expectedOrder = @('a.lua', 'z.lua', $unicodeName)
+            [System.Array]::Sort(
+                $expectedOrder,
+                [System.StringComparer]::Ordinal
+            )
+            foreach ($cultureName in @('en-US', 'sv-SE')) {
+                $archive = [System.IO.Compression.ZipFile]::OpenRead(
+                    $culturePackages[$cultureName]
+                )
+                try {
+                    $actualOrder = @(
+                        $archive.Entries |
+                            ForEach-Object {
+                                $_.FullName.Substring('AzerothTravelMetrics/'.Length)
+                            }
+                    )
+                }
+                finally {
+                    $archive.Dispose()
+                }
+
+                if (
+                    [string]::Join("`n", $actualOrder) -cne
+                        [string]::Join("`n", $expectedOrder)
+                ) {
+                    throw (
+                        "$cultureName package order was not ordinal. " +
+                        "Expected [$([string]::Join(', ', $expectedOrder))], " +
+                        "actual [$([string]::Join(', ', $actualOrder))]."
+                    )
+                }
+            }
+
+            $enHash = (
+                Get-FileHash -LiteralPath $culturePackages['en-US'] -Algorithm SHA256
+            ).Hash
+            $svHash = (
+                Get-FileHash -LiteralPath $culturePackages['sv-SE'] -Algorithm SHA256
+            ).Hash
+            if ($enHash -cne $svHash) {
+                throw "Culture changed package bytes: $enHash != $svHash"
+            }
+        }
+
     $fixtureRepo = Join-Path $fixtureRoot 'repo'
     $redirectedArtifacts = Join-Path $fixtureRoot 'redirected-artifacts'
     $artifactsJunction = Join-Path $fixtureRepo 'artifacts'

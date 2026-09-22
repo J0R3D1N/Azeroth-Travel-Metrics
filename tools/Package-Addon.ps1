@@ -92,7 +92,10 @@ function Get-ValidatedAddonFiles {
 
     $rootPath = $root.FullName.TrimEnd('\')
     $directories = [System.Collections.Generic.Stack[System.IO.DirectoryInfo]]::new()
-    $files = [System.Collections.Generic.List[object]]::new()
+    $filesByRelativePath = [System.Collections.Generic.Dictionary[string, object]]::new(
+        [System.StringComparer]::Ordinal
+    )
+    $relativePaths = [System.Collections.Generic.List[string]]::new()
     $directories.Push($root)
 
     while ($directories.Count -gt 0) {
@@ -108,14 +111,23 @@ function Get-ValidatedAddonFiles {
             }
 
             $relativePath = $item.FullName.Substring($rootPath.Length + 1)
-            $files.Add([pscustomobject]@{
+            $filesByRelativePath.Add($relativePath, [pscustomobject]@{
                 FullPath = $item.FullName
                 RelativePath = $relativePath
             })
+            $relativePaths.Add($relativePath)
         }
     }
 
-    return @($files | Sort-Object -Property RelativePath)
+    $sortedRelativePaths = $relativePaths.ToArray()
+    [System.Array]::Sort(
+        $sortedRelativePaths,
+        [System.StringComparer]::Ordinal
+    )
+    return @(
+        $sortedRelativePaths |
+            ForEach-Object { $filesByRelativePath[$_] }
+    )
 }
 
 function Invoke-GitText {
@@ -241,7 +253,9 @@ function New-GitAddonSnapshot {
 function New-DeterministicAddonPackage {
     param(
         [string]$AddonRoot,
-        [string]$ZipPath
+        [string]$ZipPath,
+        [string[]]$ExpectedFilePaths,
+        [scriptblock]$ValidateArchive
     )
 
     if (-not ('AtmCrc32' -as [type])) {
@@ -281,111 +295,174 @@ public static class AtmCrc32
     }
 
     $files = @(Get-ValidatedAddonFiles -AddonRoot $AddonRoot)
+    if ($null -eq $ExpectedFilePaths) {
+        $ExpectedFilePaths = @($files | ForEach-Object { $_.RelativePath })
+    }
+
     $utf8 = [System.Text.UTF8Encoding]::new($false)
-    $stream = [System.IO.File]::Open(
-        $ZipPath,
-        [System.IO.FileMode]::Create,
-        [System.IO.FileAccess]::Write,
-        [System.IO.FileShare]::None
+    $resolvedZipPath = [System.IO.Path]::GetFullPath($ZipPath)
+    $destinationDirectory = [System.IO.Path]::GetDirectoryName($resolvedZipPath)
+    $temporaryPath = Join-Path $destinationDirectory (
+        '.' +
+        [System.IO.Path]::GetFileName($resolvedZipPath) +
+        '.' +
+        [guid]::NewGuid().ToString('N') +
+        '.tmp'
     )
-    $writer = [System.IO.BinaryWriter]::new($stream, $utf8, $true)
-    $entries = [System.Collections.Generic.List[object]]::new()
+    $ownsTemporaryFile = $false
+    $stream = $null
+    $writer = $null
     try {
-        foreach ($file in $files) {
-            $entryName = (
-                $addonDirectoryName + '/' + ($file.RelativePath -replace '\\', '/')
-            )
-            $entryNameBytes = $utf8.GetBytes($entryName)
-            if ($entryNameBytes.Length -gt [uint16]::MaxValue) {
-                throw "Package entry name is too long: $entryName"
+        $stream = [System.IO.File]::Open(
+            $temporaryPath,
+            [System.IO.FileMode]::CreateNew,
+            [System.IO.FileAccess]::Write,
+            [System.IO.FileShare]::None
+        )
+        $ownsTemporaryFile = $true
+        $writer = [System.IO.BinaryWriter]::new($stream, $utf8, $true)
+        $entries = [System.Collections.Generic.List[object]]::new()
+        try {
+            foreach ($file in $files) {
+                $entryName = (
+                    $addonDirectoryName + '/' + ($file.RelativePath -replace '\\', '/')
+                )
+                $entryNameBytes = $utf8.GetBytes($entryName)
+                if ($entryNameBytes.Length -gt [uint16]::MaxValue) {
+                    throw "Package entry name is too long: $entryName"
+                }
+                $source = [System.IO.File]::OpenRead($file.FullPath)
+                try {
+                    if ($source.Length -gt [uint32]::MaxValue) {
+                        throw "Package entry is too large for a standard ZIP archive: $entryName"
+                    }
+
+                    $crc = [AtmCrc32]::Compute($file.FullPath)
+
+                    if ($stream.Position -gt [uint32]::MaxValue) {
+                        throw 'Package is too large for a standard ZIP archive.'
+                    }
+                    $localHeaderOffset = [uint32]$stream.Position
+                    $entryLength = [uint32]$source.Length
+
+                    $writer.Write([uint32]0x04034B50)
+                    $writer.Write([uint16]20)
+                    $writer.Write([uint16]0x0800)
+                    $writer.Write([uint16]0)
+                    $writer.Write([uint16]0)
+                    $writer.Write([uint16]0x0021)
+                    $writer.Write($crc)
+                    $writer.Write($entryLength)
+                    $writer.Write($entryLength)
+                    $writer.Write([uint16]$entryNameBytes.Length)
+                    $writer.Write([uint16]0)
+                    $writer.Write($entryNameBytes)
+
+                    $source.Position = 0
+                    $source.CopyTo($stream)
+                    $entries.Add([pscustomobject]@{
+                        NameBytes = $entryNameBytes
+                        Crc = $crc
+                        Length = $entryLength
+                        LocalHeaderOffset = $localHeaderOffset
+                    })
+                }
+                finally {
+                    $source.Dispose()
+                }
             }
-            $source = [System.IO.File]::OpenRead($file.FullPath)
-            try {
-                if ($source.Length -gt [uint32]::MaxValue) {
-                    throw "Package entry is too large for a standard ZIP archive: $entryName"
-                }
 
-                $crc = [AtmCrc32]::Compute($file.FullPath)
+            if ($entries.Count -gt [uint16]::MaxValue) {
+                throw 'Package contains too many entries for a standard ZIP archive.'
+            }
+            if ($stream.Position -gt [uint32]::MaxValue) {
+                throw 'Package is too large for a standard ZIP archive.'
+            }
+            $centralDirectoryOffset = [uint32]$stream.Position
 
-                if ($stream.Position -gt [uint32]::MaxValue) {
-                    throw 'Package is too large for a standard ZIP archive.'
-                }
-                $localHeaderOffset = [uint32]$stream.Position
-                $entryLength = [uint32]$source.Length
-
-                $writer.Write([uint32]0x04034B50)
+            foreach ($entry in $entries) {
+                $writer.Write([uint32]0x02014B50)
+                $writer.Write([uint16]20)
                 $writer.Write([uint16]20)
                 $writer.Write([uint16]0x0800)
                 $writer.Write([uint16]0)
                 $writer.Write([uint16]0)
                 $writer.Write([uint16]0x0021)
-                $writer.Write($crc)
-                $writer.Write($entryLength)
-                $writer.Write($entryLength)
-                $writer.Write([uint16]$entryNameBytes.Length)
+                $writer.Write([uint32]$entry.Crc)
+                $writer.Write([uint32]$entry.Length)
+                $writer.Write([uint32]$entry.Length)
+                $writer.Write([uint16]$entry.NameBytes.Length)
                 $writer.Write([uint16]0)
-                $writer.Write($entryNameBytes)
-
-                $source.Position = 0
-                $source.CopyTo($stream)
-                $entries.Add([pscustomobject]@{
-                    NameBytes = $entryNameBytes
-                    Crc = $crc
-                    Length = $entryLength
-                    LocalHeaderOffset = $localHeaderOffset
-                })
+                $writer.Write([uint16]0)
+                $writer.Write([uint16]0)
+                $writer.Write([uint16]0)
+                $writer.Write([uint32]0)
+                $writer.Write([uint32]$entry.LocalHeaderOffset)
+                $writer.Write([byte[]]$entry.NameBytes)
             }
-            finally {
-                $source.Dispose()
+
+            $centralDirectoryLength = $stream.Position - $centralDirectoryOffset
+            if ($centralDirectoryLength -gt [uint32]::MaxValue) {
+                throw 'Package central directory is too large for a standard ZIP archive.'
+            }
+
+            $writer.Write([uint32]0x06054B50)
+            $writer.Write([uint16]0)
+            $writer.Write([uint16]0)
+            $writer.Write([uint16]$entries.Count)
+            $writer.Write([uint16]$entries.Count)
+            $writer.Write([uint32]$centralDirectoryLength)
+            $writer.Write($centralDirectoryOffset)
+            $writer.Write([uint16]0)
+        }
+        finally {
+            if ($null -ne $writer) {
+                $writer.Dispose()
+                $writer = $null
+            }
+            if ($null -ne $stream) {
+                $stream.Dispose()
+                $stream = $null
             }
         }
 
-        if ($entries.Count -gt [uint16]::MaxValue) {
-            throw 'Package contains too many entries for a standard ZIP archive.'
-        }
-        if ($stream.Position -gt [uint32]::MaxValue) {
-            throw 'Package is too large for a standard ZIP archive.'
-        }
-        $centralDirectoryOffset = [uint32]$stream.Position
-
-        foreach ($entry in $entries) {
-            $writer.Write([uint32]0x02014B50)
-            $writer.Write([uint16]20)
-            $writer.Write([uint16]20)
-            $writer.Write([uint16]0x0800)
-            $writer.Write([uint16]0)
-            $writer.Write([uint16]0)
-            $writer.Write([uint16]0x0021)
-            $writer.Write([uint32]$entry.Crc)
-            $writer.Write([uint32]$entry.Length)
-            $writer.Write([uint32]$entry.Length)
-            $writer.Write([uint16]$entry.NameBytes.Length)
-            $writer.Write([uint16]0)
-            $writer.Write([uint16]0)
-            $writer.Write([uint16]0)
-            $writer.Write([uint16]0)
-            $writer.Write([uint32]0)
-            $writer.Write([uint32]$entry.LocalHeaderOffset)
-            $writer.Write([byte[]]$entry.NameBytes)
+        Assert-ZipLayout `
+            -ZipPath $temporaryPath `
+            -ExpectedTopLevelDirectory $addonDirectoryName `
+            -ExpectedFilePaths $ExpectedFilePaths
+        if ($null -ne $ValidateArchive) {
+            & $ValidateArchive $temporaryPath
         }
 
-        $centralDirectoryLength = $stream.Position - $centralDirectoryOffset
-        if ($centralDirectoryLength -gt [uint32]::MaxValue) {
-            throw 'Package central directory is too large for a standard ZIP archive.'
+        if ([System.IO.File]::Exists($resolvedZipPath)) {
+            $replaceMethod = [System.IO.File].GetMethod(
+                'Replace',
+                [type[]]@([string], [string], [string])
+            )
+            $replaceArguments = [object[]]::new(3)
+            $replaceArguments[0] = [string]$temporaryPath
+            $replaceArguments[1] = [string]$resolvedZipPath
+            $replaceArguments[2] = $null
+            $null = $replaceMethod.Invoke($null, $replaceArguments)
         }
-
-        $writer.Write([uint32]0x06054B50)
-        $writer.Write([uint16]0)
-        $writer.Write([uint16]0)
-        $writer.Write([uint16]$entries.Count)
-        $writer.Write([uint16]$entries.Count)
-        $writer.Write([uint32]$centralDirectoryLength)
-        $writer.Write($centralDirectoryOffset)
-        $writer.Write([uint16]0)
+        else {
+            [System.IO.File]::Move($temporaryPath, $resolvedZipPath)
+        }
+        $ownsTemporaryFile = $false
     }
     finally {
-        $writer.Dispose()
-        $stream.Dispose()
+        if ($null -ne $writer) {
+            $writer.Dispose()
+        }
+        if ($null -ne $stream) {
+            $stream.Dispose()
+        }
+        if (
+            $ownsTemporaryFile -and
+            [System.IO.File]::Exists($temporaryPath)
+        ) {
+            Remove-Item -LiteralPath $temporaryPath -Force
+        }
     }
 }
 
@@ -631,25 +708,25 @@ try {
     Write-Output "Validated addon manifest for Interface $interface."
 
     Assert-CleanAddonWorktree -RepoRoot $repoRoot
-    if (Test-Path -LiteralPath $zipPath) {
-        Remove-Item -LiteralPath $zipPath -Force
-    }
     New-DeterministicAddonPackage `
         -AddonRoot $resolvedStagingPath `
-        -ZipPath $zipPath
-    Assert-ZipLayout `
         -ZipPath $zipPath `
-        -ExpectedTopLevelDirectory $addonDirectoryName `
-        -ExpectedFilePaths $trackedFiles
-    $packageArchive = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
-    try {
-        Assert-IconAssetArchiveEntries -EntryNames @(
-            $packageArchive.Entries | ForEach-Object { $_.FullName }
-        )
-    }
-    finally {
-        $packageArchive.Dispose()
-    }
+        -ExpectedFilePaths $trackedFiles `
+        -ValidateArchive {
+            param([string]$CandidateZipPath)
+
+            $packageArchive = [System.IO.Compression.ZipFile]::OpenRead(
+                $CandidateZipPath
+            )
+            try {
+                Assert-IconAssetArchiveEntries -EntryNames @(
+                    $packageArchive.Entries | ForEach-Object { $_.FullName }
+                )
+            }
+            finally {
+                $packageArchive.Dispose()
+            }
+        }
 }
 finally {
     if (Test-Path -LiteralPath $snapshotZipPath) {
