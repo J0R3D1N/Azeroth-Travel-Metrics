@@ -62,7 +62,7 @@ $contentViolations = @(
     $activeItems |
         Where-Object {
             -not $_.PSIsContainer -and
-            $_.Attributes -band [System.IO.FileAttributes]::ReparsePoint -eq 0
+            ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0
         } |
         Select-String -Pattern $legacyPattern
 ) |
