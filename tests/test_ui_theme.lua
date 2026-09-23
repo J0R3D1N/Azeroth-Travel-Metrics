@@ -233,18 +233,34 @@ local function newHarness(options)
                 frame.width = 58
                 frame.height = 60
                 frame.Icon = newRegion("Texture", frame, options)
-                frame.Icon.width = 36
-                frame.Icon.height = 36
                 frame.Icon.point = {
-                    "TOPLEFT",
-                    frame,
-                    "TOPLEFT",
-                    11,
-                    -10,
+                    "CENTER",
+                    -4,
+                    0,
                 }
                 frame.Icon.points = { frame.Icon.point }
                 frame.SelectedTexture = newRegion("Texture", frame, options)
                 frame.SelectedTexture:Hide()
+                function frame:SetFillToInterior(fillToInterior, extent)
+                    self.fillToInteriorCalls =
+                        (self.fillToInteriorCalls or 0) + 1
+                    self.fillToInterior = fillToInterior
+                    self.interiorExtent = extent
+                    if fillToInterior then
+                        self.Icon:SetTexCoord(
+                            0.03125,
+                            0.96875,
+                            0.03125,
+                            0.96875
+                        )
+                        self.Icon:SetSize(extent or 50, extent or 50)
+                    end
+                end
+                function frame:SetChecked(checked)
+                    self.setCheckedCalls = (self.setCheckedCalls or 0) + 1
+                    self.checked = checked
+                    self.SelectedTexture.shown = checked
+                end
             end
             if template == "MaximizeMinimizeButtonFrameTemplate" then
                 frame.MaximizeButton = newFrame(
@@ -430,13 +446,18 @@ testlib.case("ui theme creates native side tabs with supplied regions", function
     testlib.equal(tab.height, 60)
     testlib.equal(tab.sizeCalls, nil)
     testlib.equal(tab.Icon.texture, addon.UITheme.Icons.OVERVIEW)
-    testlib.equal(tab.Icon.width, 36)
-    testlib.equal(tab.Icon.height, 36)
-    testlib.equal(tab.Icon.sizeCalls, nil)
+    testlib.equal(tab.fillToInteriorCalls, 1)
+    testlib.equal(tab.fillToInterior, true)
+    testlib.equal(tab.interiorExtent, 50)
+    testlib.equal(tab.Icon.width, 50)
+    testlib.equal(tab.Icon.height, 50)
+    testlib.equal(tab.Icon.sizeCalls, 1)
+    testlib.equal(tab.Icon.texCoord[1], 0.03125)
+    testlib.equal(tab.Icon.texCoord[2], 0.96875)
     testlib.equal(tab.Icon.pointCalls, nil)
-    testlib.equal(tab.Icon.points[1][1], "TOPLEFT")
-    testlib.equal(tab.Icon.points[1][4], 11)
-    testlib.equal(tab.Icon.points[1][5], -10)
+    testlib.equal(tab.Icon.points[1][1], "CENTER")
+    testlib.equal(tab.Icon.points[1][2], -4)
+    testlib.equal(tab.Icon.points[1][3], 0)
     testlib.truthy(tab.scripts.OnEnter)
     tab.scripts.OnEnter(tab)
     testlib.equal(calls.tooltipOwner, tab)
@@ -447,10 +468,13 @@ testlib.case("ui theme creates native side tabs with supplied regions", function
 
     addon.UITheme.SetSideTabSelected(tab, true)
     testlib.equal(tab.SelectedTexture.shown, true)
+    testlib.equal(tab.checked, true)
     addon.UITheme.SetSideTabSelected(tab, false)
     testlib.equal(tab.SelectedTexture.shown, false)
+    testlib.equal(tab.checked, false)
+    testlib.equal(tab.setCheckedCalls, 2)
     testlib.equal(tab.sizeCalls, nil)
-    testlib.equal(tab.Icon.sizeCalls, nil)
+    testlib.equal(tab.Icon.sizeCalls, 1)
     testlib.equal(tab.Icon.pointCalls, nil)
     testlib.equal(#tab.Icon.points, 1)
 end)

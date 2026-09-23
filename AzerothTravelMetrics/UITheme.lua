@@ -334,7 +334,9 @@ function Theme.CreateSideTab(name, parent, options)
         tab.Icon = tab:CreateTexture(nil, "ARTWORK")
     end
     tab.Icon:SetTexture(options.icon)
-    if not nativeTemplate then
+    if nativeTemplate and type(tab.SetFillToInterior) == "function" then
+        tab:SetFillToInterior(true, SIDE_TAB_SIZE)
+    elseif not nativeTemplate then
         tab.Icon:SetSize(32, 32)
         tab.Icon:SetPoint("CENTER", tab, "CENTER", 0, 0)
     end
@@ -369,6 +371,9 @@ end
 
 function Theme.SetSideTabSelected(tab, selected)
     tab.selected = selected == true
+    if type(tab.SetChecked) == "function" then
+        tab:SetChecked(tab.selected)
+    end
     if not tab.SelectedTexture then
         return
     end
