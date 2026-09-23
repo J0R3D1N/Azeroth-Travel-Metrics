@@ -18,6 +18,8 @@ local function sample(overrides)
         onTaxi = false,
         swimming = false,
         mounted = false,
+        flying = false,
+        vehicle = false,
         grounded = true,
     }
 
@@ -68,6 +70,8 @@ testlib.case("movement independently classifies taxi and swimming samples", func
                 onTaxi = true,
                 swimming = false,
                 mounted = false,
+                flying = true,
+                vehicle = false,
                 grounded = false,
             },
             expected = addon.Categories.TAXI,
@@ -78,6 +82,8 @@ testlib.case("movement independently classifies taxi and swimming samples", func
                 onTaxi = false,
                 swimming = true,
                 mounted = false,
+                flying = false,
+                vehicle = false,
                 grounded = false,
             },
             expected = addon.Categories.SWIMMING,
@@ -107,12 +113,62 @@ testlib.case("movement classifies taxi without unrelated optional states", funct
     local taxi = sample({ onTaxi = true })
     taxi.swimming = nil
     taxi.mounted = nil
+    taxi.flying = nil
+    taxi.vehicle = nil
     taxi.grounded = nil
 
     local category, reason = addon.Movement.Classify(taxi)
 
     testlib.equal(reason, nil)
     testlib.equal(category, addon.Categories.TAXI)
+end)
+
+testlib.case("movement keeps ground and aquatic forms in distance categories", function()
+    local addon = loadMovement()
+    local groundForm = sample({
+        swimming = false,
+        mounted = false,
+        flying = false,
+        vehicle = false,
+        grounded = true,
+    })
+    local aquaticForm = sample({
+        swimming = true,
+        mounted = false,
+        flying = false,
+        vehicle = false,
+        grounded = false,
+    })
+
+    testlib.equal(
+        addon.Movement.Classify(groundForm),
+        addon.Categories.ON_FOOT
+    )
+    testlib.equal(
+        addon.Movement.Classify(aquaticForm),
+        addon.Categories.SWIMMING
+    )
+end)
+
+testlib.case("movement excludes mounts flying forms and vehicles", function()
+    local addon = loadMovement()
+    local cases = {
+        { name = "mounted", overrides = { mounted = true } },
+        { name = "flying form", overrides = { flying = true } },
+        { name = "vehicle", overrides = { vehicle = true } },
+    }
+
+    for _, case in ipairs(cases) do
+        local value = sample(case.overrides)
+        local category, reason = addon.Movement.Classify(value)
+
+        testlib.equal(category, nil, case.name .. " was classified")
+        testlib.equal(
+            reason,
+            "unsupportedState",
+            case.name .. " returned the wrong reason"
+        )
+    end
 end)
 
 testlib.case("movement requires category-specific state signals", function()
@@ -231,9 +287,13 @@ testlib.case("movement rejects missing and non-boolean state flags", function()
         { name = "missing onTaxi", key = "onTaxi", value = nil },
         { name = "missing swimming", key = "swimming", value = nil },
         { name = "missing mounted", key = "mounted", value = nil },
+        { name = "missing flying", key = "flying", value = nil },
+        { name = "missing vehicle", key = "vehicle", value = nil },
         { name = "missing grounded", key = "grounded", value = nil },
         { name = "unknown grounded state", key = "grounded", value = false },
         { name = "nonnumeric truthy state", key = "onTaxi", value = 1 },
+        { name = "nonnumeric flying state", key = "flying", value = 1 },
+        { name = "nonnumeric vehicle state", key = "vehicle", value = 1 },
     }
 
     for _, case in ipairs(cases) do

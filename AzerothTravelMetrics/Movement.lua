@@ -40,11 +40,15 @@ function Movement.Classify(sample)
         return ATM.Categories.TAXI
     end
 
-    if type(sample.swimming) ~= "boolean" or type(sample.mounted) ~= "boolean" then
+    if type(sample.swimming) ~= "boolean"
+        or type(sample.mounted) ~= "boolean"
+        or type(sample.flying) ~= "boolean"
+        or type(sample.vehicle) ~= "boolean"
+    then
         return nil, "unsupportedState"
     end
 
-    if sample.mounted then
+    if sample.mounted or sample.flying or sample.vehicle then
         return nil, "unsupportedState"
     end
 

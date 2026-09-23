@@ -46,6 +46,8 @@ local function sample(overrides)
         onTaxi = false,
         swimming = false,
         mounted = false,
+        flying = false,
+        vehicle = false,
         grounded = true,
     }
 
@@ -62,7 +64,7 @@ local function sequenceReader(entries)
     return function()
         index = index + 1
         local entry = entries[index]
-        return entry.value, entry.reason
+        return entry.value, entry.reason, entry.capabilities
     end
 end
 
@@ -77,6 +79,8 @@ local function assertSampleSnapshot(actual, expected)
     testlib.equal(actual.onTaxi, expected.onTaxi)
     testlib.equal(actual.swimming, expected.swimming)
     testlib.equal(actual.mounted, expected.mounted)
+    testlib.equal(actual.flying, expected.flying)
+    testlib.equal(actual.vehicle, expected.vehicle)
     testlib.equal(actual.grounded, expected.grounded)
     testlib.equal(actual.capabilities, nil)
 end
@@ -345,6 +349,41 @@ testlib.case("tracker records read failures and clears its baseline", function()
     testlib.equal(reason, "positionUnavailable")
     testlib.equal(deps.character.diagnostics.positionUnavailable, 1)
     testlib.equal(tracker.previous, nil)
+end)
+
+testlib.case("tracker forwards capabilities on baseline rejection and read failure", function()
+    local addon = loadTracker()
+    local ready = {
+        position = true,
+        onFootReady = true,
+    }
+    local unavailable = {
+        position = false,
+        onFootReady = false,
+    }
+    local first = sample({
+        capabilities = ready,
+    })
+    local deps = validDependencies()
+    deps.compat.ReadSample = sequenceReader({
+        { value = first },
+        {
+            value = nil,
+            reason = "positionUnavailable",
+            capabilities = unavailable,
+        },
+    })
+    local tracker = addon.Tracker.New(deps)
+
+    local firstSegment, firstReason, firstCapabilities = tracker:Sample()
+    local secondSegment, secondReason, secondCapabilities = tracker:Sample()
+
+    testlib.equal(firstSegment, nil)
+    testlib.equal(firstReason, "baseline")
+    testlib.equal(firstCapabilities, ready)
+    testlib.equal(secondSegment, nil)
+    testlib.equal(secondReason, "positionUnavailable")
+    testlib.equal(secondCapabilities, unavailable)
 end)
 
 testlib.case("tracker does not aggregate mounted movement rejected by Movement", function()

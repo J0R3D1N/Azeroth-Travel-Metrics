@@ -17,6 +17,8 @@ local function copySample(sample)
         onTaxi = sample.onTaxi,
         swimming = sample.swimming,
         mounted = sample.mounted,
+        flying = sample.flying,
+        vehicle = sample.vehicle,
         grounded = sample.grounded,
     }
 end
@@ -109,19 +111,20 @@ function TrackerPrototype:SetLevel(level, now)
 end
 
 function TrackerPrototype:Sample()
-    local current, reason = self.compat.ReadSample()
+    local current, reason, capabilities = self.compat.ReadSample()
     if current == nil then
         reason = reason or "sampleUnavailable"
         incrementDiagnostic(self.character, reason)
         self.previous = nil
-        return nil, reason
+        return nil, reason, capabilities
     end
 
+    capabilities = current.capabilities or capabilities
     local previous = self.previous
     self.previous = copySample(current)
 
     if previous == nil then
-        return nil, "baseline"
+        return nil, "baseline", capabilities
     end
 
     local segment
@@ -131,7 +134,7 @@ function TrackerPrototype:Sample()
         if reason ~= "stationary" then
             incrementDiagnostic(self.character, reason)
         end
-        return nil, reason
+        return nil, reason, capabilities
     end
 
     local stored
@@ -144,7 +147,7 @@ function TrackerPrototype:Sample()
     if not stored then
         reason = reason or "storageRejected"
         incrementDiagnostic(self.character, reason)
-        return nil, reason
+        return nil, reason, capabilities
     end
 
     local emitCallSucceeded, emitSucceeded = pcall(
@@ -154,8 +157,8 @@ function TrackerPrototype:Sample()
     )
     if not emitCallSucceeded or emitSucceeded == false then
         incrementDiagnostic(self.character, "emitFailed")
-        return segment, "emitFailed"
+        return segment, "emitFailed", capabilities
     end
 
-    return segment
+    return segment, nil, capabilities
 end
