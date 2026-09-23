@@ -13,10 +13,11 @@ This repository produces a beta candidate. Automated validation does not replace
 - Lifetime, current-session, and per-level statistics.
 - Metric display by default, with an imperial option.
 - Compact, movable UI with a circular portrait, thin native title bar,
-  right-side Overview / By Level tabs, and centered character-stat sections.
+  right-side Overview / By Level / Settings tabs, and centered character-stat
+  sections.
 - Regular and HUD windows stay above ordinary world/HUD content but behind fullscreen maps and cinematics.
 - Escape closes the regular addon window.
-- A draggable minimap launcher and a compact settings panel hidden until requested.
+- A draggable minimap launcher and a center Settings panel hidden until selected.
 
 Mounted distance is intentionally excluded. A route map or breadcrumb trail is deferred and is not part of this beta.
 
@@ -86,9 +87,11 @@ After replacing the installed addon folder or TOC, keep WoW closed, reapply Fore
 
 The main window can be moved by left-dragging it. Left-click the minimap launcher to always open the regular panel; if the minimized HUD is visible, the regular panel replaces it. The launcher does not toggle the regular panel closed. Drag the launcher to reposition it. Use **Settings** in the main window for units, minimap visibility, and diagnostic visibility.
 
-Use the bottom-right gear button to open the compact Settings popup. **Reset
-Session** remains in the footer and retains the confirmation prompt; it resets
-only the active character session.
+Use the right-side Settings tab to change units, minimap visibility, and
+diagnostic visibility. Enabled diagnostic rejection counters appear in a
+scrollable section below those controls. **Reset Session** remains in the
+footer and retains the confirmation prompt; it resets only the active character
+session.
 
 ## Data and reset behavior
 

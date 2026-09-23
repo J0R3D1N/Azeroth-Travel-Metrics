@@ -416,6 +416,29 @@ UI.diagnosticsCheck:SetPoint(
 
 Preserve the current click handlers and database mutations exactly.
 
+Move the diagnostic output below the Settings controls:
+
+```lua
+UI.diagnosticsHeadingSection = ATM.UITheme.CreateSection(
+    UI.settingsPanel,
+    "Diagnostic Rejections",
+    0
+)
+UI.diagnosticsHeadingSection.frame:SetPoint(
+    "TOPLEFT",
+    UI.settingsPanel,
+    "TOPLEFT",
+    0,
+    -84
+)
+UI.diagnosticsHeadingSection.frame:SetWidth(376)
+```
+
+Parent the diagnostics scroll frame to `UI.settingsPanel`, anchor it 14 pixels
+inside and 8 pixels below the diagnostic heading, and size it `348 x 190`.
+Remove both dynamic `UI.overviewPanel:SetHeight` calls so Overview remains
+`320` pixels tall.
+
 - [ ] **Step 6: Cover pending-error behavior**
 
 Add a test:

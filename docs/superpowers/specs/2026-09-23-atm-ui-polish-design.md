@@ -66,7 +66,12 @@ The Settings center uses the established character-stat visual language:
 - native character-info header and row atlases;
 - gold labels and white values/controls;
 - compact rows for distance units, minimap visibility, and diagnostics;
+- a `Diagnostic Rejections` section beneath the controls that shows the
+  scrollable reason/count output when diagnostics are enabled;
 - no parchment and no floating popup.
+
+Diagnostic output no longer extends the Overview panel. Overview remains a
+fixed `320`-pixel surface whether diagnostics are enabled or disabled.
 
 The footer Settings gear is removed. Reset Session remains in the footer and
 retains its confirmation and storage behavior.
@@ -118,6 +123,8 @@ Automated tests must prove:
 - Settings is the third matching right-side tab;
 - the footer gear and floating Settings popup are gone;
 - Settings synchronizes and persists all existing controls;
+- diagnostic reason/count output is parented to Settings and never changes
+  Overview height;
 - error visibility follows the selected content tab;
 - main Minimize uses the native template, native red-button atlases, fixed
   title-bar placement, and a visible fallback;
