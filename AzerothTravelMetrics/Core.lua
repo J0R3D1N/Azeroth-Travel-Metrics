@@ -32,7 +32,6 @@ local REPORTABLE_REASONS = {
     sampleFailed = true,
     sampleUnavailable = true,
     timeUnavailable = true,
-    unsupportedState = true,
 }
 
 local state = {

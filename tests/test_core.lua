@@ -1376,7 +1376,7 @@ testlib.case("ticker refreshes only accepted segments while the window is shown"
     testlib.equal(hidden.calls.uiRefresh, 0)
 end)
 
-testlib.case("ticker reports only explicit capability reasons once", function()
+testlib.case("ticker reports capability failures but not normal movement rejections", function()
     local harness = newCoreHarness({
         sampleResults = {
             { reason = "positionUnavailable" },
@@ -1392,9 +1392,9 @@ testlib.case("ticker reports only explicit capability reasons once", function()
         harness.calls.tickers[1].callback()
     end
 
-    testlib.equal(#harness.calls.prints, 2)
+    testlib.equal(#harness.calls.prints, 1)
     testlib.truthy(contains(harness.calls.prints[1], "positionUnavailable"))
-    testlib.truthy(contains(harness.calls.prints[2], "unsupportedState"))
+    testlib.equal(contains(harness.calls.prints[1], "unsupportedState"), false)
 end)
 
 testlib.case("level up obtains wall clock before setting level and refreshes", function()
