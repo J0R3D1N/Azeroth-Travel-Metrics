@@ -2553,11 +2553,11 @@ testlib.case("ui creation is lazy idempotent and preserves the fallback warm she
     testlib.equal(harness.addon.UI.minimizeControl.point[5], 0)
     testlib.equal(
         harness.addon.UI.minimizeControl.template,
-        "MaximizeMinimizeButtonFrameTemplate"
+        "UIPanelHideButtonNoScripts"
     )
     testlib.equal(
         harness.addon.UI.minimizeButton,
-        harness.addon.UI.minimizeControl.MinimizeButton
+        harness.addon.UI.minimizeControl
     )
     testlib.equal(harness.addon.UI.minimizeControl.width, 24)
     testlib.equal(harness.addon.UI.minimizeControl.height, 24)
@@ -2660,6 +2660,18 @@ testlib.case("ui settings side tab opens synchronized center content", function(
     testlib.equal(UI.imperialCheck:GetChecked(), true)
     testlib.equal(UI.minimapCheck:GetChecked(), false)
     testlib.equal(UI.diagnosticsCheck:GetChecked(), true)
+    testlib.equal(UI.metricCheck.height, 16)
+    testlib.equal(UI.imperialCheck.height, 16)
+    testlib.equal(UI.minimapCheck.height, 16)
+    testlib.equal(UI.diagnosticsCheck.height, 16)
+    for _, checkButton in ipairs({
+        UI.metricCheck,
+        UI.imperialCheck,
+        UI.minimapCheck,
+        UI.diagnosticsCheck,
+    }) do
+        testlib.truthy(checkButton.height <= checkButton.parent.height)
+    end
     testlib.equal(UI.resetButton.parent, UI.frame)
     testlib.equal(UI.resetButton:GetText(), "Reset Session")
     UI.overviewTab.scripts.OnClick()
@@ -2837,6 +2849,20 @@ testlib.case("ui fallback owns title icon text and controls without native chrom
     testlib.truthy(harness.addon.UI.titleIconFrame ~= nil)
     testlib.truthy(harness.addon.UI.closeButton ~= nil)
     testlib.truthy(harness.addon.UI.minimizeButton ~= nil)
+    testlib.equal(
+        harness.addon.UI.minimizeButton.template,
+        "UIPanelHideButtonNoScripts"
+    )
+    testlib.equal(
+        harness.addon.UI.minimizeButton.normalTexture.atlas,
+        "RedButton-MiniCondense"
+    )
+    testlib.equal(harness.addon.UI.minimizeControl.point[1], "RIGHT")
+    testlib.equal(
+        harness.addon.UI.minimizeControl.point[2],
+        harness.addon.UI.closeButton
+    )
+    testlib.equal(harness.addon.UI.minimizeControl.point[3], "LEFT")
     testlib.equal(harness.addon.UI.title:GetText(), "Azeroth Travel Metrics")
 end)
 

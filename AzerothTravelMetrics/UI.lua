@@ -934,26 +934,28 @@ function UI.Create()
     UI.title:SetTextColor(1, 0.82, 0.32, 1)
     UI.title:SetText("Azeroth Travel Metrics")
 
-    if nativePortrait then
-        UI.minimizeButton = createSafeButton(
-            frame,
-            "UIPanelHideButtonNoScripts",
-            24,
-            24,
-            nil,
-            "-"
-        )
-        UI.minimizeControl = UI.minimizeButton
-        local minimizeArtApplied = ATM.UITheme.ApplyButtonAtlases(
-            UI.minimizeButton,
-            {
-                normal = "RedButton-MiniCondense",
-                pushed = "RedButton-MiniCondense-pressed",
-                disabled = "RedButton-MiniCondense-disabled",
-                highlight = "RedButton-Highlight",
-            }
-        )
-        if not minimizeArtApplied then
+    local minimizeParent = nativePortrait and frame or UI.titleRegion
+    UI.minimizeButton = createSafeButton(
+        minimizeParent,
+        "UIPanelHideButtonNoScripts",
+        24,
+        24,
+        nil,
+        "-"
+    )
+    UI.minimizeControl = UI.minimizeButton
+    local minimizeArtApplied = ATM.UITheme.ApplyButtonAtlases(
+        UI.minimizeButton,
+        {
+            normal = "RedButton-MiniCondense",
+            pushed = "RedButton-MiniCondense-pressed",
+            disabled = "RedButton-MiniCondense-disabled",
+            highlight = "RedButton-Highlight",
+        }
+    )
+    if not minimizeArtApplied then
+        UI.minimizeFallbackText = UI.minimizeButton.FallbackText
+        if not UI.minimizeFallbackText then
             UI.minimizeFallbackText = createLabel(
                 UI.minimizeButton,
                 "-",
@@ -967,7 +969,9 @@ function UI.Create()
                 0
             )
         end
-        UI.minimizeButton:ClearAllPoints()
+    end
+    UI.minimizeButton:ClearAllPoints()
+    if nativePortrait then
         UI.minimizeButton:SetPoint(
             "TOPRIGHT",
             frame,
@@ -977,12 +981,6 @@ function UI.Create()
         )
         UI.minimizeButton:SetFrameLevel(510)
     else
-        UI.minimizeControl, UI.minimizeButton =
-            ATM.UITheme.CreateWindowSizeControl(
-                UI.titleRegion,
-                "minimize",
-                "Minimize"
-            )
         UI.minimizeControl:SetPoint(
             "RIGHT",
             UI.closeButton,
@@ -1101,7 +1099,7 @@ function UI.Create()
         UI.settingsSection.rows[1].frame,
         "Metric"
     )
-    UI.metricCheck:SetSize(20, 20)
+    UI.metricCheck:SetSize(16, 16)
     UI.metricCheck:SetPoint(
         "RIGHT",
         UI.settingsSection.rows[1].frame,
@@ -1117,7 +1115,7 @@ function UI.Create()
         UI.settingsSection.rows[1].frame,
         "Imperial"
     )
-    UI.imperialCheck:SetSize(20, 20)
+    UI.imperialCheck:SetSize(16, 16)
     UI.imperialCheck:SetPoint(
         "RIGHT",
         UI.settingsSection.rows[1].frame,
@@ -1133,7 +1131,7 @@ function UI.Create()
         UI.settingsSection.rows[2].frame,
         "Show"
     )
-    UI.minimapCheck:SetSize(20, 20)
+    UI.minimapCheck:SetSize(16, 16)
     UI.minimapCheck:SetPoint(
         "RIGHT",
         UI.settingsSection.rows[2].frame,
@@ -1157,7 +1155,7 @@ function UI.Create()
         UI.settingsSection.rows[3].frame,
         "Show"
     )
-    UI.diagnosticsCheck:SetSize(20, 20)
+    UI.diagnosticsCheck:SetSize(16, 16)
     UI.diagnosticsCheck:SetPoint(
         "RIGHT",
         UI.settingsSection.rows[3].frame,
