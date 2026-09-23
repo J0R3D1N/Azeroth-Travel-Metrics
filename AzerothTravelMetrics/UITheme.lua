@@ -3,9 +3,9 @@ local _, ATM = ...
 local Theme = {
     Icons = {
         PORTRAIT = "Interface\\Icons\\INV_Misc_Map_01",
-        TITLE = "Interface\\AddOns\\AzerothTravelMetrics\\Media\\ATMLogo",
-        OVERVIEW = "Interface\\AddOns\\AzerothTravelMetrics\\Media\\Overview",
-        LEVELS = "Interface\\AddOns\\AzerothTravelMetrics\\Media\\ByLevel",
+        TITLE = "Interface\\Icons\\ability_mount_jungletiger",
+        OVERVIEW = "Interface\\Icons\\inv_misc_spyglass_02",
+        LEVELS = "Interface\\Icons\\inv_misc_book_09",
         SETTINGS = "Interface\\Icons\\INV_Misc_Gear_01",
     },
     Atlases = {

@@ -102,14 +102,6 @@ function New-PackageRepoFixture {
         "-- fixture`n-- second line`n",
         [System.Text.UTF8Encoding]::new($false)
     )
-    $fixtureMediaRoot = Join-Path $fixtureAddonRoot 'Media'
-    New-Item -ItemType Directory -Path $fixtureMediaRoot -Force | Out-Null
-    foreach ($textureName in @('ATMLogo.tga', 'Overview.tga', 'ByLevel.tga')) {
-        [System.IO.File]::WriteAllBytes(
-            (Join-Path $fixtureMediaRoot $textureName),
-            [byte[]](0, 1, 2, 3)
-        )
-    }
     @'
 ## Interface: 16001
 ## Title: Azeroth Travel Metrics - WoW: Forever (beta)
@@ -270,28 +262,29 @@ Present.lua
                 -ExpectedFilePaths @('Present.lua', 'Nested/Present.lua', 'Missing.lua')
         }
 
-    $requiredTextures = @(
-        'AzerothTravelMetrics/Media/ATMLogo.tga',
-        'AzerothTravelMetrics/Media/Overview.tga',
-        'AzerothTravelMetrics/Media/ByLevel.tga'
-    )
     Test-DoesNotThrow `
-        -Name 'icon archive accepts exactly the three runtime TGA entries' `
+        -Name 'icon archive accepts native game icons without bundled assets' `
         -Action {
-            Assert-IconAssetArchiveEntries -EntryNames $requiredTextures
+            Assert-NoBundledIconAssets -EntryNames @(
+                'AzerothTravelMetrics/UITheme.lua'
+            )
         }
     Test-Throws `
-        -Name 'icon archive rejects a missing runtime TGA entry' `
-        -MessagePattern 'exactly the required runtime TGA entries' `
+        -Name 'icon archive rejects bundled runtime TGA entries' `
+        -MessagePattern 'bundled icon assets' `
         -Action {
-            Assert-IconAssetArchiveEntries -EntryNames $requiredTextures[0..1]
+            Assert-NoBundledIconAssets -EntryNames @(
+                'AzerothTravelMetrics/UITheme.lua',
+                'AzerothTravelMetrics/Media/ATMLogo.tga'
+            )
         }
     Test-Throws `
         -Name 'icon archive rejects source JPG and JPEG entries' `
-        -MessagePattern 'source JPG or JPEG' `
+        -MessagePattern 'bundled icon assets' `
         -Action {
-            Assert-IconAssetArchiveEntries -EntryNames (
-                $requiredTextures + @(
+            Assert-NoBundledIconAssets -EntryNames (
+                @(
+                    'AzerothTravelMetrics/UITheme.lua',
                     'AzerothTravelMetrics\artwork\source\overview_icon.jpg',
                     'AzerothTravelMetrics/source.jpeg'
                 )
@@ -299,10 +292,11 @@ Present.lua
         }
     Test-Throws `
         -Name 'icon archive rejects the tab iconography reference' `
-        -MessagePattern 'tab_iconography' `
+        -MessagePattern 'bundled icon assets' `
         -Action {
-            Assert-IconAssetArchiveEntries -EntryNames (
-                $requiredTextures + @(
+            Assert-NoBundledIconAssets -EntryNames (
+                @(
+                    'AzerothTravelMetrics/UITheme.lua',
                     'AzerothTravelMetrics\Media\tab_iconography.jpg'
                 )
             )

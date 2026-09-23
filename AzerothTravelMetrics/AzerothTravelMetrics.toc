@@ -3,7 +3,7 @@
 ## Notes: Tracks estimated steps and travel distance.
 ## Author: Jason Parker
 ## Version: 1.0.0-beta
-## IconTexture: Interface\Icons\Ability_Rogue_Sprint
+## IconTexture: Interface\Icons\ability_mount_jungletiger
 ## SavedVariables: AzerothTravelMetricsDB
 
 Namespace.lua

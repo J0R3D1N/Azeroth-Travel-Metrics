@@ -135,18 +135,17 @@ The clean package intentionally excludes `X-ForeverSVFix` markers, `ForeverSVFix
 
 ### Icon assets
 
-The editable source JPGs live in `artwork/source/`. The small title and
-minimap badge is generated from `azeroth_travel_metrics.jpg`; the Overview
-and By Level tab sources remain `overview_icon.jpg` and `by_level_icon.jpg`.
-Regenerate the three 64 x 64 WoW runtime textures with:
+The addon uses native game icons and packages no custom image assets:
 
-```powershell
-python .\tools\Build-IconAssets.py
-```
+- Main/title/minimap: `Interface\Icons\ability_mount_jungletiger`
+  (FileDataID `132242`, the classic Aspect of the Cheetah icon).
+- Overview: `Interface\Icons\inv_misc_spyglass_02`
+  (FileDataID `134441`).
+- By Level: `Interface\Icons\inv_misc_book_09`
+  (FileDataID `133741`).
 
-The distribution package includes only the three
-`AzerothTravelMetrics/Media/*.tga` outputs. Source JPGs and the
-`tab_iconography.jpg` comparison sheet are not packaged.
+Packaging rejects bundled TGA, JPG, and JPEG files so the native-icon
+contract cannot regress.
 
 ## Beta limitations and direction
 

@@ -687,7 +687,7 @@ testlib.case("minimap create is idempotent native and interactive", function()
     testlib.truthy(contains(first.textures[1].texture, "Minimap"))
     testlib.equal(
         first.textures[2].texture,
-        "Interface\\AddOns\\AzerothTravelMetrics\\Media\\ATMLogo"
+        "Interface\\Icons\\ability_mount_jungletiger"
     )
     local background = harness.addon.Minimap.background
     testlib.equal(background.width, 20)
@@ -700,7 +700,7 @@ testlib.case("minimap create is idempotent native and interactive", function()
     local icon = harness.addon.Minimap.icon
     testlib.equal(
         icon.texture,
-        "Interface\\AddOns\\AzerothTravelMetrics\\Media\\ATMLogo"
+        "Interface\\Icons\\ability_mount_jungletiger"
     )
     testlib.equal(icon.width, 20)
     testlib.equal(icon.height, 20)

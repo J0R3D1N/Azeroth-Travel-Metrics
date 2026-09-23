@@ -4,7 +4,6 @@ $ErrorActionPreference = 'Stop'
 $addonDirectoryName = 'AzerothTravelMetrics'
 $expectedTitle = 'Azeroth Travel Metrics - WoW: Forever (beta)'
 $expectedSavedVariables = 'AzerothTravelMetricsDB'
-$expectedLogo = 'AzerothTravelMetrics/Media/ATMLogo.tga'
 
 function Get-TocMetadata {
     param(
@@ -546,7 +545,7 @@ function Assert-ZipLayout {
     }
 }
 
-function Assert-IconAssetArchiveEntries {
+function Assert-NoBundledIconAssets {
     param([string[]]$EntryNames)
 
     $normalizedEntries = @(
@@ -554,37 +553,18 @@ function Assert-IconAssetArchiveEntries {
             ForEach-Object { $_ -replace '\\', '/' } |
             Where-Object { -not $_.EndsWith('/') }
     )
-    $requiredTextures = @(
-        $expectedLogo,
-        "$addonDirectoryName/Media/ByLevel.tga",
-        "$addonDirectoryName/Media/Overview.tga"
-    )
-    $mediaEntryPattern =
-        '\A' + [regex]::Escape($addonDirectoryName) + '/Media/[^/]+\.tga\z'
-    $actualTextures = @(
+    $bundledIconAssets = @(
         $normalizedEntries |
             Where-Object {
-                $_ -match $mediaEntryPattern
+                $_ -match '(?i)\.(tga|jpg|jpeg)\z' -or
+                $_ -match '(?i)tab_iconography'
             }
     )
-    [System.Array]::Sort($requiredTextures, [System.StringComparer]::Ordinal)
-    [System.Array]::Sort($actualTextures, [System.StringComparer]::Ordinal)
-
-    if (
-        $requiredTextures.Count -ne $actualTextures.Count -or
-        [string]::Join("`n", $requiredTextures) -cne
-            [string]::Join("`n", $actualTextures)
-    ) {
+    if ($bundledIconAssets.Count -ne 0) {
         throw (
-            'Package must include exactly the required runtime TGA entries: ' +
-            "$([string]::Join(', ', $requiredTextures))."
+            'Package must not include bundled icon assets: ' +
+            "$([string]::Join(', ', $bundledIconAssets))."
         )
-    }
-    if ($normalizedEntries | Where-Object { $_ -match '(?i)tab_iconography' }) {
-        throw 'Package must not include a tab_iconography reference entry.'
-    }
-    if ($normalizedEntries | Where-Object { $_ -match '(?i)\.(jpg|jpeg)\z' }) {
-        throw 'Package must not include a source JPG or JPEG entry.'
     }
 }
 
@@ -689,7 +669,7 @@ try {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $snapshotArchive = [System.IO.Compression.ZipFile]::OpenRead($snapshotZipPath)
     try {
-        Assert-IconAssetArchiveEntries -EntryNames @(
+        Assert-NoBundledIconAssets -EntryNames @(
             $snapshotArchive.Entries | ForEach-Object { $_.FullName }
         )
     }
@@ -719,7 +699,7 @@ try {
                 $CandidateZipPath
             )
             try {
-                Assert-IconAssetArchiveEntries -EntryNames @(
+                Assert-NoBundledIconAssets -EntryNames @(
                     $packageArchive.Entries | ForEach-Object { $_.FullName }
                 )
             }

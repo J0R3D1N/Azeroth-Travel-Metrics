@@ -526,7 +526,7 @@ local function createHUD()
             frame,
             1,
             "Steps",
-            "Interface\\Icons\\Ability_Rogue_Sprint"
+            ATM.UITheme.Icons.TITLE
         ),
         createHUDCell(
             frame,
