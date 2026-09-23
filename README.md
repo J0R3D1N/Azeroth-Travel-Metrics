@@ -12,7 +12,8 @@ This repository produces a beta candidate. Automated validation does not replace
 - Separate on-foot, swimming, and flight-path (taxi) distance.
 - Lifetime, current-session, and per-level statistics.
 - Metric display by default, with an imperial option.
-- Compact, movable native UI with Overview and By Level tabs.
+- Compact, movable spellbook-style UI with a circular portrait, top icon tabs,
+  parchment pages, and spellbook section dividers.
 - Regular and HUD windows stay above ordinary world/HUD content but behind fullscreen maps and cinematics.
 - Escape closes the regular addon window.
 - A draggable minimap launcher and a compact settings panel hidden until requested.
@@ -137,12 +138,17 @@ The clean package intentionally excludes `X-ForeverSVFix` markers, `ForeverSVFix
 
 The addon uses native game icons and packages no custom image assets:
 
-- Main/title/minimap: `Interface\Icons\ability_mount_jungletiger`
-  (FileDataID `132242`, the classic Aspect of the Cheetah icon).
+- Main/title/minimap: `Interface\Icons\inv_misc_pocketwatch_01`
+  (FileDataID `134376`).
 - Overview: `Interface\Icons\inv_misc_spyglass_02`
   (FileDataID `134441`).
 - By Level: `Interface\Icons\inv_misc_book_09`
   (FileDataID `133741`).
+
+The main window also uses the native `PortraitFrameBaseTemplate`,
+`spellbook-page-condensed-c60` parchment atlas, and `spellbook-divider` atlas.
+Guarded fallbacks keep the window usable when a template or atlas is
+unavailable.
 
 Packaging rejects bundled TGA, JPG, and JPEG files so the native-icon
 contract cannot regress.

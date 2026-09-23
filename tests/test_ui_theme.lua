@@ -33,6 +33,10 @@ local function newRegion(kind, parent, options)
         self.texture = texture
     end
 
+    function region:SetTexCoord(...)
+        self.texCoord = { ... }
+    end
+
     function region:SetRotation(radians)
         options.rotationCalls = (options.rotationCalls or 0) + 1
         if options.rejectRotations then
@@ -56,6 +60,10 @@ local function newRegion(kind, parent, options)
 
     function region:SetHeight(height)
         self.height = height
+    end
+
+    function region:SetWidth(width)
+        self.width = width
     end
 
     function region:SetPoint(...)
@@ -310,6 +318,49 @@ testlib.case("ui theme exposes approved native icons and atlases", function()
     testlib.equal(addon.UITheme.Atlases.ROW, "UI-Character-Info-Line-Bounce")
     testlib.equal(addon.UITheme.Atlases.ROW_ALTERNATE, "UI-Character-Info-Line-Bounce2")
     testlib.equal(addon.UITheme.Atlases.INSET, "common-insideframe")
+    testlib.equal(addon.UITheme.Atlases.PAGE, "spellbook-page-condensed-c60")
+    testlib.equal(addon.UITheme.Atlases.DIVIDER, "spellbook-divider")
+end)
+
+testlib.case("ui theme creates parchment pages and spellbook dividers with fallbacks", function()
+    local addon, parent = newHarness()
+    local page = addon.UITheme.CreateParchmentPage(parent)
+    local divider = addon.UITheme.CreateDivider(parent)
+
+    testlib.equal(page.atlas, addon.UITheme.Atlases.PAGE)
+    testlib.equal(page.allPoints, parent)
+    testlib.equal(divider.atlas, addon.UITheme.Atlases.DIVIDER)
+    testlib.equal(divider.height, 8)
+
+    local fallbackAddon, fallbackParent = newHarness({
+        rejectAtlases = true,
+    })
+    local fallbackPage = fallbackAddon.UITheme.CreateParchmentPage(fallbackParent)
+    local fallbackDivider = fallbackAddon.UITheme.CreateDivider(fallbackParent)
+    testlib.equal(fallbackPage.color[1], 0.74)
+    testlib.equal(fallbackPage.color[4], 1)
+    testlib.equal(fallbackDivider.color[1], 0.35)
+    testlib.equal(fallbackDivider.height, 1)
+end)
+
+testlib.case("ui theme creates compact top icon tabs", function()
+    local addon, parent = newHarness()
+    local tab = addon.UITheme.CreateTopTab("OverviewTab", parent, {
+        icon = addon.UITheme.Icons.OVERVIEW,
+        tooltip = "Overview",
+    })
+
+    testlib.equal(tab.width, 44)
+    testlib.equal(tab.height, 38)
+    testlib.equal(tab.Icon.texture, addon.UITheme.Icons.OVERVIEW)
+    testlib.equal(tab.Icon.width, 26)
+    testlib.equal(tab.Icon.height, 26)
+    testlib.equal(tab.Icon.point[1], "CENTER")
+    testlib.equal(tab.SelectedTexture.shown, false)
+    addon.UITheme.SetTopTabSelected(tab, true)
+    testlib.equal(tab.SelectedTexture.shown, true)
+    addon.UITheme.SetTopTabSelected(tab, false)
+    testlib.equal(tab.SelectedTexture.shown, false)
 end)
 
 testlib.case("ui theme applies an atlas or a visible color fallback", function()

@@ -13,6 +13,8 @@ local Theme = {
         ROW = "UI-Character-Info-Line-Bounce",
         ROW_ALTERNATE = "UI-Character-Info-Line-Bounce2",
         INSET = "common-insideframe",
+        PAGE = "spellbook-page-condensed-c60",
+        DIVIDER = "spellbook-divider",
     },
 }
 
@@ -248,6 +250,30 @@ function Theme.CreateInset(parent)
     return inset
 end
 
+function Theme.CreateParchmentPage(parent)
+    local page = parent:CreateTexture(nil, "BACKGROUND")
+    page:SetAllPoints(parent)
+    Theme.SetAtlasOrColor(page, Theme.Atlases.PAGE, 0.74, 0.60, 0.38, 1)
+    return page
+end
+
+function Theme.CreateDivider(parent)
+    local divider = parent:CreateTexture(nil, "ARTWORK")
+    if Theme.SetAtlasOrColor(
+        divider,
+        Theme.Atlases.DIVIDER,
+        0.35,
+        0.20,
+        0.08,
+        0.9
+    ) then
+        divider:SetHeight(8)
+    else
+        divider:SetHeight(1)
+    end
+    return divider
+end
+
 function Theme.CreateFramedIcon(parent, texturePath, size)
     local frame = CreateFrame("Frame", nil, parent)
     frame:SetSize(size, size)
@@ -354,6 +380,56 @@ function Theme.SetSideTabSelected(tab, selected)
     end
 end
 
+function Theme.CreateTopTab(name, parent, options)
+    options = options or {}
+    local tab = CreateFrame("Button", name, parent)
+    tab:SetSize(44, 38)
+
+    tab.Background = createColorTexture(
+        tab,
+        "BACKGROUND",
+        0.22,
+        0.12,
+        0.04,
+        0.88
+    )
+    tab.Icon = tab:CreateTexture(nil, "ARTWORK")
+    tab.Icon:SetSize(26, 26)
+    tab.Icon:SetPoint("CENTER", tab, "CENTER", 0, 0)
+    tab.Icon:SetTexture(options.icon)
+    tab.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    tab.HighlightTexture = createColorTexture(
+        tab,
+        "HIGHLIGHT",
+        1,
+        0.82,
+        0.34,
+        0.20
+    )
+    tab.SelectedTexture = createColorTexture(
+        tab,
+        "OVERLAY",
+        0.95,
+        0.73,
+        0.22,
+        0.28
+    )
+    tab.SelectedTexture:Hide()
+    tab.Border = createFallbackBorder(tab)
+    setTooltip(tab, options.tooltip or "")
+    return tab
+end
+
+function Theme.SetTopTabSelected(tab, selected)
+    tab.selected = selected == true
+    if tab.selected then
+        tab.SelectedTexture:Show()
+    else
+        tab.SelectedTexture:Hide()
+    end
+end
+
 function Theme.CreateSection(parent, title, rowCount, options)
     rowCount = rowCount or 4
     options = options or {}
@@ -393,6 +469,9 @@ function Theme.CreateSection(parent, title, rowCount, options)
         title = titleText,
         rows = {},
     }
+    section.divider = Theme.CreateDivider(frame)
+    section.divider:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 8, 3)
+    section.divider:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", -8, 3)
 
     local previous = header
     for index = 1, rowCount do

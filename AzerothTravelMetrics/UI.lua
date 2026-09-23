@@ -86,6 +86,17 @@ local function registerEscapeFrame(frameName)
 end
 
 local function createMainFrame()
+    local portraitSucceeded, portraitFrame = pcall(
+        CreateFrame,
+        "Frame",
+        "AzerothTravelMetricsFrame",
+        UIParent,
+        "PortraitFrameBaseTemplate"
+    )
+    if portraitSucceeded and portraitFrame then
+        return portraitFrame, false, true
+    end
+
     local succeeded, frame = pcall(
         CreateFrame,
         "Frame",
@@ -94,14 +105,14 @@ local function createMainFrame()
         "BackdropTemplate"
     )
     if succeeded and frame then
-        return frame, true
+        return frame, true, false
     end
 
     return CreateFrame(
         "Frame",
         "AzerothTravelMetricsFrame",
         UIParent
-    ), false
+    ), false, false
 end
 
 local function createLabel(parent, text, font)
@@ -215,11 +226,11 @@ local function setPanelVisibility()
     end
 
     if activeTab == "levels" then
-        ATM.UITheme.SetSideTabSelected(UI.overviewTab, false)
-        ATM.UITheme.SetSideTabSelected(UI.levelTab, true)
+        ATM.UITheme.SetTopTabSelected(UI.overviewTab, false)
+        ATM.UITheme.SetTopTabSelected(UI.levelTab, true)
     else
-        ATM.UITheme.SetSideTabSelected(UI.levelTab, false)
-        ATM.UITheme.SetSideTabSelected(UI.overviewTab, true)
+        ATM.UITheme.SetTopTabSelected(UI.levelTab, false)
+        ATM.UITheme.SetTopTabSelected(UI.overviewTab, true)
     end
 end
 
@@ -818,10 +829,10 @@ function UI.Create()
         return UI.frame
     end
 
-    local frame, useBackdrop = createMainFrame()
+    local frame, useBackdrop, nativePortrait = createMainFrame()
     UI.frame = frame
     registerEscapeFrame("AzerothTravelMetricsFrame")
-    frame:SetSize(420, 430)
+    frame:SetSize(420, 470)
     frame:SetPoint("CENTER")
     safeSetFrameStrata(frame)
     frame:SetFrameLevel(MAIN_FRAME_LEVEL)
@@ -835,47 +846,68 @@ function UI.Create()
         self:StopMovingOrSizing()
     end)
 
-    UI.shell = ATM.UITheme.ApplyWindowShell(frame, useBackdrop)
+    if nativePortrait then
+        UI.shell = {}
+    else
+        UI.shell = ATM.UITheme.ApplyWindowShell(frame, useBackdrop)
+    end
 
     UI.titleRegion = CreateFrame("Frame", nil, frame)
-    UI.titleRegion:SetSize(404, 44)
+    UI.titleRegion:SetSize(404, 28)
     UI.titleRegion:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -8)
     raiseAboveParent(UI.titleRegion, frame, 20)
     UI.titleRegion:Show()
 
-    UI.titleIconFrame,
-        UI.titleIcon,
-        UI.titleIconBackground,
-        UI.titleIconBorder = ATM.UITheme.CreateFramedIcon(
+    if nativePortrait then
+        UI.title = frame.TitleText
+        UI.closeButton = frame.CloseButton
+        UI.titleIcon = frame.PortraitContainer
+            and frame.PortraitContainer.portrait
+        if UI.titleIcon then
+            if type(UI.titleIcon.SetTexture) == "function" then
+                pcall(
+                    UI.titleIcon.SetTexture,
+                    UI.titleIcon,
+                    ATM.UITheme.Icons.TITLE
+                )
+            end
+        end
+    else
+        UI.titleIconFrame,
+            UI.titleIcon,
+            UI.titleIconBackground,
+            UI.titleIconBorder = ATM.UITheme.CreateFramedIcon(
+                UI.titleRegion,
+                ATM.UITheme.Icons.TITLE,
+                28
+            )
+        UI.titleIconFrame:SetPoint("LEFT", UI.titleRegion, "LEFT", 4, 0)
+        raiseAboveParent(UI.titleIconFrame, UI.titleRegion, 2)
+        UI.closeButton = createSafeButton(
             UI.titleRegion,
-            ATM.UITheme.Icons.TITLE,
-            32
+            "UIPanelCloseButton",
+            24,
+            24,
+            nil,
+            "x"
         )
-    UI.titleIconFrame:SetPoint("LEFT", UI.titleRegion, "LEFT", 4, 0)
-    raiseAboveParent(UI.titleIconFrame, UI.titleRegion, 2)
-
-    UI.closeButton = createSafeButton(
-        UI.titleRegion,
-        "UIPanelCloseButton",
-        24,
-        24,
-        nil,
-        "x"
-    )
-    UI.closeButton:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -2, 0)
+        UI.closeButton:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -2, 0)
+    end
     raiseAboveParent(UI.closeButton, UI.titleRegion, 3)
     UI.closeButton:Show()
     UI.closeButton:SetScript("OnClick", function()
         frame:Hide()
     end)
 
-    UI.title = createLabel(
-        UI.titleRegion,
-        "Azeroth Travel Metrics",
-        "GameFontNormalLarge"
-    )
-    UI.title:SetPoint("LEFT", UI.titleIconFrame, "RIGHT", 10, 0)
-    UI.title:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -58, 0)
+    if not UI.title then
+        UI.title = createLabel(
+            UI.titleRegion,
+            "Azeroth Travel Metrics",
+            "GameFontNormal"
+        )
+        UI.title:SetPoint("LEFT", UI.titleIconFrame, "RIGHT", 10, 0)
+        UI.title:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -58, 0)
+    end
     UI.title:SetJustifyH("LEFT")
     UI.title:SetJustifyV("MIDDLE")
     UI.title:SetTextColor(1, 0.82, 0.32, 1)
@@ -901,7 +933,7 @@ function UI.Create()
         UI.Minimize()
     end)
 
-    UI.overviewTab = ATM.UITheme.CreateSideTab(
+    UI.overviewTab = ATM.UITheme.CreateTopTab(
         "AzerothTravelMetricsFrameOverviewTab",
         frame,
         {
@@ -909,14 +941,14 @@ function UI.Create()
             tooltip = "Overview",
         }
     )
-    UI.overviewTab:SetPoint("TOPLEFT", frame, "TOPRIGHT", -4, -34)
+    UI.overviewTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 152, -36)
     UI.overviewTab:Show()
     UI.overviewTab:SetScript("OnClick", function()
         activeTab = "overview"
         setPanelVisibility()
     end)
 
-    UI.levelTab = ATM.UITheme.CreateSideTab(
+    UI.levelTab = ATM.UITheme.CreateTopTab(
         "AzerothTravelMetricsFrameLevelTab",
         frame,
         {
@@ -924,7 +956,7 @@ function UI.Create()
             tooltip = "By Level",
         }
     )
-    UI.levelTab:SetPoint("TOP", UI.overviewTab, "BOTTOM", 0, -2)
+    UI.levelTab:SetPoint("LEFT", UI.overviewTab, "RIGHT", 6, 0)
     UI.levelTab:Show()
     UI.levelTab:SetScript("OnClick", function()
         activeTab = "levels"
@@ -1089,8 +1121,9 @@ function UI.Create()
     settingsPanel:Hide()
 
     UI.contentFrame = CreateFrame("Frame", nil, frame)
-    UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -50)
-    UI.contentFrame:SetSize(388, 350)
+    UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -76)
+    UI.contentFrame:SetSize(388, 382)
+    UI.parchmentPage = ATM.UITheme.CreateParchmentPage(UI.contentFrame)
 
     UI.errorPanel = CreateFrame("Frame", nil, UI.contentFrame)
     UI.errorPanel:SetPoint(
@@ -1100,7 +1133,7 @@ function UI.Create()
         6,
         -8
     )
-    UI.errorPanel:SetSize(376, 342)
+    UI.errorPanel:SetSize(376, 374)
     UI.errorInset = ATM.UITheme.CreateInset(UI.errorPanel)
 
     UI.errorText = createLabel(
@@ -1114,8 +1147,8 @@ function UI.Create()
     UI.errorText:Hide()
     UI.errorPanel:Hide()
 
-    UI.overviewPanel = CreateFrame("Frame", nil, frame)
-    UI.overviewPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -54)
+    UI.overviewPanel = CreateFrame("Frame", nil, UI.contentFrame)
+    UI.overviewPanel:SetPoint("TOPLEFT", UI.contentFrame, "TOPLEFT", 6, -8)
     UI.overviewPanel:SetSize(376, SUMMARY_CONTENT_HEIGHT)
 
     UI.summarySections = {}
@@ -1206,8 +1239,8 @@ function UI.Create()
     UI.diagnosticsText:Hide()
     diagnosticsScrollFrame:Hide()
 
-    UI.levelPanel = CreateFrame("Frame", nil, frame)
-    UI.levelPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -54)
+    UI.levelPanel = CreateFrame("Frame", nil, UI.contentFrame)
+    UI.levelPanel:SetPoint("TOPLEFT", UI.contentFrame, "TOPLEFT", 6, -8)
     UI.levelPanel:SetSize(LEVEL_PANEL_WIDTH, 310)
     UI.levelHeadingSection = ATM.UITheme.CreateSection(
         UI.levelPanel,
