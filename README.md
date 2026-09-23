@@ -49,7 +49,7 @@ Update the addon TOC from an installed beta:
     -BetaAddOnsPath 'D:\Games\World of Warcraft\_classic_beta_\Interface\AddOns'
 ```
 
-The beta may omit or change movement-state and position APIs. The addon probes required capabilities, rejects unsupported samples rather than inventing distance, and exposes capability and rejection diagnostics. Normal unsupported movement states, including mounted and airborne samples, remain visible in diagnostic rejection counts but do not print `Tracking unavailable: unsupportedState` chat warnings. Static API or template inspection is useful evidence but does not prove gameplay behavior.
+The beta may omit or change movement-state and position APIs. The addon probes required capabilities, rejects unsupported samples rather than inventing distance, and exposes capability and rejection diagnostics. Normal unsupported movement states, including mounted movement and ordinary non-taxi airborne transitions such as jumping or falling, remain visible in diagnostic rejection counts but do not print `Tracking unavailable: unsupportedState` chat warnings. Flight paths remain supported and record taxi distance. Static API or template inspection is useful evidence but does not prove gameplay behavior.
 
 ## Installation
 
@@ -95,9 +95,10 @@ toggle the regular panel closed. Drag the launcher to reposition it.
 
 Use the right-side Settings tab to change units, minimap visibility, and
 diagnostic visibility. Enabled diagnostic rejection counters appear in a
-scrollable section below those controls. **Reset Session** is available only
-from Settings and retains the confirmation prompt; it resets only the active
-character session.
+scrollable section below those controls. The **Reset Session button** appears
+only in Settings and retains the confirmation prompt; `/atm reset session`
+remains available, and either reset path affects only the active character
+session.
 
 ## Data and reset behavior
 
