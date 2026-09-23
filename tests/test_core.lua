@@ -2671,6 +2671,33 @@ testlib.case("ui settings side tab opens synchronized center content", function(
     testlib.equal(UI.imperialCheck.height, 16)
     testlib.equal(UI.minimapCheck.height, 16)
     testlib.equal(UI.diagnosticsCheck.height, 16)
+    local firstSettingsRow = UI.settingsSection.rows[1].frame
+    testlib.equal(UI.metricCheck.point[1], "LEFT")
+    testlib.equal(UI.metricCheck.point[2], firstSettingsRow)
+    testlib.equal(UI.metricCheck.point[3], "LEFT")
+    testlib.equal(UI.metricCheck.point[4], 218)
+    testlib.equal(UI.metricCheck.point[5], 0)
+    testlib.equal(UI.metricCheck.label.point[1], "LEFT")
+    testlib.equal(UI.metricCheck.label.point[2], UI.metricCheck)
+    testlib.equal(UI.metricCheck.label.point[3], "RIGHT")
+    testlib.equal(UI.metricCheck.label.point[4], 2)
+    testlib.equal(UI.metricCheck.label.point[5], 0)
+    testlib.equal(UI.metricCheck.label.width, 48)
+    testlib.equal(UI.imperialCheck.point[1], "LEFT")
+    testlib.equal(UI.imperialCheck.point[2], firstSettingsRow)
+    testlib.equal(UI.imperialCheck.point[3], "LEFT")
+    testlib.equal(UI.imperialCheck.point[4], 294)
+    testlib.equal(UI.imperialCheck.point[5], 0)
+    testlib.equal(UI.imperialCheck.label.point[1], "LEFT")
+    testlib.equal(UI.imperialCheck.label.point[2], UI.imperialCheck)
+    testlib.equal(UI.imperialCheck.label.point[3], "RIGHT")
+    testlib.equal(UI.imperialCheck.label.point[4], 2)
+    testlib.equal(UI.imperialCheck.label.point[5], 0)
+    testlib.equal(UI.imperialCheck.label.width, 56)
+    local metricRight = 218 + 16 + 2 + 48
+    local imperialRight = 294 + 16 + 2 + 56
+    testlib.truthy(metricRight < 294)
+    testlib.truthy(imperialRight <= 376 - 8)
     for _, checkButton in ipairs({
         UI.metricCheck,
         UI.imperialCheck,

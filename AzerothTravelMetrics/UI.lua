@@ -1069,12 +1069,16 @@ function UI.Create()
     )
     UI.metricCheck:SetSize(16, 16)
     UI.metricCheck:SetPoint(
-        "RIGHT",
+        "LEFT",
         UI.settingsSection.rows[1].frame,
-        "RIGHT",
-        -98,
+        "LEFT",
+        218,
         0
     )
+    UI.metricCheck.label:ClearAllPoints()
+    UI.metricCheck.label:SetPoint("LEFT", UI.metricCheck, "RIGHT", 2, 0)
+    UI.metricCheck.label:SetWidth(48)
+    UI.metricCheck.label:SetJustifyH("LEFT")
     UI.metricCheck:SetScript("OnClick", function()
         setUnits("metric")
     end)
@@ -1085,12 +1089,16 @@ function UI.Create()
     )
     UI.imperialCheck:SetSize(16, 16)
     UI.imperialCheck:SetPoint(
-        "RIGHT",
+        "LEFT",
         UI.settingsSection.rows[1].frame,
-        "RIGHT",
-        -34,
+        "LEFT",
+        294,
         0
     )
+    UI.imperialCheck.label:ClearAllPoints()
+    UI.imperialCheck.label:SetPoint("LEFT", UI.imperialCheck, "RIGHT", 2, 0)
+    UI.imperialCheck.label:SetWidth(56)
+    UI.imperialCheck.label:SetJustifyH("LEFT")
     UI.imperialCheck:SetScript("OnClick", function()
         setUnits("imperial")
     end)
