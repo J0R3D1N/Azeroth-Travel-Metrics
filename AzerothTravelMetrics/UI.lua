@@ -897,16 +897,22 @@ function UI.Create()
         UI.closeButton = frame.CloseButton
         UI.closeButton:Show()
     else
+        local closeParent = nativePortrait and frame or UI.titleRegion
         UI.closeButton = createSafeButton(
-            UI.titleRegion,
+            closeParent,
             "UIPanelCloseButton",
             24,
             24,
             nil,
             "x"
         )
-        UI.closeButton:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -2, 0)
-        raiseAboveParent(UI.closeButton, UI.titleRegion, 3)
+        if nativePortrait then
+            UI.closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 1, 0)
+            UI.closeButton:SetFrameLevel(510)
+        else
+            UI.closeButton:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -2, 0)
+            raiseAboveParent(UI.closeButton, UI.titleRegion, 3)
+        end
         UI.closeButton:Show()
     end
     UI.closeButton:SetScript("OnClick", function()

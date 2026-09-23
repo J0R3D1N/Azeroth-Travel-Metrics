@@ -2678,10 +2678,8 @@ testlib.case("ui creates a safe close button when portrait chrome omits one", fu
     testlib.equal(frame.template, "PortraitFrameTemplate")
     testlib.truthy(harness.addon.UI.closeButton ~= nil)
     testlib.equal(harness.addon.UI.closeButton.template, "UIPanelCloseButton")
-    testlib.equal(
-        harness.addon.UI.closeButton.parent,
-        harness.addon.UI.titleRegion
-    )
+    testlib.equal(harness.addon.UI.closeButton.parent, frame)
+    testlib.truthy(harness.addon.UI.closeButton.frameLevel >= 510)
 end)
 
 testlib.case("ui unit controls remain mutually exclusive persist and refresh", function()
