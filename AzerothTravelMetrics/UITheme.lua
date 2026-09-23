@@ -250,25 +250,31 @@ function Theme.ApplyButtonAtlases(button, atlases)
         disabled = "GetDisabledTexture",
         highlight = "GetHighlightTexture",
     }
-    local applied = false
+    local requested = 0
+    local applied = 0
 
     for state, getterName in pairs(getters) do
         local getter = button and button[getterName]
         local atlas = atlases and atlases[state]
-        if type(getter) == "function" and atlas then
-            local texture = getter(button)
-            if texture and type(texture.SetAtlas) == "function" then
-                local succeeded, accepted = pcall(
-                    texture.SetAtlas,
-                    texture,
-                    atlas
-                )
-                applied = (succeeded and accepted ~= false) or applied
+        if atlas then
+            requested = requested + 1
+            if type(getter) == "function" then
+                local texture = getter(button)
+                if texture and type(texture.SetAtlas) == "function" then
+                    local succeeded, accepted = pcall(
+                        texture.SetAtlas,
+                        texture,
+                        atlas
+                    )
+                    if succeeded and accepted ~= false then
+                        applied = applied + 1
+                    end
+                end
             end
         end
     end
 
-    return applied
+    return requested > 0 and applied == requested
 end
 
 function Theme.CreateInset(parent)

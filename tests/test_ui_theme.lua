@@ -476,6 +476,28 @@ testlib.case("ui theme applies native button atlases safely", function()
     )
     testlib.equal(button.highlightTexture.atlas, "RedButton-Highlight")
 
+    for _, textureKey in ipairs({
+        "normalTexture",
+        "pushedTexture",
+        "disabledTexture",
+        "highlightTexture",
+    }) do
+        local texture = button[textureKey]
+        local setAtlas = texture.SetAtlas
+        texture.SetAtlas = function()
+            error("atlas unavailable")
+        end
+
+        testlib.equal(addon.UITheme.ApplyButtonAtlases(button, {
+            normal = "RedButton-MiniCondense",
+            pushed = "RedButton-MiniCondense-pressed",
+            disabled = "RedButton-MiniCondense-disabled",
+            highlight = "RedButton-Highlight",
+        }), false, textureKey .. " rejection was accepted")
+
+        texture.SetAtlas = setAtlas
+    end
+
     testlib.equal(addon.UITheme.ApplyButtonAtlases({}, {
         normal = "RedButton-MiniCondense",
     }), false)
