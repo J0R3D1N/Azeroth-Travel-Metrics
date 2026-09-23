@@ -19,6 +19,11 @@ This repository produces a beta candidate. Automated validation does not replace
 
 Mounted distance is intentionally excluded. A route map or breadcrumb trail is deferred and is not part of this beta.
 
+Travel categories follow movement state rather than class or form IDs. Ground
+forms such as Druid Cat and Bear forms count as on-foot travel, and Aquatic
+Form counts as swimming. Mounts, flying forms, and vehicles are excluded.
+Flight paths remain the only movement recorded in the taxi category.
+
 ## Beta compatibility
 
 The current Forever beta installation used for packaging reported build `1.60.1.69913` and Interface `16001`. The addon TOC must match the highest numeric `## Interface` value found in the beta's installed addon TOCs.
