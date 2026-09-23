@@ -1945,7 +1945,7 @@ local function newUIHarness(options)
             calls.protected = calls.protected + 1
             error("protected template used in combat")
         end
-        if (template == "PortraitFrameBaseTemplate"
+        if (template == "PortraitFrameTemplate"
                 or template == "BasicFrameTemplateWithInset")
             and options.rejectMainTemplate
         then
@@ -1980,11 +1980,18 @@ local function newUIHarness(options)
                 self.MinimizeButton:Hide()
             end
         end
-        if template == "PortraitFrameBaseTemplate" then
-            frame.TitleText = newFrame(
-                "FontString",
+        if template == "PortraitFrameTemplate" then
+            frame.TitleContainer = newFrame(
+                "Frame",
                 nil,
                 frame,
+                nil,
+                options
+            )
+            frame.TitleContainer.TitleText = newFrame(
+                "FontString",
+                nil,
+                frame.TitleContainer,
                 "GameFontNormal",
                 options
             )
@@ -2002,7 +2009,9 @@ local function newUIHarness(options)
                 nil,
                 options
             )
-            frame.CloseButton = newFrame("Button", nil, frame, nil, options)
+            if not options.portraitMissingClose then
+                frame.CloseButton = newFrame("Button", nil, frame, nil, options)
+            end
         end
         if template == "LargeSideTabButtonTemplate" then
             frame.Icon = newFrame("Texture", nil, frame, nil, options)
@@ -2283,7 +2292,7 @@ end
 testlib.case("ui creation is lazy idempotent and preserves the fallback warm shell", function()
     local harness = newUIHarness({
         rejectTemplates = {
-            PortraitFrameBaseTemplate = true,
+            PortraitFrameTemplate = true,
         },
     })
 
@@ -2596,12 +2605,15 @@ testlib.case("ui uses portrait chrome top tabs and a parchment page", function()
     local harness = newUIHarness()
     local frame = harness.addon.UI.Create()
 
-    testlib.equal(frame.template, "PortraitFrameBaseTemplate")
+    testlib.equal(frame.template, "PortraitFrameTemplate")
     testlib.equal(
         frame.PortraitContainer.portrait.texture,
         harness.addon.UITheme.Icons.TITLE
     )
-    testlib.equal(frame.TitleText:GetText(), "Azeroth Travel Metrics")
+    testlib.equal(
+        frame.TitleContainer.TitleText:GetText(),
+        "Azeroth Travel Metrics"
+    )
     testlib.equal(harness.addon.UI.titleRegion.height, 28)
     testlib.equal(harness.addon.UI.overviewTab.width, 44)
     testlib.equal(harness.addon.UI.overviewTab.height, 38)
@@ -2619,6 +2631,18 @@ testlib.case("ui uses portrait chrome top tabs and a parchment page", function()
         harness.addon.UI.summarySections[1].divider.atlas,
         harness.addon.UITheme.Atlases.DIVIDER
     )
+end)
+
+testlib.case("ui creates a safe close button when portrait chrome omits one", function()
+    local harness = newUIHarness({
+        portraitMissingClose = true,
+    })
+    local succeeded, frame = pcall(harness.addon.UI.Create)
+
+    testlib.equal(succeeded, true)
+    testlib.equal(frame.template, "PortraitFrameTemplate")
+    testlib.truthy(harness.addon.UI.closeButton ~= nil)
+    testlib.equal(harness.addon.UI.closeButton.template, "UIPanelCloseButton")
 end)
 
 testlib.case("ui unit controls remain mutually exclusive persist and refresh", function()
@@ -2660,7 +2684,7 @@ end)
 testlib.case("ui falls back from BackdropTemplate to a visible bare shell", function()
     local harness = newUIHarness({
         rejectTemplates = {
-            PortraitFrameBaseTemplate = true,
+            PortraitFrameTemplate = true,
             BackdropTemplate = true,
         },
     })
@@ -2686,7 +2710,7 @@ end)
 testlib.case("ui fallback owns title icon text and controls without native chrome", function()
     local harness = newUIHarness({
         rejectTemplates = {
-            PortraitFrameBaseTemplate = true,
+            PortraitFrameTemplate = true,
         },
     })
     local frame = harness.addon.UI.Create()
@@ -2703,7 +2727,7 @@ end)
 testlib.case("ui remains visible when all shell side-tab and atlas assets fail", function()
     local noTemplate = newUIHarness({
         rejectTemplates = {
-            PortraitFrameBaseTemplate = true,
+            PortraitFrameTemplate = true,
             BackdropTemplate = true,
             LargeSideTabButtonTemplate = true,
             MaximizeMinimizeButtonFrameTemplate = true,
@@ -2782,7 +2806,7 @@ end)
 testlib.case("ui shell stays visible when backdrop or gradient APIs fail", function()
     local noBackdrop = newUIHarness({
         rejectBackdrop = true,
-        rejectTemplates = { PortraitFrameBaseTemplate = true },
+        rejectTemplates = { PortraitFrameTemplate = true },
     })
     noBackdrop.addon.UI.Create()
     testlib.truthy(noBackdrop.addon.UI.shell.fallbackBackground.color ~= nil)
@@ -2790,7 +2814,7 @@ testlib.case("ui shell stays visible when backdrop or gradient APIs fail", funct
 
     local noBackdropColor = newUIHarness({
         rejectBackdropColor = true,
-        rejectTemplates = { PortraitFrameBaseTemplate = true },
+        rejectTemplates = { PortraitFrameTemplate = true },
     })
     noBackdropColor.addon.UI.Create()
     testlib.truthy(
@@ -2800,7 +2824,7 @@ testlib.case("ui shell stays visible when backdrop or gradient APIs fail", funct
 
     local rejectedBackdrop = newUIHarness({
         rejectBackdropReturn = true,
-        rejectTemplates = { PortraitFrameBaseTemplate = true },
+        rejectTemplates = { PortraitFrameTemplate = true },
     })
     rejectedBackdrop.addon.UI.Create()
     testlib.truthy(
@@ -2809,7 +2833,7 @@ testlib.case("ui shell stays visible when backdrop or gradient APIs fail", funct
 
     local rejectedBackdropColor = newUIHarness({
         rejectBackdropColorReturn = true,
-        rejectTemplates = { PortraitFrameBaseTemplate = true },
+        rejectTemplates = { PortraitFrameTemplate = true },
     })
     rejectedBackdropColor.addon.UI.Create()
     testlib.truthy(
@@ -2818,7 +2842,7 @@ testlib.case("ui shell stays visible when backdrop or gradient APIs fail", funct
 
     local noGradient = newUIHarness({
         rejectGradients = true,
-        rejectTemplates = { PortraitFrameBaseTemplate = true },
+        rejectTemplates = { PortraitFrameTemplate = true },
     })
     noGradient.addon.UI.Create()
     testlib.equal(noGradient.addon.UI.shell.vignette.gradient, nil)
@@ -2827,7 +2851,7 @@ testlib.case("ui shell stays visible when backdrop or gradient APIs fail", funct
 
     local missingGradient = newUIHarness({
         missingGradientAPI = true,
-        rejectTemplates = { PortraitFrameBaseTemplate = true },
+        rejectTemplates = { PortraitFrameTemplate = true },
     })
     missingGradient.addon.UI.Create()
     testlib.equal(missingGradient.addon.UI.shell.vignette.gradient, nil)
@@ -2835,7 +2859,7 @@ testlib.case("ui shell stays visible when backdrop or gradient APIs fail", funct
 
     local rejectedGradient = newUIHarness({
         rejectGradientReturn = true,
-        rejectTemplates = { PortraitFrameBaseTemplate = true },
+        rejectTemplates = { PortraitFrameTemplate = true },
     })
     rejectedGradient.addon.UI.Create()
     testlib.truthy(rejectedGradient.addon.UI.shell.vignette.color ~= nil)
@@ -3007,7 +3031,7 @@ end)
 testlib.case("ui action buttons remain visible and interactive without panel templates", function()
     local harness = newUIHarness({
         rejectTemplates = {
-            PortraitFrameBaseTemplate = true,
+            PortraitFrameTemplate = true,
             BackdropTemplate = true,
             UIPanelButtonTemplate = true,
             UIPanelCloseButton = true,

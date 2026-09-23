@@ -145,7 +145,7 @@ The addon uses native game icons and packages no custom image assets:
 - By Level: `Interface\Icons\inv_misc_book_09`
   (FileDataID `133741`).
 
-The main window also uses the native `PortraitFrameBaseTemplate`,
+The main window also uses the native `PortraitFrameTemplate`,
 `spellbook-page-condensed-c60` parchment atlas, and `spellbook-divider` atlas.
 Guarded fallbacks keep the window usable when a template or atlas is
 unavailable.

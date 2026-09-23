@@ -91,7 +91,7 @@ local function createMainFrame()
         "Frame",
         "AzerothTravelMetricsFrame",
         UIParent,
-        "PortraitFrameBaseTemplate"
+        "PortraitFrameTemplate"
     )
     if portraitSucceeded and portraitFrame then
         return portraitFrame, false, true
@@ -859,7 +859,8 @@ function UI.Create()
     UI.titleRegion:Show()
 
     if nativePortrait then
-        UI.title = frame.TitleText
+        UI.title = frame.TitleContainer
+            and frame.TitleContainer.TitleText
         UI.closeButton = frame.CloseButton
         UI.titleIcon = frame.PortraitContainer
             and frame.PortraitContainer.portrait
@@ -893,6 +894,17 @@ function UI.Create()
         )
         UI.closeButton:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -2, 0)
     end
+    if not UI.closeButton then
+        UI.closeButton = createSafeButton(
+            UI.titleRegion,
+            "UIPanelCloseButton",
+            24,
+            24,
+            nil,
+            "x"
+        )
+        UI.closeButton:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -2, 0)
+    end
     raiseAboveParent(UI.closeButton, UI.titleRegion, 3)
     UI.closeButton:Show()
     UI.closeButton:SetScript("OnClick", function()
@@ -905,7 +917,11 @@ function UI.Create()
             "Azeroth Travel Metrics",
             "GameFontNormal"
         )
-        UI.title:SetPoint("LEFT", UI.titleIconFrame, "RIGHT", 10, 0)
+        if UI.titleIconFrame then
+            UI.title:SetPoint("LEFT", UI.titleIconFrame, "RIGHT", 10, 0)
+        else
+            UI.title:SetPoint("LEFT", UI.titleRegion, "LEFT", 52, 0)
+        end
         UI.title:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -58, 0)
     end
     UI.title:SetJustifyH("LEFT")
