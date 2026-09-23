@@ -2526,7 +2526,7 @@ testlib.case("ui creation is lazy idempotent and preserves the fallback warm she
     testlib.equal(harness.calls.metadataAddonName, "AzerothTravelMetrics")
     testlib.equal(harness.calls.metadataField, "Version")
     testlib.equal(harness.addon.UI.contentInset, nil)
-    testlib.truthy(harness.addon.UI.errorInset ~= nil)
+    testlib.equal(harness.addon.UI.errorInset, nil)
     testlib.equal(harness.addon.UI.settingsPanel:IsShown(), false)
     testlib.equal(
         harness.addon.UI.settingsPanel.parent,
@@ -2642,6 +2642,7 @@ testlib.case("ui uses portrait chrome top tabs and a parchment page", function()
         harness.addon.UI.parchmentPage.atlas,
         harness.addon.UITheme.Atlases.PAGE
     )
+    testlib.equal(harness.addon.UI.contentFrame.height, 364)
     testlib.equal(harness.addon.UI.overviewPanel.point[5], -18)
     testlib.equal(
         harness.addon.UI.summarySections[1].divider.atlas,
@@ -2761,7 +2762,7 @@ testlib.case("ui remains visible when all shell side-tab and atlas assets fail",
     testlib.equal(noTemplate.addon.UI.overviewTab:IsShown(), true)
     testlib.equal(noTemplate.addon.UI.levelTab:IsShown(), true)
     testlib.equal(noTemplate.addon.UI.contentInset, nil)
-    testlib.truthy(noTemplate.addon.UI.errorInset.color ~= nil)
+    testlib.equal(noTemplate.addon.UI.errorInset, nil)
     testlib.truthy(noTemplate.addon.UI.settingsTab.Icon.texture ~= nil)
     testlib.equal(
         noTemplate.addon.UI.resetButton:GetText(),

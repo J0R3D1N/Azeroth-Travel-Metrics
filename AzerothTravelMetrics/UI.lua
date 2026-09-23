@@ -997,7 +997,7 @@ function UI.Create()
 
     UI.contentFrame = CreateFrame("Frame", nil, frame)
     UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -76)
-    UI.contentFrame:SetSize(388, 382)
+    UI.contentFrame:SetSize(388, 364)
     UI.parchmentPage = ATM.UITheme.CreateParchmentPage(UI.contentFrame)
 
     UI.versionLabel = createLabel(
@@ -1186,8 +1186,7 @@ function UI.Create()
         6,
         -8
     )
-    UI.errorPanel:SetSize(376, 374)
-    UI.errorInset = ATM.UITheme.CreateInset(UI.errorPanel)
+    UI.errorPanel:SetSize(376, 356)
 
     UI.errorText = createLabel(
         UI.errorPanel,
