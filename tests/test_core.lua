@@ -2681,9 +2681,18 @@ testlib.case("ui settings side tab opens synchronized center content", function(
     end
     testlib.equal(UI.resetButton.parent, UI.frame)
     testlib.equal(UI.resetButton:GetText(), "Reset Session")
+    testlib.equal(UI.resetButton:IsShown(), true)
+
     UI.overviewTab.scripts.OnClick()
     testlib.equal(UI.settingsPanel:IsShown(), false)
     testlib.equal(UI.overviewPanel:IsShown(), true)
+    testlib.equal(UI.resetButton:IsShown(), false)
+
+    UI.levelTab.scripts.OnClick()
+    testlib.equal(UI.resetButton:IsShown(), false)
+
+    UI.settingsTab.scripts.OnClick()
+    testlib.equal(UI.resetButton:IsShown(), true)
 end)
 
 testlib.case("ui keeps portrait chrome with right tabs and classic center", function()
@@ -3190,14 +3199,17 @@ testlib.case("ui settings tab temporarily hides pending statistic errors", funct
 
     UI.ShowError("Statistics unavailable")
     testlib.equal(UI.errorPanel:IsShown(), true)
+    testlib.equal(UI.resetButton:IsShown(), false)
 
     UI.settingsTab.scripts.OnClick()
     testlib.equal(UI.settingsPanel:IsShown(), true)
     testlib.equal(UI.errorPanel:IsShown(), false)
+    testlib.equal(UI.resetButton:IsShown(), true)
 
     UI.overviewTab.scripts.OnClick()
     testlib.equal(UI.settingsPanel:IsShown(), false)
     testlib.equal(UI.errorPanel:IsShown(), true)
+    testlib.equal(UI.resetButton:IsShown(), false)
 end)
 
 testlib.case("ui side tabs fall back safely when native template is unavailable", function()
@@ -3232,11 +3244,19 @@ testlib.case("ui action buttons remain visible and interactive without panel tem
     testlib.equal(UI.resetButton.template, nil)
     testlib.equal(UI.resetButton.width, 96)
     testlib.equal(UI.resetButton.height, 22)
-    testlib.equal(UI.resetButton:IsShown(), true)
+    testlib.equal(UI.resetButton:IsShown(), false)
     testlib.equal(UI.resetButton:GetText(), "Reset Session")
     testlib.truthy(UI.resetButton.Background.color ~= nil)
     testlib.truthy(#UI.resetButton.Border == 4)
     testlib.truthy(UI.resetButton.Highlight.color ~= nil)
+
+    UI.settingsTab.scripts.OnClick()
+    testlib.equal(UI.resetButton:IsShown(), true)
+    UI.resetButton.scripts.OnClick()
+    testlib.equal(
+        harness.environment.shownPopup,
+        "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
+    )
 
     testlib.equal(UI.closeButton.template, nil)
     testlib.equal(UI.closeButton.width, 24)
@@ -3250,12 +3270,6 @@ testlib.case("ui action buttons remain visible and interactive without panel tem
     UI.ShowMain()
     UI.closeButton.scripts.OnClick()
     testlib.equal(frame:IsShown(), false)
-
-    UI.resetButton.scripts.OnClick()
-    testlib.equal(
-        harness.environment.shownPopup,
-        "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
-    )
 
     UI.Minimize()
     testlib.truthy(UI.hud.frame ~= nil)

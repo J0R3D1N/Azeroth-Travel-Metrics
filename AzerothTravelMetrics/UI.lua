@@ -234,6 +234,14 @@ local function setPanelVisibility()
         UI.settingsPanel:Hide()
     end
 
+    if UI.resetButton then
+        if showingSettings then
+            UI.resetButton:Show()
+        else
+            UI.resetButton:Hide()
+        end
+    end
+
     ATM.UITheme.SetSideTabSelected(UI.overviewTab, activeTab == "overview")
     ATM.UITheme.SetSideTabSelected(UI.levelTab, showingLevels)
     ATM.UITheme.SetSideTabSelected(UI.settingsTab, showingSettings)
