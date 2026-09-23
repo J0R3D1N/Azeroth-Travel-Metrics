@@ -2601,6 +2601,12 @@ testlib.case("ui uses portrait chrome top tabs and a parchment page", function()
     local frame = harness.addon.UI.Create()
 
     testlib.equal(frame.template, "PortraitFrameTemplate")
+    testlib.equal(harness.addon.UI.closeButton.parent, harness.addon.UI.titleRegion)
+    testlib.equal(
+        harness.addon.UI.minimizeControl.parent,
+        harness.addon.UI.titleRegion
+    )
+    testlib.equal(frame.CloseButton:IsShown(), false)
     testlib.equal(
         frame.PortraitContainer.portrait.texture,
         harness.addon.UITheme.Icons.TITLE

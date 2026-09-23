@@ -870,7 +870,9 @@ function UI.Create()
     if nativePortrait then
         UI.title = frame.TitleContainer
             and frame.TitleContainer.TitleText
-        UI.closeButton = frame.CloseButton
+        if frame.CloseButton and type(frame.CloseButton.Hide) == "function" then
+            pcall(frame.CloseButton.Hide, frame.CloseButton)
+        end
         UI.titleIcon = frame.PortraitContainer
             and frame.PortraitContainer.portrait
         if UI.titleIcon then
@@ -891,29 +893,18 @@ function UI.Create()
                 ATM.UITheme.Icons.TITLE,
                 28
             )
-        UI.titleIconFrame:SetPoint("LEFT", UI.titleRegion, "LEFT", 4, 0)
-        raiseAboveParent(UI.titleIconFrame, UI.titleRegion, 2)
-        UI.closeButton = createSafeButton(
+            UI.titleIconFrame:SetPoint("LEFT", UI.titleRegion, "LEFT", 4, 0)
+            raiseAboveParent(UI.titleIconFrame, UI.titleRegion, 2)
+    end
+    UI.closeButton = createSafeButton(
             UI.titleRegion,
             "UIPanelCloseButton",
             24,
             24,
             nil,
             "x"
-        )
-        UI.closeButton:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -2, 0)
-    end
-    if not UI.closeButton then
-        UI.closeButton = createSafeButton(
-            UI.titleRegion,
-            "UIPanelCloseButton",
-            24,
-            24,
-            nil,
-            "x"
-        )
-        UI.closeButton:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -2, 0)
-    end
+    )
+    UI.closeButton:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -2, 0)
     raiseAboveParent(UI.closeButton, UI.titleRegion, 3)
     UI.closeButton:Show()
     UI.closeButton:SetScript("OnClick", function()
