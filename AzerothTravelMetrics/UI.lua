@@ -206,27 +206,38 @@ local function setPanelVisibility()
     end
 
     local hasError = pendingError ~= nil
+    local showingLevels = activeTab == "levels"
+    local showingSettings = activeTab == "settings"
     if UI.errorPanel then
-        if hasError then
+        if hasError and not showingSettings then
             UI.errorPanel:Show()
         else
             UI.errorPanel:Hide()
         end
     end
 
-    if hasError then
+    if showingSettings then
+        syncSettingsControls()
         UI.overviewPanel:Hide()
         UI.levelPanel:Hide()
-    elseif activeTab == "levels" then
+        UI.settingsPanel:Show()
+    elseif hasError then
+        UI.overviewPanel:Hide()
+        UI.levelPanel:Hide()
+        UI.settingsPanel:Hide()
+    elseif showingLevels then
         UI.overviewPanel:Hide()
         UI.levelPanel:Show()
+        UI.settingsPanel:Hide()
     else
         UI.levelPanel:Hide()
         UI.overviewPanel:Show()
+        UI.settingsPanel:Hide()
     end
 
     ATM.UITheme.SetSideTabSelected(UI.overviewTab, activeTab == "overview")
-    ATM.UITheme.SetSideTabSelected(UI.levelTab, activeTab == "levels")
+    ATM.UITheme.SetSideTabSelected(UI.levelTab, showingLevels)
+    ATM.UITheme.SetSideTabSelected(UI.settingsTab, showingSettings)
 end
 
 local function showModelError(reason)
@@ -1018,6 +1029,22 @@ function UI.Create()
         setPanelVisibility()
     end)
 
+    UI.settingsTab = ATM.UITheme.CreateSideTab(
+        "AzerothTravelMetricsFrameSettingsTab",
+        frame,
+        {
+            icon = ATM.UITheme.Icons.SETTINGS,
+            tooltip = "Settings",
+        }
+    )
+    UI.settingsTab:SetPoint("TOP", UI.levelTab, "BOTTOM", 0, -2)
+    UI.settingsTab:Show()
+    UI.settingsTab:SetScript("OnClick", function()
+        activeTab = "settings"
+        syncSettingsControls()
+        setPanelVisibility()
+    end)
+
     UI.resetButton = createSafeButton(
         frame,
         "UIPanelButtonTemplate",
@@ -1047,89 +1074,73 @@ function UI.Create()
     UI.versionLabel:SetJustifyV("BOTTOM")
     UI.versionLabel:SetTextColor(0.58, 0.50, 0.38, 1)
 
-    UI.settingsButton = ATM.UITheme.CreateIconButton(
-        frame,
-        ATM.UITheme.Icons.SETTINGS,
-        "Settings"
-    )
-    UI.settingsButton:SetPoint(
-        "RIGHT",
-        UI.versionLabel,
-        "LEFT",
-        -8,
-        0
-    )
-    raiseAboveParent(UI.settingsButton, frame, 20)
-
-    local settingsPanelSucceeded, settingsPanel = pcall(
-        CreateFrame,
-        "Frame",
-        nil,
-        frame,
-        "InsetFrameTemplate3"
-    )
-    if not settingsPanelSucceeded then
-        settingsPanel = CreateFrame("Frame", nil, frame)
-    end
+    local settingsPanel = CreateFrame("Frame", nil, frame)
     UI.settingsPanel = settingsPanel
-    settingsPanel:SetSize(205, 128)
-    settingsPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -18, 64)
-    if type(settingsPanel.SetFrameStrata) == "function" then
-        pcall(settingsPanel.SetFrameStrata, settingsPanel, "DIALOG")
-    end
-    if type(settingsPanel.SetFrameLevel) == "function"
-        and type(frame.GetFrameLevel) == "function"
-    then
-        settingsPanel:SetFrameLevel(frame:GetFrameLevel() + 100)
-    end
+    settingsPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -54)
+    settingsPanel:SetSize(376, 320)
 
-    UI.settingsHeading = createLabel(
+    UI.settingsSection = ATM.UITheme.CreateSection(
         settingsPanel,
         "Settings",
-        "GameFontNormal"
+        3
     )
-    UI.settingsHeading:SetPoint(
+    UI.settingsSection.frame:SetPoint(
         "TOPLEFT",
         settingsPanel,
         "TOPLEFT",
-        12,
-        -10
+        0,
+        0
     )
+    UI.settingsSection.frame:SetWidth(376)
+    ATM.UITheme.SetSectionValues(UI.settingsSection, {
+        { label = "Distance Units", value = "" },
+        { label = "Minimap Button", value = "" },
+        { label = "Diagnostics", value = "" },
+    })
 
-    UI.metricCheck = createCheckButton(settingsPanel, "Metric")
-    UI.metricCheck:SetSize(24, 24)
+    UI.metricCheck = createCheckButton(
+        UI.settingsSection.rows[1].frame,
+        "Metric"
+    )
+    UI.metricCheck:SetSize(20, 20)
     UI.metricCheck:SetPoint(
-        "TOPLEFT",
-        settingsPanel,
-        "TOPLEFT",
-        8,
-        -28
+        "RIGHT",
+        UI.settingsSection.rows[1].frame,
+        "RIGHT",
+        -98,
+        0
     )
     UI.metricCheck:SetScript("OnClick", function()
         setUnits("metric")
     end)
 
-    UI.imperialCheck = createCheckButton(settingsPanel, "Imperial")
-    UI.imperialCheck:SetSize(24, 24)
+    UI.imperialCheck = createCheckButton(
+        UI.settingsSection.rows[1].frame,
+        "Imperial"
+    )
+    UI.imperialCheck:SetSize(20, 20)
     UI.imperialCheck:SetPoint(
-        "LEFT",
-        UI.metricCheck,
         "RIGHT",
-        68,
+        UI.settingsSection.rows[1].frame,
+        "RIGHT",
+        -34,
         0
     )
     UI.imperialCheck:SetScript("OnClick", function()
         setUnits("imperial")
     end)
 
-    UI.minimapCheck = createCheckButton(settingsPanel, "Show minimap button")
-    UI.minimapCheck:SetSize(24, 24)
+    UI.minimapCheck = createCheckButton(
+        UI.settingsSection.rows[2].frame,
+        "Show"
+    )
+    UI.minimapCheck:SetSize(20, 20)
     UI.minimapCheck:SetPoint(
-        "TOPLEFT",
-        UI.metricCheck,
-        "BOTTOMLEFT",
-        0,
-        -4
+        "RIGHT",
+        UI.settingsSection.rows[2].frame,
+        "RIGHT",
+        -42,
+        0
     )
     UI.minimapCheck:SetScript("OnClick", function()
         if not context or not context.db or not context.db.settings then
@@ -1144,16 +1155,16 @@ function UI.Create()
     end)
 
     UI.diagnosticsCheck = createCheckButton(
-        settingsPanel,
-        "Show diagnostics"
+        UI.settingsSection.rows[3].frame,
+        "Show"
     )
-    UI.diagnosticsCheck:SetSize(24, 24)
+    UI.diagnosticsCheck:SetSize(20, 20)
     UI.diagnosticsCheck:SetPoint(
-        "TOPLEFT",
-        UI.minimapCheck,
-        "BOTTOMLEFT",
-        0,
-        -2
+        "RIGHT",
+        UI.settingsSection.rows[3].frame,
+        "RIGHT",
+        -42,
+        0
     )
     UI.diagnosticsCheck:SetScript("OnClick", function()
         if not context or not context.db or not context.db.settings then
@@ -1162,15 +1173,6 @@ function UI.Create()
         context.db.settings.showDiagnostics =
             UI.diagnosticsCheck:GetChecked() == true
         UI.Refresh()
-    end)
-
-    UI.settingsButton:SetScript("OnClick", function()
-        if settingsPanel:IsShown() then
-            settingsPanel:Hide()
-        else
-            syncSettingsControls()
-            settingsPanel:Show()
-        end
     end)
 
     syncSettingsControls()

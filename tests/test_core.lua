@@ -2530,7 +2530,8 @@ testlib.case("ui creation is lazy idempotent and preserves the fallback warm she
     )
     testlib.equal(harness.addon.UI.overviewPanel.height, 320)
     testlib.equal(harness.addon.UI.resetButton.template, "UIPanelButtonTemplate")
-    testlib.truthy(harness.addon.UI.settingsButton ~= nil)
+    testlib.equal(harness.addon.UI.settingsButton, nil)
+    testlib.truthy(harness.addon.UI.settingsTab ~= nil)
     testlib.truthy(harness.addon.UI.closeButton.frameLevel > first:GetFrameLevel())
     testlib.truthy(harness.addon.UI.minimizeControl.frameLevel > first:GetFrameLevel())
     testlib.equal(harness.addon.UI.closeButton:IsShown(), true)
@@ -2610,6 +2611,9 @@ testlib.case("ui creation is lazy idempotent and preserves the fallback warm she
     testlib.equal(harness.addon.UI.levelTab.point[1], "TOP")
     testlib.equal(harness.addon.UI.levelTab.point[2], harness.addon.UI.overviewTab)
     testlib.equal(harness.addon.UI.levelTab.point[3], "BOTTOM")
+    testlib.equal(harness.addon.UI.settingsTab.point[1], "TOP")
+    testlib.equal(harness.addon.UI.settingsTab.point[2], harness.addon.UI.levelTab)
+    testlib.equal(harness.addon.UI.settingsTab.point[3], "BOTTOM")
 
     for _, template in ipairs(harness.calls.templates) do
         testlib.truthy(template ~= "CharacterFrameTabButtonTemplate")
@@ -2623,7 +2627,7 @@ testlib.case("ui creation is lazy idempotent and preserves the fallback warm she
     testlib.equal(first.stoppedMoving, true)
 end)
 
-testlib.case("ui settings gear toggles a synchronized popup", function()
+testlib.case("ui settings side tab opens synchronized center content", function()
     local harness = newUIHarness()
     harness.addon.UI.Create()
     local UI = harness.addon.UI
@@ -2631,23 +2635,36 @@ testlib.case("ui settings gear toggles a synchronized popup", function()
     harness.db.settings.units = "imperial"
     harness.db.settings.showMinimap = false
     harness.db.settings.showDiagnostics = true
-    UI.settingsButton.scripts.OnClick()
+    UI.settingsTab.scripts.OnClick()
 
+    testlib.equal(UI.settingsButton, nil)
+    testlib.equal(UI.settingsTab.template, "LargeSideTabButtonTemplate")
+    testlib.equal(
+        UI.settingsTab.Icon.texture,
+        harness.addon.UITheme.Icons.SETTINGS
+    )
+    testlib.equal(UI.settingsTab.point[1], "TOP")
+    testlib.equal(UI.settingsTab.point[2], UI.levelTab)
+    testlib.equal(UI.settingsTab.point[3], "BOTTOM")
     testlib.equal(UI.settingsPanel.parent, UI.frame)
-    testlib.equal(UI.settingsPanel.template, "InsetFrameTemplate3")
-    testlib.equal(UI.settingsPanel.width, 205)
-    testlib.equal(UI.settingsPanel.height, 128)
+    testlib.equal(UI.settingsPanel.template, nil)
+    testlib.equal(UI.settingsPanel.width, 376)
+    testlib.equal(UI.settingsPanel.height, 320)
     testlib.equal(UI.settingsPanel:IsShown(), true)
-    testlib.equal(UI.overviewPanel:IsShown(), true)
+    testlib.equal(UI.overviewPanel:IsShown(), false)
     testlib.equal(UI.levelPanel:IsShown(), false)
+    testlib.equal(UI.settingsTab.selected, true)
+    testlib.equal(UI.overviewTab.selected, false)
+    testlib.equal(UI.levelTab.selected, false)
     testlib.equal(UI.metricCheck:GetChecked(), false)
     testlib.equal(UI.imperialCheck:GetChecked(), true)
     testlib.equal(UI.minimapCheck:GetChecked(), false)
     testlib.equal(UI.diagnosticsCheck:GetChecked(), true)
     testlib.equal(UI.resetButton.parent, UI.frame)
     testlib.equal(UI.resetButton:GetText(), "Reset Session")
-    UI.settingsButton.scripts.OnClick()
+    UI.overviewTab.scripts.OnClick()
     testlib.equal(UI.settingsPanel:IsShown(), false)
+    testlib.equal(UI.overviewPanel:IsShown(), true)
 end)
 
 testlib.case("ui keeps portrait chrome with right tabs and classic center", function()
@@ -2698,7 +2715,9 @@ testlib.case("ui keeps portrait chrome with right tabs and classic center", func
     testlib.equal(harness.addon.UI.levelTab.point[1], "TOP")
     testlib.equal(harness.addon.UI.levelTab.point[2], harness.addon.UI.overviewTab)
     testlib.equal(harness.addon.UI.levelTab.point[3], "BOTTOM")
-    testlib.equal(UI.settingsTab, nil)
+    testlib.equal(UI.settingsTab.point[1], "TOP")
+    testlib.equal(UI.settingsTab.point[2], UI.levelTab)
+    testlib.equal(UI.settingsTab.point[3], "BOTTOM")
     testlib.equal(UI.parchmentPage, nil)
     testlib.equal(UI.pageArtFrame, nil)
     testlib.equal(UI.contentFrame.point[4], 16)
@@ -2842,7 +2861,8 @@ testlib.case("ui remains visible when all shell side-tab and atlas assets fail",
     testlib.equal(noTemplate.addon.UI.levelTab:IsShown(), true)
     testlib.equal(noTemplate.addon.UI.contentInset, nil)
     testlib.truthy(noTemplate.addon.UI.errorInset.color ~= nil)
-    testlib.truthy(noTemplate.addon.UI.settingsButton.Icon.texture ~= nil)
+    testlib.equal(noTemplate.addon.UI.settingsTab.template, nil)
+    testlib.truthy(noTemplate.addon.UI.settingsTab.Icon.texture ~= nil)
     testlib.equal(
         noTemplate.addon.UI.resetButton:GetText(),
         "Reset Session"
@@ -3112,6 +3132,23 @@ testlib.case("ui native tabs switch panels and selected visual state", function(
     testlib.equal(harness.addon.UI.levelTab.selected, false)
     testlib.equal(harness.addon.UI.overviewTab.SelectedTexture:IsShown(), true)
 
+end)
+
+testlib.case("ui settings tab temporarily hides pending statistic errors", function()
+    local harness = newUIHarness()
+    local UI = harness.addon.UI
+    UI.Create()
+
+    UI.ShowError("Statistics unavailable")
+    testlib.equal(UI.errorPanel:IsShown(), true)
+
+    UI.settingsTab.scripts.OnClick()
+    testlib.equal(UI.settingsPanel:IsShown(), true)
+    testlib.equal(UI.errorPanel:IsShown(), false)
+
+    UI.overviewTab.scripts.OnClick()
+    testlib.equal(UI.settingsPanel:IsShown(), false)
+    testlib.equal(UI.errorPanel:IsShown(), true)
 end)
 
 testlib.case("ui side tabs fall back safely when native template is unavailable", function()
@@ -4430,7 +4467,7 @@ testlib.case("ui lifecycle remains safe during combat lockdown", function()
         harness.addon.UI.Toggle()
         harness.addon.UI.levelTab.scripts.OnClick()
         harness.addon.UI.overviewTab.scripts.OnClick()
-        harness.addon.UI.settingsButton.scripts.OnClick()
+        harness.addon.UI.settingsTab.scripts.OnClick()
         harness.addon.UI.metricCheck.scripts.OnClick()
         harness.addon.UI.minimapCheck:SetChecked(false)
         harness.addon.UI.minimapCheck.scripts.OnClick()
@@ -4442,7 +4479,7 @@ testlib.case("ui lifecycle remains safe during combat lockdown", function()
 
     testlib.equal(succeeded, true, failure)
     testlib.equal(harness.calls.protected, 0)
-    testlib.equal(harness.addon.UI.overviewPanel:IsShown(), true)
+    testlib.equal(harness.addon.UI.overviewPanel:IsShown(), false)
     testlib.equal(harness.addon.UI.levelPanel:IsShown(), false)
     testlib.equal(harness.addon.UI.settingsPanel:IsShown(), true)
     testlib.equal(
