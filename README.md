@@ -15,6 +15,8 @@ This repository produces a beta candidate. Automated validation does not replace
 - Compact, movable UI with a circular portrait, thin native title bar,
   right-side Overview / By Level / Settings tabs, and centered character-stat
   sections.
+- An ATM-rendered visible Minimize title control immediately left of the native
+  Close control.
 - Regular and HUD windows stay above ordinary world/HUD content but behind fullscreen maps and cinematics.
 - Escape closes the regular addon window.
 - A draggable minimap launcher and a center Settings panel hidden until selected.
@@ -47,7 +49,7 @@ Update the addon TOC from an installed beta:
     -BetaAddOnsPath 'D:\Games\World of Warcraft\_classic_beta_\Interface\AddOns'
 ```
 
-The beta may omit or change movement-state and position APIs. The addon probes required capabilities, rejects unsupported samples rather than inventing distance, and exposes capability and rejection diagnostics. Static API or template inspection is useful evidence but does not prove gameplay behavior.
+The beta may omit or change movement-state and position APIs. The addon probes required capabilities, rejects unsupported samples rather than inventing distance, and exposes capability and rejection diagnostics. Normal unsupported movement states, including mounted and airborne samples, remain visible in diagnostic rejection counts but do not print `Tracking unavailable: unsupportedState` chat warnings. Static API or template inspection is useful evidence but does not prove gameplay behavior.
 
 ## Installation
 
@@ -85,13 +87,17 @@ After replacing the installed addon folder or TOC, keep WoW closed, reapply Fore
 | `/atm diagnostics off` | Hide diagnostic counters. |
 | `/atm status` | Print capability state and diagnostic counters to chat. |
 
-The main window can be moved by left-dragging it. Left-click the minimap launcher to always open the regular panel; if the minimized HUD is visible, the regular panel replaces it. The launcher does not toggle the regular panel closed. Drag the launcher to reposition it. Use **Settings** in the main window for units, minimap visibility, and diagnostic visibility.
+The main window can be moved by left-dragging it. Its ATM-rendered Minimize
+control is visibly positioned immediately left of the native Close control.
+Left-click the minimap launcher to always open the regular panel; if the
+minimized HUD is visible, the regular panel replaces it. The launcher does not
+toggle the regular panel closed. Drag the launcher to reposition it.
 
 Use the right-side Settings tab to change units, minimap visibility, and
 diagnostic visibility. Enabled diagnostic rejection counters appear in a
-scrollable section below those controls. **Reset Session** remains in the
-footer and retains the confirmation prompt; it resets only the active character
-session.
+scrollable section below those controls. **Reset Session** is available only
+from Settings and retains the confirmation prompt; it resets only the active
+character session.
 
 ## Data and reset behavior
 
