@@ -2353,7 +2353,7 @@ testlib.case("ui creation is lazy idempotent and preserves the fallback warm she
     testlib.equal(#harness.created, createdCount)
     testlib.equal(first.template, "BackdropTemplate")
     testlib.equal(first.width, 420)
-    testlib.equal(first.height, 470)
+    testlib.equal(first.height, 414)
     testlib.equal(first.strata, "MEDIUM")
     testlib.equal(first:GetFrameLevel(), 100)
     testlib.truthy(first.backdrop ~= nil)
@@ -2723,7 +2723,8 @@ testlib.case("ui keeps portrait chrome with right tabs and classic center", func
     testlib.equal(UI.contentFrame.point[4], 16)
     testlib.equal(UI.contentFrame.point[5], -50)
     testlib.equal(UI.contentFrame.width, 388)
-    testlib.equal(UI.contentFrame.height, 350)
+    testlib.equal(UI.contentFrame.height, 320)
+    testlib.equal(UI.errorPanel.height, 312)
     testlib.equal(UI.errorInset.parent, UI.errorPanel)
     testlib.equal(UI.overviewPanel.parent, frame)
     testlib.equal(UI.overviewPanel.point[4], 22)
@@ -4141,9 +4142,13 @@ testlib.case("ui diagnostics use no visible space when disabled", function()
     testlib.equal(disabled.addon.UI.diagnosticsScrollFrame:IsShown(), false)
     testlib.equal(disabled.addon.UI.diagnosticsText:GetText(), "")
     testlib.equal(disabled.addon.UI.overviewPanel.height, 320)
+    testlib.equal(
+        disabled.addon.UI.diagnosticsScrollFrame.parent,
+        disabled.addon.UI.settingsPanel
+    )
 end)
 
-testlib.case("ui diagnostics retain and scroll realistic multi-reason output", function()
+testlib.case("ui diagnostics retain and scroll inside Settings", function()
     local diagnostics = {
         { reason = "baseline", count = 3 },
         { reason = "falling", count = 12 },
@@ -4154,6 +4159,12 @@ testlib.case("ui diagnostics retain and scroll realistic multi-reason output", f
         { reason = "unsupportedMap", count = 2 },
         { reason = "zoning", count = 5 },
     }
+    for index = 1, 12 do
+        table.insert(diagnostics, {
+            reason = "reason" .. tostring(index),
+            count = index,
+        })
+    end
     local enabled = newUIHarness({
         diagnostics = diagnostics,
     })
@@ -4162,27 +4173,29 @@ testlib.case("ui diagnostics retain and scroll realistic multi-reason output", f
 
     local UI = enabled.addon.UI
     testlib.equal(UI.frame.width, 420)
-    testlib.equal(UI.frame.height, 470)
+    testlib.equal(UI.frame.height, 414)
     testlib.equal(UI.diagnosticsScrollFrame:IsShown(), true)
     testlib.equal(UI.diagnosticsScrollFrame.mouseWheelEnabled, true)
     testlib.equal(UI.diagnosticsScrollFrame.point[1], "TOPLEFT")
     testlib.equal(
         UI.diagnosticsScrollFrame.point[2],
-        UI.overviewPanel
+        UI.diagnosticsHeadingSection.frame
     )
-    testlib.equal(UI.diagnosticsScrollFrame.point[3], "TOPLEFT")
-    testlib.equal(UI.diagnosticsScrollFrame.point[5], -324)
-    testlib.equal(UI.overviewPanel.height, 346)
-    local overviewTopOffset =
-        UI.contentFrame.point[5] - UI.overviewPanel.point[5]
-    testlib.truthy(
-        overviewTopOffset + UI.overviewPanel.height
-            <= UI.contentFrame.height
-    )
+    testlib.equal(UI.diagnosticsScrollFrame.point[3], "BOTTOMLEFT")
+    testlib.equal(UI.diagnosticsScrollFrame.point[4], 14)
+    testlib.equal(UI.diagnosticsScrollFrame.point[5], -8)
+    testlib.equal(UI.diagnosticsScrollFrame.width, 348)
+    testlib.equal(UI.diagnosticsScrollFrame.height, 190)
+    testlib.equal(UI.overviewPanel.height, 320)
     testlib.truthy(
         UI.diagnosticsScrollChild.height > UI.diagnosticsScrollFrame.height
     )
     testlib.truthy(UI.diagnosticsScrollFrame:GetVerticalScrollRange() > 0)
+    local overviewBottom = -UI.overviewPanel.point[5] + UI.overviewPanel.height
+    local footerTop = UI.frame.height
+        - UI.resetButton.point[5]
+        - UI.resetButton.height
+    testlib.equal(footerTop - overviewBottom, 6)
     for _, diagnostic in ipairs(diagnostics) do
         testlib.truthy(contains(
             UI.diagnosticsText:GetText(),

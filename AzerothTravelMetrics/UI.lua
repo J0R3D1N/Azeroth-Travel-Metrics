@@ -7,8 +7,7 @@ local RESET_DIALOG_KEY = "AZEROTH_TRAVEL_METRICS_RESET_SESSION"
 local SECTION_HEIGHT = 100
 local SECTION_GAP = 10
 local SUMMARY_CONTENT_HEIGHT = (SECTION_HEIGHT * 3) + (SECTION_GAP * 2)
-local DIAGNOSTICS_GAP = 4
-local DIAGNOSTICS_VIEW_HEIGHT = 22
+local DIAGNOSTICS_VIEW_HEIGHT = 190
 local DIAGNOSTICS_LINE_HEIGHT = 12
 local DIAGNOSTICS_CONTENT_WIDTH = 348
 local LEVEL_CARD_HEIGHT = 104
@@ -839,7 +838,7 @@ function UI.Create()
     local frame, useBackdrop, nativePortrait = createMainFrame()
     UI.frame = frame
     registerEscapeFrame("AzerothTravelMetricsFrame")
-    frame:SetSize(420, 470)
+    frame:SetSize(420, 414)
     frame:SetPoint("CENTER")
     safeSetFrameStrata(frame)
     frame:SetFrameLevel(MAIN_FRAME_LEVEL)
@@ -1180,7 +1179,7 @@ function UI.Create()
 
     UI.contentFrame = CreateFrame("Frame", nil, frame)
     UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -50)
-    UI.contentFrame:SetSize(388, 350)
+    UI.contentFrame:SetSize(388, 320)
 
     UI.errorPanel = CreateFrame("Frame", nil, UI.contentFrame)
     UI.errorPanel:SetPoint(
@@ -1190,7 +1189,7 @@ function UI.Create()
         6,
         -8
     )
-    UI.errorPanel:SetSize(376, 342)
+    UI.errorPanel:SetSize(376, 312)
     UI.errorInset = ATM.UITheme.CreateInset(UI.errorPanel)
 
     UI.errorText = createLabel(
@@ -1239,20 +1238,37 @@ function UI.Create()
         table.insert(UI.summarySections, section)
     end
 
+    UI.diagnosticsHeadingSection = ATM.UITheme.CreateSection(
+        UI.settingsPanel,
+        "Diagnostic Rejections",
+        0
+    )
+    UI.diagnosticsHeadingSection.frame:SetPoint(
+        "TOPLEFT",
+        UI.settingsPanel,
+        "TOPLEFT",
+        0,
+        -84
+    )
+    UI.diagnosticsHeadingSection.frame:SetWidth(376)
+
     local diagnosticsScrollFrame = CreateFrame(
         "ScrollFrame",
         nil,
-        UI.overviewPanel
+        UI.settingsPanel
     )
     UI.diagnosticsScrollFrame = diagnosticsScrollFrame
     diagnosticsScrollFrame:SetPoint(
         "TOPLEFT",
-        UI.overviewPanel,
-        "TOPLEFT",
-        0,
-        -(SUMMARY_CONTENT_HEIGHT + DIAGNOSTICS_GAP)
+        UI.diagnosticsHeadingSection.frame,
+        "BOTTOMLEFT",
+        14,
+        -8
     )
-    diagnosticsScrollFrame:SetSize(376, DIAGNOSTICS_VIEW_HEIGHT)
+    diagnosticsScrollFrame:SetSize(
+        DIAGNOSTICS_CONTENT_WIDTH,
+        DIAGNOSTICS_VIEW_HEIGHT
+    )
     diagnosticsScrollFrame:EnableMouseWheel(true)
 
     UI.diagnosticsScrollChild = CreateFrame(
@@ -1498,18 +1514,12 @@ function UI.Refresh()
         UI.diagnosticsScrollFrame:SetVerticalScroll(0)
         UI.diagnosticsText:Show()
         UI.diagnosticsScrollFrame:Show()
-        UI.overviewPanel:SetHeight(
-            SUMMARY_CONTENT_HEIGHT
-                + DIAGNOSTICS_GAP
-                + DIAGNOSTICS_VIEW_HEIGHT
-        )
     else
         UI.diagnosticsText:SetText("")
         UI.diagnosticsText:Hide()
         UI.diagnosticsScrollFrame:SetVerticalScroll(0)
         UI.diagnosticsScrollFrame:Hide()
         UI.diagnosticsScrollChild:SetHeight(DIAGNOSTICS_VIEW_HEIGHT)
-        UI.overviewPanel:SetHeight(SUMMARY_CONTENT_HEIGHT)
     end
 
     pendingError = nil
