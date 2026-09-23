@@ -3,7 +3,7 @@
 ## Notes: Tracks estimated steps and travel distance.
 ## Author: Jason Parker
 ## Version: 1.0.0-beta
-## IconTexture: Interface\Icons\ability_mount_jungletiger
+## IconTexture: Interface\Icons\inv_misc_pocketwatch_01
 ## SavedVariables: AzerothTravelMetricsDB
 
 Namespace.lua

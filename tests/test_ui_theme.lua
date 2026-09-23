@@ -295,7 +295,7 @@ testlib.case("ui theme exposes approved native icons and atlases", function()
     testlib.equal(addon.UITheme.Icons.PORTRAIT, "Interface\\Icons\\INV_Misc_Map_01")
     testlib.equal(
         addon.UITheme.Icons.TITLE,
-        "Interface\\Icons\\ability_mount_jungletiger"
+        "Interface\\Icons\\inv_misc_pocketwatch_01"
     )
     testlib.equal(
         addon.UITheme.Icons.OVERVIEW,

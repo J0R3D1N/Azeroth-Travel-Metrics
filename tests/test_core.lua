@@ -2362,7 +2362,7 @@ testlib.case("ui creation is lazy idempotent and uses the custom warm shell", fu
     )
     testlib.equal(
         harness.addon.UITheme.Icons.TITLE,
-        "Interface\\Icons\\ability_mount_jungletiger"
+        "Interface\\Icons\\inv_misc_pocketwatch_01"
     )
     testlib.equal(harness.addon.UI.titleRegion.height, 44)
     testlib.equal(harness.addon.UI.titleRegion.point[1], "TOPLEFT")
@@ -3293,7 +3293,7 @@ testlib.case("ui minimize restore close and toggle coordinate both surfaces", fu
     testlib.truthy(UI.hud.cells[1].icon)
     testlib.equal(
         UI.hud.cells[1].icon.texture,
-        "Interface\\Icons\\ability_mount_jungletiger"
+        "Interface\\Icons\\inv_misc_pocketwatch_01"
     )
     testlib.truthy(UI.hud.cells[2].icon)
     testlib.equal(
@@ -4377,7 +4377,7 @@ testlib.case("addon manifest declares the native travel listing icon", function(
     testlib.equal(#iconTextureLines, 1)
     testlib.equal(
         iconTextureLines[1],
-        "## IconTexture: Interface\\Icons\\ability_mount_jungletiger"
+        "## IconTexture: Interface\\Icons\\inv_misc_pocketwatch_01"
     )
 end)
 
