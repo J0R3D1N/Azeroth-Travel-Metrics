@@ -942,12 +942,32 @@ function UI.Create()
     UI.title:SetTextColor(1, 0.82, 0.32, 1)
     UI.title:SetText("Azeroth Travel Metrics")
 
-    UI.minimizeButton = ATM.UITheme.CreateTitleControl(
+    local nativeMinimizeButton = createSafeButton(
         frame,
-        "minimize",
-        "Minimize",
-        20
+        "UIPanelHideButtonNoScripts",
+        24,
+        24
     )
+    local nativeMinimizeApplied = ATM.UITheme.ApplyButtonAtlases(
+        nativeMinimizeButton,
+        {
+            normal = "RedButton-MiniCondense",
+            pushed = "RedButton-MiniCondense-pressed",
+            disabled = "RedButton-MiniCondense-disabled",
+            highlight = "RedButton-Highlight",
+        }
+    )
+    if nativeMinimizeApplied then
+        UI.minimizeButton = nativeMinimizeButton
+    else
+        nativeMinimizeButton:Hide()
+        UI.minimizeButton = ATM.UITheme.CreateTitleControl(
+            frame,
+            "minimize",
+            "Minimize",
+            20
+        )
+    end
     UI.minimizeControl = UI.minimizeButton
     UI.minimizeButton:SetPoint(
         "RIGHT",
