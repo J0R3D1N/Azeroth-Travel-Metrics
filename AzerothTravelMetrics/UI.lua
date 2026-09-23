@@ -1201,7 +1201,7 @@ function UI.Create()
     UI.errorPanel:Hide()
 
     UI.overviewPanel = CreateFrame("Frame", nil, UI.contentFrame)
-    UI.overviewPanel:SetPoint("TOPLEFT", UI.contentFrame, "TOPLEFT", 6, -8)
+    UI.overviewPanel:SetPoint("TOPLEFT", UI.contentFrame, "TOPLEFT", 6, -18)
     UI.overviewPanel:SetSize(376, SUMMARY_CONTENT_HEIGHT)
 
     UI.summarySections = {}
@@ -1293,7 +1293,7 @@ function UI.Create()
     diagnosticsScrollFrame:Hide()
 
     UI.levelPanel = CreateFrame("Frame", nil, UI.contentFrame)
-    UI.levelPanel:SetPoint("TOPLEFT", UI.contentFrame, "TOPLEFT", 6, -8)
+    UI.levelPanel:SetPoint("TOPLEFT", UI.contentFrame, "TOPLEFT", 6, -18)
     UI.levelPanel:SetSize(LEVEL_PANEL_WIDTH, 310)
     UI.levelHeadingSection = ATM.UITheme.CreateSection(
         UI.levelPanel,

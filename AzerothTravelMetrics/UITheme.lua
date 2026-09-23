@@ -441,17 +441,18 @@ function Theme.CreateSection(parent, title, rowCount, options)
     header:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
     header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
     header:SetHeight(SECTION_HEADER_HEIGHT)
-    Theme.SetAtlasOrColor(header, Theme.Atlases.SECTION, 0.24, 0.13, 0.05, 1)
+    header:SetColorTexture(0, 0, 0, 0)
 
     local titleText = frame:CreateFontString(
         nil,
         "ARTWORK",
         "GameFontNormalSmall"
     )
-    titleText:SetPoint("LEFT", header, "LEFT", 13, 0)
-    titleText:SetPoint("RIGHT", header, "RIGHT", -13, 0)
-    titleText:SetJustifyH("CENTER")
+    titleText:SetPoint("LEFT", header, "LEFT", 8, 0)
+    titleText:SetPoint("RIGHT", header, "RIGHT", -8, 0)
+    titleText:SetJustifyH("LEFT")
     titleText:SetJustifyV("MIDDLE")
+    titleText:SetTextColor(0.26, 0.13, 0.05, 1)
     if type(titleText.SetWordWrap) == "function" then
         titleText:SetWordWrap(false)
     end
@@ -482,13 +483,11 @@ function Theme.CreateSection(parent, title, rowCount, options)
 
         local background = rowFrame:CreateTexture(nil, "BACKGROUND")
         background:SetAllPoints(rowFrame)
-        Theme.SetAtlasOrColor(
-            background,
-            Theme.Atlases.ROW,
-            0.12,
-            0.075,
-            0.035,
-            index % 2 == 0 and 0.82 or 0.68
+        background:SetColorTexture(
+            0.36,
+            0.22,
+            0.09,
+            index % 2 == 0 and 0.08 or 0.03
         )
 
         local label = rowFrame:CreateFontString(
@@ -497,7 +496,7 @@ function Theme.CreateSection(parent, title, rowCount, options)
             "GameFontNormalSmall"
         )
         label:SetPoint("LEFT", rowFrame, "LEFT", 8, 0)
-        label:SetTextColor(1, 0.82, 0, 1)
+        label:SetTextColor(0.32, 0.16, 0.06, 1)
 
         local value = rowFrame:CreateFontString(
             nil,
@@ -505,7 +504,7 @@ function Theme.CreateSection(parent, title, rowCount, options)
             "GameFontHighlightSmall"
         )
         value:SetPoint("RIGHT", rowFrame, "RIGHT", -8, 0)
-        value:SetTextColor(1, 1, 1, 1)
+        value:SetTextColor(0.12, 0.07, 0.03, 1)
         value:SetJustifyH("RIGHT")
 
         local row = {
@@ -517,8 +516,8 @@ function Theme.CreateSection(parent, title, rowCount, options)
         table.insert(section.rows, row)
 
         if index == options.footerIndex then
-            label:SetTextColor(1, 0.82, 0, 1)
-            value:SetTextColor(1, 0.82, 0, 1)
+            label:SetTextColor(0.24, 0.10, 0.02, 1)
+            value:SetTextColor(0.24, 0.10, 0.02, 1)
 
             local separator = rowFrame:CreateTexture(nil, "OVERLAY")
             separator:SetHeight(1)

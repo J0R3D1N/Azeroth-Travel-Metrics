@@ -2437,16 +2437,16 @@ testlib.case("ui creation is lazy idempotent and preserves the fallback warm she
     for sectionIndex, section in ipairs(harness.addon.UI.summarySections) do
         testlib.equal(section.title:GetText(), expectedTitles[sectionIndex])
         testlib.equal(section.title.template, "GameFontNormalSmall")
-        testlib.equal(section.title.justifyH, "CENTER")
+        testlib.equal(section.title.justifyH, "LEFT")
         testlib.equal(section.title.justifyV, "MIDDLE")
         testlib.equal(section.title.wordWrap, false)
         testlib.equal(section.title.nonSpaceWrap, false)
         testlib.equal(section.title.maxLines, 1)
         testlib.equal(#section.title.points, 2)
         testlib.equal(section.title.points[1][2], section.header)
-        testlib.equal(section.title.points[1][4], 13)
+        testlib.equal(section.title.points[1][4], 8)
         testlib.equal(section.title.points[2][2], section.header)
-        testlib.equal(section.title.points[2][4], -13)
+        testlib.equal(section.title.points[2][4], -8)
         testlib.equal(#section.rows, 5)
         testlib.equal(section.frame.height, 100)
         testlib.equal(section.footer, section.rows[5])
@@ -2642,6 +2642,7 @@ testlib.case("ui uses portrait chrome top tabs and a parchment page", function()
         harness.addon.UI.parchmentPage.atlas,
         harness.addon.UITheme.Atlases.PAGE
     )
+    testlib.equal(harness.addon.UI.overviewPanel.point[5], -18)
     testlib.equal(
         harness.addon.UI.summarySections[1].divider.atlas,
         harness.addon.UITheme.Atlases.DIVIDER
