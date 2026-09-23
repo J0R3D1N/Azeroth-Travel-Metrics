@@ -2620,9 +2620,20 @@ testlib.case("ui uses portrait chrome top tabs and a parchment page", function()
     testlib.equal(harness.addon.UI.overviewTab.point[1], "TOPLEFT")
     testlib.equal(harness.addon.UI.overviewTab.point[2], frame)
     testlib.equal(harness.addon.UI.overviewTab.point[3], "TOPLEFT")
+    testlib.truthy(harness.addon.UI.overviewTab.point[4] < 100)
     testlib.equal(harness.addon.UI.levelTab.point[1], "LEFT")
     testlib.equal(harness.addon.UI.levelTab.point[2], harness.addon.UI.overviewTab)
     testlib.equal(harness.addon.UI.levelTab.point[3], "RIGHT")
+    testlib.equal(harness.addon.UI.settingsTab.point[1], "LEFT")
+    testlib.equal(
+        harness.addon.UI.settingsTab.point[2],
+        harness.addon.UI.levelTab
+    )
+    testlib.equal(harness.addon.UI.settingsTab.point[3], "RIGHT")
+    testlib.equal(
+        harness.addon.UI.settingsTab.Icon.texture,
+        harness.addon.UITheme.Icons.SETTINGS
+    )
     testlib.equal(
         harness.addon.UI.parchmentPage.atlas,
         harness.addon.UITheme.Atlases.PAGE

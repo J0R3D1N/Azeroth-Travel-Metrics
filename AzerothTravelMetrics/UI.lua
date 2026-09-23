@@ -957,7 +957,7 @@ function UI.Create()
             tooltip = "Overview",
         }
     )
-    UI.overviewTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 152, -36)
+    UI.overviewTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 72, -36)
     UI.overviewTab:Show()
     UI.overviewTab:SetScript("OnClick", function()
         activeTab = "overview"
@@ -978,6 +978,17 @@ function UI.Create()
         activeTab = "levels"
         setPanelVisibility()
     end)
+
+    UI.settingsTab = ATM.UITheme.CreateTopTab(
+        "AzerothTravelMetricsFrameSettingsTab",
+        frame,
+        {
+            icon = ATM.UITheme.Icons.SETTINGS,
+            tooltip = "Settings",
+        }
+    )
+    UI.settingsTab:SetPoint("LEFT", UI.levelTab, "RIGHT", 6, 0)
+    UI.settingsTab:Show()
 
     UI.resetButton = createSafeButton(
         frame,

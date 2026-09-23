@@ -394,10 +394,10 @@ function Theme.CreateTopTab(name, parent, options)
         0.88
     )
     tab.Icon = tab:CreateTexture(nil, "ARTWORK")
-    tab.Icon:SetSize(26, 26)
+    tab.Icon:SetSize(34, 34)
     tab.Icon:SetPoint("CENTER", tab, "CENTER", 0, 0)
     tab.Icon:SetTexture(options.icon)
-    tab.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    tab.Icon:SetTexCoord(0.12, 0.88, 0.12, 0.88)
 
     tab.HighlightTexture = createColorTexture(
         tab,
