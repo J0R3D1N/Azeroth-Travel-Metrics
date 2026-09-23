@@ -1000,18 +1000,6 @@ function UI.Create()
     UI.contentFrame:SetSize(388, 382)
     UI.parchmentPage = ATM.UITheme.CreateParchmentPage(UI.contentFrame)
 
-    UI.resetButton = createSafeButton(
-        frame,
-        "UIPanelButtonTemplate",
-        96,
-        22,
-        "Reset Session"
-    )
-    UI.resetButton:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 18, 12)
-    UI.resetButton:SetScript("OnClick", function()
-        UI.ConfirmResetSession()
-    end)
-
     UI.versionLabel = createLabel(
         frame,
         "ATM v" .. getVersion(),
@@ -1125,6 +1113,66 @@ function UI.Create()
         context.db.settings.showDiagnostics =
             UI.diagnosticsCheck:GetChecked() == true
         UI.Refresh()
+    end)
+
+    UI.resetDivider = ATM.UITheme.CreateDivider(settingsPanel)
+    UI.resetDivider:SetPoint(
+        "BOTTOMLEFT",
+        settingsPanel,
+        "BOTTOMLEFT",
+        0,
+        76
+    )
+    UI.resetDivider:SetPoint(
+        "BOTTOMRIGHT",
+        settingsPanel,
+        "BOTTOMRIGHT",
+        0,
+        76
+    )
+
+    UI.resetHeading = createLabel(
+        settingsPanel,
+        "Session",
+        "GameFontNormal"
+    )
+    UI.resetHeading:SetPoint(
+        "BOTTOMLEFT",
+        UI.resetDivider,
+        "TOPLEFT",
+        0,
+        6
+    )
+
+    UI.resetWarning = createLabel(
+        settingsPanel,
+        "Resets only this character's current travel session.",
+        "GameFontDisableSmall"
+    )
+    UI.resetWarning:SetPoint(
+        "BOTTOMLEFT",
+        settingsPanel,
+        "BOTTOMLEFT",
+        0,
+        38
+    )
+
+    UI.resetButton = createSafeButton(
+        settingsPanel,
+        "UIPanelButtonTemplate",
+        156,
+        24,
+        "Reset Current Session"
+    )
+    UI.resetButton:SetPoint(
+        "BOTTOMLEFT",
+        settingsPanel,
+        "BOTTOMLEFT",
+        0,
+        6
+    )
+    UI.resetButton:SetScript("OnClick", function()
+        UI.ConfirmResetSession()
     end)
 
     syncSettingsControls()

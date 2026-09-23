@@ -2594,6 +2594,9 @@ testlib.case("ui settings tab shows a synchronized parchment page", function()
     testlib.equal(UI.imperialCheck:GetChecked(), true)
     testlib.equal(UI.minimapCheck:GetChecked(), false)
     testlib.equal(UI.diagnosticsCheck:GetChecked(), true)
+    testlib.equal(UI.resetButton.parent, UI.settingsPanel)
+    testlib.equal(UI.resetButton:GetText(), "Reset Current Session")
+    testlib.equal(UI.resetWarning.parent, UI.settingsPanel)
 end)
 
 testlib.case("ui uses portrait chrome top tabs and a parchment page", function()
@@ -2759,7 +2762,10 @@ testlib.case("ui remains visible when all shell side-tab and atlas assets fail",
     testlib.equal(noTemplate.addon.UI.contentInset, nil)
     testlib.truthy(noTemplate.addon.UI.errorInset.color ~= nil)
     testlib.truthy(noTemplate.addon.UI.settingsTab.Icon.texture ~= nil)
-    testlib.equal(noTemplate.addon.UI.resetButton:GetText(), "Reset Session")
+    testlib.equal(
+        noTemplate.addon.UI.resetButton:GetText(),
+        "Reset Current Session"
+    )
     testlib.equal(noTemplate.addon.UI.summarySections[1].title:GetText(), "Lifetime")
     testlib.equal(
         noTemplate.addon.UI.summarySections[1].rows[1].label:GetText(),
@@ -3067,10 +3073,10 @@ testlib.case("ui action buttons remain visible and interactive without panel tem
     testlib.equal(succeeded, true)
     testlib.truthy(frame ~= nil)
     testlib.equal(UI.resetButton.template, nil)
-    testlib.equal(UI.resetButton.width, 96)
-    testlib.equal(UI.resetButton.height, 22)
+    testlib.equal(UI.resetButton.width, 156)
+    testlib.equal(UI.resetButton.height, 24)
     testlib.equal(UI.resetButton:IsShown(), true)
-    testlib.equal(UI.resetButton:GetText(), "Reset Session")
+    testlib.equal(UI.resetButton:GetText(), "Reset Current Session")
     testlib.truthy(UI.resetButton.Background.color ~= nil)
     testlib.truthy(#UI.resetButton.Border == 4)
     testlib.truthy(UI.resetButton.Highlight.color ~= nil)
