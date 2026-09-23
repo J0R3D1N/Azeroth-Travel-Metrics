@@ -12,8 +12,9 @@ This repository produces a beta candidate. Automated validation does not replace
 - Separate on-foot, swimming, and flight-path (taxi) distance.
 - Lifetime, current-session, and per-level statistics.
 - Metric display by default, with an imperial option.
-- Compact, movable spellbook-style UI with a circular portrait, top icon tabs,
-  parchment pages, and spellbook section dividers.
+- Compact, movable spellbook-style UI with a circular portrait, a
+  left-justified horizontal Overview / By Level / Settings tab row, parchment
+  pages, and spellbook section dividers.
 - Regular and HUD windows stay above ordinary world/HUD content but behind fullscreen maps and cinematics.
 - Escape closes the regular addon window.
 - A draggable minimap launcher and a compact settings panel hidden until requested.
@@ -85,6 +86,10 @@ After replacing the installed addon folder or TOC, keep WoW closed, reapply Fore
 | `/atm status` | Print capability state and diagnostic counters to chat. |
 
 The main window can be moved by left-dragging it. Left-click the minimap launcher to always open the regular panel; if the minimized HUD is visible, the regular panel replaces it. The launcher does not toggle the regular panel closed. Drag the launcher to reposition it. Use **Settings** in the main window for units, minimap visibility, and diagnostic visibility.
+
+Settings is the third parchment tab. **Reset Current Session** is located in
+its Session section and retains the confirmation prompt; it resets only the
+active character session.
 
 ## Data and reset behavior
 
