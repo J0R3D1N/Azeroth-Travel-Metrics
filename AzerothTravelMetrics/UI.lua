@@ -217,21 +217,30 @@ local function setPanelVisibility()
     if hasError then
         UI.overviewPanel:Hide()
         UI.levelPanel:Hide()
+        UI.settingsPanel:Hide()
     elseif activeTab == "levels" then
         UI.overviewPanel:Hide()
+        UI.settingsPanel:Hide()
         UI.levelPanel:Show()
+    elseif activeTab == "settings" then
+        UI.overviewPanel:Hide()
+        UI.levelPanel:Hide()
+        UI.settingsPanel:Show()
     else
         UI.levelPanel:Hide()
+        UI.settingsPanel:Hide()
         UI.overviewPanel:Show()
     end
 
-    if activeTab == "levels" then
-        ATM.UITheme.SetTopTabSelected(UI.overviewTab, false)
-        ATM.UITheme.SetTopTabSelected(UI.levelTab, true)
-    else
-        ATM.UITheme.SetTopTabSelected(UI.levelTab, false)
-        ATM.UITheme.SetTopTabSelected(UI.overviewTab, true)
-    end
+    ATM.UITheme.SetTopTabSelected(
+        UI.overviewTab,
+        activeTab == "overview"
+    )
+    ATM.UITheme.SetTopTabSelected(UI.levelTab, activeTab == "levels")
+    ATM.UITheme.SetTopTabSelected(
+        UI.settingsTab,
+        activeTab == "settings"
+    )
 end
 
 local function showModelError(reason)
@@ -989,6 +998,16 @@ function UI.Create()
     )
     UI.settingsTab:SetPoint("LEFT", UI.levelTab, "RIGHT", 6, 0)
     UI.settingsTab:Show()
+    UI.settingsTab:SetScript("OnClick", function()
+        activeTab = "settings"
+        syncSettingsControls()
+        setPanelVisibility()
+    end)
+
+    UI.contentFrame = CreateFrame("Frame", nil, frame)
+    UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -76)
+    UI.contentFrame:SetSize(388, 382)
+    UI.parchmentPage = ATM.UITheme.CreateParchmentPage(UI.contentFrame)
 
     UI.resetButton = createSafeButton(
         frame,
@@ -1019,41 +1038,22 @@ function UI.Create()
     UI.versionLabel:SetJustifyV("BOTTOM")
     UI.versionLabel:SetTextColor(0.58, 0.50, 0.38, 1)
 
-    UI.settingsButton = ATM.UITheme.CreateIconButton(
-        frame,
-        ATM.UITheme.Icons.SETTINGS,
-        "Settings"
-    )
-    UI.settingsButton:SetPoint(
-        "RIGHT",
-        UI.versionLabel,
-        "LEFT",
-        -8,
-        0
-    )
-    raiseAboveParent(UI.settingsButton, frame, 20)
-
-    local settingsPanelSucceeded, settingsPanel = pcall(
-        CreateFrame,
-        "Frame",
-        nil,
-        frame,
-        "InsetFrameTemplate3"
-    )
-    if not settingsPanelSucceeded then
-        settingsPanel = CreateFrame("Frame", nil, frame)
-    end
+    local settingsPanel = CreateFrame("Frame", nil, UI.contentFrame)
     UI.settingsPanel = settingsPanel
-    settingsPanel:SetSize(205, 128)
-    settingsPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -18, 64)
-    if type(settingsPanel.SetFrameStrata) == "function" then
-        pcall(settingsPanel.SetFrameStrata, settingsPanel, "DIALOG")
-    end
-    if type(settingsPanel.SetFrameLevel) == "function"
-        and type(frame.GetFrameLevel) == "function"
-    then
-        settingsPanel:SetFrameLevel(frame:GetFrameLevel() + 100)
-    end
+    settingsPanel:SetPoint(
+        "TOPLEFT",
+        UI.contentFrame,
+        "TOPLEFT",
+        18,
+        -18
+    )
+    settingsPanel:SetPoint(
+        "BOTTOMRIGHT",
+        UI.contentFrame,
+        "BOTTOMRIGHT",
+        -18,
+        18
+    )
 
     UI.settingsHeading = createLabel(
         settingsPanel,
@@ -1136,21 +1136,8 @@ function UI.Create()
         UI.Refresh()
     end)
 
-    UI.settingsButton:SetScript("OnClick", function()
-        if settingsPanel:IsShown() then
-            settingsPanel:Hide()
-        else
-            syncSettingsControls()
-            settingsPanel:Show()
-        end
-    end)
     syncSettingsControls()
     settingsPanel:Hide()
-
-    UI.contentFrame = CreateFrame("Frame", nil, frame)
-    UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -76)
-    UI.contentFrame:SetSize(388, 382)
-    UI.parchmentPage = ATM.UITheme.CreateParchmentPage(UI.contentFrame)
 
     UI.errorPanel = CreateFrame("Frame", nil, UI.contentFrame)
     UI.errorPanel:SetPoint(
