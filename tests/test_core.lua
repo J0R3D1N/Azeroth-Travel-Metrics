@@ -2705,7 +2705,9 @@ testlib.case("ui keeps portrait chrome with right tabs and classic center", func
     testlib.equal(UI.minimizeButton.point[4], -1)
     testlib.equal(UI.minimizeButton.point[5], 0)
     testlib.truthy(UI.minimizeButton.Background.color ~= nil)
+    testlib.equal(UI.minimizeButton.Background:IsShown(), true)
     testlib.truthy(UI.minimizeButton.HighlightTexture.color ~= nil)
+    testlib.equal(UI.minimizeButton.HighlightTexture:IsShown(), true)
     testlib.equal(#UI.minimizeButton.GlyphTextures, 3)
     testlib.equal(
         UI.minimizeButton:GetFrameLevel(),
@@ -2754,6 +2756,8 @@ testlib.case("ui main minimize uses visible ATM artwork", function()
 
     testlib.equal(UI.minimizeButton.controlKind, "minimize")
     testlib.equal(UI.minimizeButton.template, nil)
+    testlib.equal(UI.minimizeButton.Background:IsShown(), true)
+    testlib.equal(UI.minimizeButton.HighlightTexture:IsShown(), true)
     testlib.equal(#UI.minimizeButton.GlyphTextures, 3)
     for _, texture in ipairs(UI.minimizeButton.GlyphTextures) do
         testlib.equal(texture:IsShown(), true)
@@ -2857,8 +2861,16 @@ testlib.case("ui fallback owns title icon text and controls without native chrom
     testlib.truthy(
         harness.addon.UI.minimizeButton.Background.color ~= nil
     )
+    testlib.equal(
+        harness.addon.UI.minimizeButton.Background:IsShown(),
+        true
+    )
     testlib.truthy(
         harness.addon.UI.minimizeButton.HighlightTexture.color ~= nil
+    )
+    testlib.equal(
+        harness.addon.UI.minimizeButton.HighlightTexture:IsShown(),
+        true
     )
     testlib.equal(#harness.addon.UI.minimizeButton.GlyphTextures, 3)
     testlib.equal(harness.addon.UI.minimizeControl.point[1], "RIGHT")
