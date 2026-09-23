@@ -34,11 +34,32 @@ local raceMeters = {
     EarthenDwarf = 0.68,
 }
 
+local function isFiniteNumber(value)
+    return type(value) == "number"
+        and value == value
+        and value > -math.huge
+        and value < math.huge
+end
+
 function Stride.GetMeters(raceFile)
     return raceMeters[raceFile] or Stride.DEFAULT_METERS
 end
 
 function Stride.EstimateSteps(yards, raceFile)
+    if not isFiniteNumber(yards) or yards < 0 then
+        return nil, "invalidDistance"
+    end
+
     local meters = ATM.Distance.YardsToMeters(yards)
-    return math.floor(meters / Stride.GetMeters(raceFile) + 0.5)
+    local rawSteps = meters / Stride.GetMeters(raceFile)
+    if not isFiniteNumber(rawSteps) or rawSteps < 0 then
+        return nil, "invalidDistance"
+    end
+
+    local steps = math.floor(rawSteps + 0.5)
+    if not isFiniteNumber(steps) then
+        return nil, "invalidDistance"
+    end
+
+    return steps
 end

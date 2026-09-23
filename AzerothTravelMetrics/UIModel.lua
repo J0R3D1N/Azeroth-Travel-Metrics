@@ -54,6 +54,10 @@ end
 
 local function buildSummary(totals, raceFile, units)
     local rawSteps = ATM.Stride.EstimateSteps(totals.onFoot, raceFile)
+    if not isNonnegativeInteger(rawSteps) then
+        return nil
+    end
+
     local totalYards = totals.onFoot + totals.swimming + totals.taxi
 
     return {
@@ -93,11 +97,29 @@ function UIModel.BuildOverview(character, currentLevel, units)
 
     local raceFile = character.identity.raceFile
     local displayUnits = normalizedUnits(units)
+    local lifetime = buildSummary(
+        character.lifetime,
+        raceFile,
+        displayUnits
+    )
+    local session = buildSummary(
+        character.session,
+        raceFile,
+        displayUnits
+    )
+    local currentLevelSummary = buildSummary(
+        levelTotals,
+        raceFile,
+        displayUnits
+    )
+    if not lifetime or not session or not currentLevelSummary then
+        return nil, "invalidStatistics"
+    end
 
     return {
-        lifetime = buildSummary(character.lifetime, raceFile, displayUnits),
-        session = buildSummary(character.session, raceFile, displayUnits),
-        currentLevel = buildSummary(levelTotals, raceFile, displayUnits),
+        lifetime = lifetime,
+        session = session,
+        currentLevel = currentLevelSummary,
     }
 end
 
@@ -121,6 +143,9 @@ function UIModel.BuildLevelRows(character, units)
         end
 
         local row = buildSummary(totals, raceFile, displayUnits)
+        if not row then
+            return nil, "invalidStatistics"
+        end
         row.level = level
         row.reachedAt = totals.reachedAt
         table.insert(rows, row)

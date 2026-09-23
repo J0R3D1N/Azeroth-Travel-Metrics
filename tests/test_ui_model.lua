@@ -326,6 +326,27 @@ testlib.case("ui level rows reject category totals whose sum overflows", functio
     end, "overflowing level total")
 end)
 
+testlib.case("ui model rejects finite totals whose derived steps overflow", function()
+    local addon = loadUIModel()
+    local character = newCharacter()
+    character.lifetime.onFoot = 1.7e308
+    character.lifetime.swimming = 0
+    character.lifetime.taxi = 0
+
+    assertInvalidStatistics(function()
+        return addon.UIModel.BuildOverview(character, 20, "metric")
+    end, "overflowing derived lifetime steps")
+
+    character = newCharacter()
+    character.levels[20].onFoot = 1.7e308
+    character.levels[20].swimming = 0
+    character.levels[20].taxi = 0
+
+    assertInvalidStatistics(function()
+        return addon.UIModel.BuildLevelRows(character, "metric")
+    end, "overflowing derived level steps")
+end)
+
 testlib.case("ui model reports malformed levels and timestamps without throwing", function()
     local addon = loadUIModel()
     local malformedLevels = {

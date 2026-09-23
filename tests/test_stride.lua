@@ -79,3 +79,27 @@ testlib.case("stride rounds fractional step estimates upward", function()
 
     testlib.equal(addon.Stride.EstimateSteps(yards, "Human"), 2)
 end)
+
+testlib.case("stride rejects invalid and overflowing estimates", function()
+    local addon = loadStride()
+    local invalidYards = {
+        { name = "missing", value = nil },
+        { name = "negative", value = -1 },
+        { name = "NaN", value = 0 / 0 },
+        { name = "infinite", value = math.huge },
+        { name = "derived overflow", value = 1.7e308 },
+    }
+
+    for _, invalid in ipairs(invalidYards) do
+        local steps, reason = addon.Stride.EstimateSteps(
+            invalid.value,
+            "Human"
+        )
+        testlib.equal(steps, nil, invalid.name .. " returned steps")
+        testlib.equal(
+            reason,
+            "invalidDistance",
+            invalid.name .. " returned the wrong reason"
+        )
+    end
+end)
