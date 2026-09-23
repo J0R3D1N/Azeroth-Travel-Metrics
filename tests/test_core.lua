@@ -114,7 +114,7 @@ local function newCoreHarness(options)
         calls.samples = calls.samples + 1
         if options.sampleResults then
             local result = options.sampleResults[calls.samples] or {}
-            return result.segment, result.reason
+            return result.segment, result.reason, result.capabilities
         end
         return nil, "baseline"
     end
@@ -239,6 +239,8 @@ local function newCoreHarness(options)
                 taxi = true,
                 swimming = true,
                 mounted = true,
+                flying = true,
+                vehicle = true,
                 grounded = true,
                 taxiReady = true,
                 swimmingReady = true,
@@ -1243,6 +1245,48 @@ testlib.case("subsequent entering world preserves runtime and refreshes capabili
     testlib.equal(harness.addon.Core.GetState().character, selectedCharacter)
     testlib.equal(harness.addon.Core.GetState().tracker, selectedTracker)
     testlib.equal(harness.addon.Core.GetState().ticker, activeTicker)
+end)
+
+testlib.case("ticker refreshes shared capabilities after failure and recovery", function()
+    local harness = newCoreHarness({
+        capabilities = {
+            position = true,
+            map = true,
+            onFootReady = true,
+            stale = true,
+        },
+        sampleResults = {
+            {
+                reason = "positionUnavailable",
+                capabilities = {
+                    position = false,
+                    map = true,
+                    onFootReady = false,
+                },
+            },
+            {
+                reason = "baseline",
+                capabilities = {
+                    position = true,
+                    map = true,
+                    onFootReady = true,
+                },
+            },
+        },
+    })
+    makeReady(harness)
+    local capabilities = harness.calls.uiContext.capabilities
+    local ticker = harness.calls.tickers[1]
+
+    ticker.callback()
+    testlib.equal(capabilities.position, false)
+    testlib.equal(capabilities.onFootReady, false)
+    testlib.equal(capabilities.stale, nil)
+
+    ticker.callback()
+    testlib.equal(capabilities.position, true)
+    testlib.equal(capabilities.onFootReady, true)
+    testlib.equal(harness.calls.capabilities, 1)
 end)
 
 testlib.case("entering world retries an unavailable ticker without rebuilding runtime", function()

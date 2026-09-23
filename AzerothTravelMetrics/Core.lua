@@ -11,6 +11,8 @@ local CAPABILITY_KEYS = {
     "taxi",
     "swimming",
     "mounted",
+    "flying",
+    "vehicle",
     "grounded",
 }
 
@@ -157,15 +159,21 @@ local function readCapabilities()
     return capabilities
 end
 
-local function refreshCapabilities()
-    local capabilities = readCapabilities()
-
+local function replaceCapabilities(capabilities)
+    if type(capabilities) ~= "table" then
+        return false
+    end
     for key in pairs(state.capabilities) do
         state.capabilities[key] = nil
     end
     for key, value in pairs(capabilities) do
         state.capabilities[key] = value
     end
+    return true
+end
+
+local function refreshCapabilities()
+    return replaceCapabilities(readCapabilities())
 end
 
 function Core.Initialize(allowCreate)
@@ -351,7 +359,7 @@ local function sample()
         return
     end
 
-    local succeeded, segment, reason = pcall(
+    local succeeded, segment, reason, capabilities = pcall(
         state.tracker.Sample,
         state.tracker
     )
@@ -359,6 +367,8 @@ local function sample()
         Core.ReportOnce("sampleFailed")
         return
     end
+
+    replaceCapabilities(capabilities)
 
     if reason ~= nil and REPORTABLE_REASONS[reason] then
         Core.ReportOnce(reason)
