@@ -1840,6 +1840,7 @@ local function newFrame(frameType, name, parent, template, options)
 
     function frame:SetColorTexture(red, green, blue, alpha)
         self.color = { red, green, blue, alpha }
+        self.shown = true
     end
 
     function frame:SetGradientAlpha(...)
@@ -2550,19 +2551,25 @@ testlib.case("ui creation is lazy idempotent and preserves the fallback warm she
         harness.addon.UI.closeButton
     )
     testlib.equal(harness.addon.UI.minimizeControl.point[3], "LEFT")
+    testlib.equal(harness.addon.UI.minimizeControl.point[4], -1)
     testlib.equal(harness.addon.UI.minimizeControl.point[5], 0)
-    testlib.equal(
-        harness.addon.UI.minimizeControl.template,
-        "UIPanelHideButtonNoScripts"
-    )
+    testlib.equal(harness.addon.UI.minimizeControl.template, nil)
+    testlib.equal(harness.addon.UI.minimizeControl.controlKind, "minimize")
     testlib.equal(
         harness.addon.UI.minimizeButton,
         harness.addon.UI.minimizeControl
     )
-    testlib.equal(harness.addon.UI.minimizeControl.width, 24)
-    testlib.equal(harness.addon.UI.minimizeControl.height, 24)
-    testlib.equal(harness.addon.UI.minimizeButton.width, 24)
-    testlib.equal(harness.addon.UI.minimizeButton.height, 24)
+    testlib.equal(harness.addon.UI.minimizeControl.width, 20)
+    testlib.equal(harness.addon.UI.minimizeControl.height, 20)
+    testlib.truthy(harness.addon.UI.minimizeButton.Background.color ~= nil)
+    testlib.truthy(
+        harness.addon.UI.minimizeButton.HighlightTexture.color ~= nil
+    )
+    testlib.equal(#harness.addon.UI.minimizeButton.GlyphTextures, 3)
+    testlib.equal(
+        harness.addon.UI.minimizeButton:GetFrameLevel(),
+        math.max(harness.addon.UI.closeButton:GetFrameLevel() + 1, 511)
+    )
     testlib.equal(harness.addon.UI.versionLabel:GetText(), "ATM v1.0.0-beta")
     testlib.equal(harness.addon.UI.versionLabel.template, "GameFontDisableSmall")
     testlib.equal(harness.addon.UI.versionLabel.justifyH, "RIGHT")
@@ -2688,30 +2695,22 @@ testlib.case("ui keeps portrait chrome with right tabs and classic center", func
     testlib.equal(UI.closeButton, frame.CloseButton)
     testlib.equal(frame.CloseButton:IsShown(), true)
     testlib.equal(UI.minimizeButton.parent, frame)
-    testlib.equal(UI.minimizeButton.template, "UIPanelHideButtonNoScripts")
-    testlib.equal(UI.minimizeButton.point[1], "TOPRIGHT")
-    testlib.equal(UI.minimizeButton.point[2], frame)
-    testlib.equal(UI.minimizeButton.point[3], "TOPRIGHT")
-    testlib.equal(UI.minimizeButton.point[4], -25)
+    testlib.equal(UI.minimizeButton.template, nil)
+    testlib.equal(UI.minimizeButton.controlKind, "minimize")
+    testlib.equal(UI.minimizeButton.width, 20)
+    testlib.equal(UI.minimizeButton.height, 20)
+    testlib.equal(UI.minimizeButton.point[1], "RIGHT")
+    testlib.equal(UI.minimizeButton.point[2], UI.closeButton)
+    testlib.equal(UI.minimizeButton.point[3], "LEFT")
+    testlib.equal(UI.minimizeButton.point[4], -1)
     testlib.equal(UI.minimizeButton.point[5], 0)
+    testlib.truthy(UI.minimizeButton.Background.color ~= nil)
+    testlib.truthy(UI.minimizeButton.HighlightTexture.color ~= nil)
+    testlib.equal(#UI.minimizeButton.GlyphTextures, 3)
     testlib.equal(
-        UI.minimizeButton.normalTexture.atlas,
-        "RedButton-MiniCondense"
+        UI.minimizeButton:GetFrameLevel(),
+        math.max(UI.closeButton:GetFrameLevel() + 1, 511)
     )
-    testlib.equal(
-        UI.minimizeButton.pushedTexture.atlas,
-        "RedButton-MiniCondense-pressed"
-    )
-    testlib.equal(
-        UI.minimizeButton.disabledTexture.atlas,
-        "RedButton-MiniCondense-disabled"
-    )
-    testlib.equal(
-        UI.minimizeButton.highlightTexture.atlas,
-        "RedButton-Highlight"
-    )
-    testlib.equal(UI.minimizeFallbackText, nil)
-    testlib.truthy(UI.minimizeButton.frameLevel >= 510)
     testlib.equal(
         frame.PortraitContainer.portrait.texture,
         harness.addon.UITheme.Icons.TITLE
@@ -2746,17 +2745,19 @@ testlib.case("ui keeps portrait chrome with right tabs and classic center", func
     testlib.equal(UI.levelPanel.point[5], -54)
 end)
 
-testlib.case("ui main minimize keeps a visible atlas fallback", function()
+testlib.case("ui main minimize uses visible ATM artwork", function()
     local harness = newUIHarness({
         missingHideButtonTextures = true,
     })
     local UI = harness.addon.UI
     UI.Create()
 
-    testlib.truthy(UI.minimizeFallbackText ~= nil)
-    testlib.equal(UI.minimizeFallbackText:GetText(), "-")
-    testlib.equal(UI.minimizeFallbackText.point[1], "CENTER")
-    testlib.equal(UI.minimizeFallbackText.point[2], UI.minimizeButton)
+    testlib.equal(UI.minimizeButton.controlKind, "minimize")
+    testlib.equal(UI.minimizeButton.template, nil)
+    testlib.equal(#UI.minimizeButton.GlyphTextures, 3)
+    for _, texture in ipairs(UI.minimizeButton.GlyphTextures) do
+        testlib.equal(texture:IsShown(), true)
+    end
 end)
 
 testlib.case("ui creates a safe close button when portrait chrome omits one", function()
@@ -2849,20 +2850,29 @@ testlib.case("ui fallback owns title icon text and controls without native chrom
     testlib.truthy(harness.addon.UI.titleIconFrame ~= nil)
     testlib.truthy(harness.addon.UI.closeButton ~= nil)
     testlib.truthy(harness.addon.UI.minimizeButton ~= nil)
-    testlib.equal(
-        harness.addon.UI.minimizeButton.template,
-        "UIPanelHideButtonNoScripts"
+    testlib.equal(harness.addon.UI.minimizeButton.template, nil)
+    testlib.equal(harness.addon.UI.minimizeButton.controlKind, "minimize")
+    testlib.equal(harness.addon.UI.minimizeButton.width, 20)
+    testlib.equal(harness.addon.UI.minimizeButton.height, 20)
+    testlib.truthy(
+        harness.addon.UI.minimizeButton.Background.color ~= nil
     )
-    testlib.equal(
-        harness.addon.UI.minimizeButton.normalTexture.atlas,
-        "RedButton-MiniCondense"
+    testlib.truthy(
+        harness.addon.UI.minimizeButton.HighlightTexture.color ~= nil
     )
+    testlib.equal(#harness.addon.UI.minimizeButton.GlyphTextures, 3)
     testlib.equal(harness.addon.UI.minimizeControl.point[1], "RIGHT")
     testlib.equal(
         harness.addon.UI.minimizeControl.point[2],
         harness.addon.UI.closeButton
     )
     testlib.equal(harness.addon.UI.minimizeControl.point[3], "LEFT")
+    testlib.equal(harness.addon.UI.minimizeControl.point[4], -1)
+    testlib.equal(harness.addon.UI.minimizeControl.point[5], 0)
+    testlib.equal(
+        harness.addon.UI.minimizeButton:GetFrameLevel(),
+        math.max(harness.addon.UI.closeButton:GetFrameLevel() + 1, 511)
+    )
     testlib.equal(harness.addon.UI.title:GetText(), "Azeroth Travel Metrics")
 end)
 

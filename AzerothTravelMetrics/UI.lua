@@ -934,63 +934,23 @@ function UI.Create()
     UI.title:SetTextColor(1, 0.82, 0.32, 1)
     UI.title:SetText("Azeroth Travel Metrics")
 
-    local minimizeParent = nativePortrait and frame or UI.titleRegion
-    UI.minimizeButton = createSafeButton(
-        minimizeParent,
-        "UIPanelHideButtonNoScripts",
-        24,
-        24,
-        nil,
-        "-"
+    UI.minimizeButton = ATM.UITheme.CreateTitleControl(
+        frame,
+        "minimize",
+        "Minimize",
+        20
     )
     UI.minimizeControl = UI.minimizeButton
-    local minimizeArtApplied = ATM.UITheme.ApplyButtonAtlases(
-        UI.minimizeButton,
-        {
-            normal = "RedButton-MiniCondense",
-            pushed = "RedButton-MiniCondense-pressed",
-            disabled = "RedButton-MiniCondense-disabled",
-            highlight = "RedButton-Highlight",
-        }
+    UI.minimizeButton:SetPoint(
+        "RIGHT",
+        UI.closeButton,
+        "LEFT",
+        -1,
+        0
     )
-    if not minimizeArtApplied then
-        UI.minimizeFallbackText = UI.minimizeButton.FallbackText
-        if not UI.minimizeFallbackText then
-            UI.minimizeFallbackText = createLabel(
-                UI.minimizeButton,
-                "-",
-                "GameFontHighlightSmall"
-            )
-            UI.minimizeFallbackText:SetPoint(
-                "CENTER",
-                UI.minimizeButton,
-                "CENTER",
-                0,
-                0
-            )
-        end
-    end
-    UI.minimizeButton:ClearAllPoints()
-    if nativePortrait then
-        UI.minimizeButton:SetPoint(
-            "TOPRIGHT",
-            frame,
-            "TOPRIGHT",
-            -25,
-            0
-        )
-        UI.minimizeButton:SetFrameLevel(510)
-    else
-        UI.minimizeControl:SetPoint(
-            "RIGHT",
-            UI.closeButton,
-            "LEFT",
-            -1,
-            0
-        )
-        raiseAboveParent(UI.minimizeControl, UI.titleRegion, 3)
-    end
-    UI.minimizeControl:Show()
+    UI.minimizeButton:SetFrameLevel(
+        math.max(UI.closeButton:GetFrameLevel() + 1, 511)
+    )
     UI.minimizeButton:Show()
     UI.minimizeButton:SetScript("OnClick", function()
         UI.Minimize()
