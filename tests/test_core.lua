@@ -2062,6 +2062,15 @@ local function newUIHarness(options)
                 options
             )
         end
+        if template == "UICheckButtonTemplate" then
+            frame.Text = newFrame(
+                "FontString",
+                nil,
+                frame,
+                "GameFontHighlight",
+                options
+            )
+        end
         if template == "LargeSideTabButtonTemplate" then
             frame.Icon = newFrame("Texture", nil, frame, nil, options)
             frame.SelectedTexture = newFrame("Texture", nil, frame, nil, options)
@@ -2634,7 +2643,39 @@ testlib.case("ui creation is lazy idempotent and preserves the fallback warm she
     testlib.equal(first.stoppedMoving, true)
 end)
 
-testlib.case("ui settings side tab opens synchronized center content", function()
+local function assertContainedUnitLabelGeometry(UI)
+    local firstSettingsRow = UI.settingsSection.rows[1].frame
+    testlib.equal(UI.metricCheck.point[1], "LEFT")
+    testlib.equal(UI.metricCheck.point[2], firstSettingsRow)
+    testlib.equal(UI.metricCheck.point[3], "LEFT")
+    testlib.equal(UI.metricCheck.point[4], 218)
+    testlib.equal(UI.metricCheck.point[5], 0)
+    testlib.equal(UI.metricCheck.label.point[1], "LEFT")
+    testlib.equal(UI.metricCheck.label.point[2], UI.metricCheck)
+    testlib.equal(UI.metricCheck.label.point[3], "RIGHT")
+    testlib.equal(UI.metricCheck.label.point[4], 2)
+    testlib.equal(UI.metricCheck.label.point[5], 0)
+    testlib.equal(UI.metricCheck.label.width, 48)
+    testlib.equal(UI.metricCheck.label.justifyH, "LEFT")
+    testlib.equal(UI.imperialCheck.point[1], "LEFT")
+    testlib.equal(UI.imperialCheck.point[2], firstSettingsRow)
+    testlib.equal(UI.imperialCheck.point[3], "LEFT")
+    testlib.equal(UI.imperialCheck.point[4], 294)
+    testlib.equal(UI.imperialCheck.point[5], 0)
+    testlib.equal(UI.imperialCheck.label.point[1], "LEFT")
+    testlib.equal(UI.imperialCheck.label.point[2], UI.imperialCheck)
+    testlib.equal(UI.imperialCheck.label.point[3], "RIGHT")
+    testlib.equal(UI.imperialCheck.label.point[4], 2)
+    testlib.equal(UI.imperialCheck.label.point[5], 0)
+    testlib.equal(UI.imperialCheck.label.width, 56)
+    testlib.equal(UI.imperialCheck.label.justifyH, "LEFT")
+    local metricRight = 218 + 16 + 2 + 48
+    local imperialRight = 294 + 16 + 2 + 56
+    testlib.truthy(metricRight < 294)
+    testlib.truthy(imperialRight <= 376 - 8)
+end
+
+testlib.case("ui settings side tab uses contained native unit labels", function()
     local harness = newUIHarness()
     harness.addon.UI.Create()
     local UI = harness.addon.UI
@@ -2671,33 +2712,13 @@ testlib.case("ui settings side tab opens synchronized center content", function(
     testlib.equal(UI.imperialCheck.height, 16)
     testlib.equal(UI.minimapCheck.height, 16)
     testlib.equal(UI.diagnosticsCheck.height, 16)
-    local firstSettingsRow = UI.settingsSection.rows[1].frame
-    testlib.equal(UI.metricCheck.point[1], "LEFT")
-    testlib.equal(UI.metricCheck.point[2], firstSettingsRow)
-    testlib.equal(UI.metricCheck.point[3], "LEFT")
-    testlib.equal(UI.metricCheck.point[4], 218)
-    testlib.equal(UI.metricCheck.point[5], 0)
-    testlib.equal(UI.metricCheck.label.point[1], "LEFT")
-    testlib.equal(UI.metricCheck.label.point[2], UI.metricCheck)
-    testlib.equal(UI.metricCheck.label.point[3], "RIGHT")
-    testlib.equal(UI.metricCheck.label.point[4], 2)
-    testlib.equal(UI.metricCheck.label.point[5], 0)
-    testlib.equal(UI.metricCheck.label.width, 48)
-    testlib.equal(UI.imperialCheck.point[1], "LEFT")
-    testlib.equal(UI.imperialCheck.point[2], firstSettingsRow)
-    testlib.equal(UI.imperialCheck.point[3], "LEFT")
-    testlib.equal(UI.imperialCheck.point[4], 294)
-    testlib.equal(UI.imperialCheck.point[5], 0)
-    testlib.equal(UI.imperialCheck.label.point[1], "LEFT")
-    testlib.equal(UI.imperialCheck.label.point[2], UI.imperialCheck)
-    testlib.equal(UI.imperialCheck.label.point[3], "RIGHT")
-    testlib.equal(UI.imperialCheck.label.point[4], 2)
-    testlib.equal(UI.imperialCheck.label.point[5], 0)
-    testlib.equal(UI.imperialCheck.label.width, 56)
-    local metricRight = 218 + 16 + 2 + 48
-    local imperialRight = 294 + 16 + 2 + 56
-    testlib.truthy(metricRight < 294)
-    testlib.truthy(imperialRight <= 376 - 8)
+    testlib.equal(UI.metricCheck.template, "UICheckButtonTemplate")
+    testlib.equal(UI.imperialCheck.template, "UICheckButtonTemplate")
+    testlib.equal(UI.metricCheck.label, UI.metricCheck.Text)
+    testlib.equal(UI.imperialCheck.label, UI.imperialCheck.Text)
+    testlib.equal(UI.metricCheck.label:GetText(), "Metric")
+    testlib.equal(UI.imperialCheck.label:GetText(), "Imperial")
+    assertContainedUnitLabelGeometry(UI)
     for _, checkButton in ipairs({
         UI.metricCheck,
         UI.imperialCheck,
@@ -2720,6 +2741,26 @@ testlib.case("ui settings side tab opens synchronized center content", function(
 
     UI.settingsTab.scripts.OnClick()
     testlib.equal(UI.resetButton:IsShown(), true)
+end)
+
+testlib.case("ui settings unit labels stay contained without checkbutton template", function()
+    local harness = newUIHarness({
+        rejectTemplates = {
+            UICheckButtonTemplate = true,
+        },
+    })
+    harness.addon.UI.Create()
+    local UI = harness.addon.UI
+
+    testlib.equal(UI.metricCheck.template, nil)
+    testlib.equal(UI.imperialCheck.template, nil)
+    testlib.equal(UI.metricCheck.Text, nil)
+    testlib.equal(UI.imperialCheck.Text, nil)
+    testlib.equal(UI.metricCheck.label.parent, UI.metricCheck)
+    testlib.equal(UI.imperialCheck.label.parent, UI.imperialCheck)
+    testlib.equal(UI.metricCheck.label:GetText(), "Metric")
+    testlib.equal(UI.imperialCheck.label:GetText(), "Imperial")
+    assertContainedUnitLabelGeometry(UI)
 end)
 
 testlib.case("ui keeps portrait chrome with right tabs and classic center", function()
