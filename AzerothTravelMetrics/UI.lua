@@ -934,11 +934,35 @@ function UI.Create()
             "-"
         )
         UI.minimizeControl = UI.minimizeButton
+        local minimizeArtApplied = ATM.UITheme.ApplyButtonAtlases(
+            UI.minimizeButton,
+            {
+                normal = "RedButton-MiniCondense",
+                pushed = "RedButton-MiniCondense-pressed",
+                disabled = "RedButton-MiniCondense-disabled",
+                highlight = "RedButton-Highlight",
+            }
+        )
+        if not minimizeArtApplied then
+            UI.minimizeFallbackText = createLabel(
+                UI.minimizeButton,
+                "-",
+                "GameFontHighlightSmall"
+            )
+            UI.minimizeFallbackText:SetPoint(
+                "CENTER",
+                UI.minimizeButton,
+                "CENTER",
+                0,
+                0
+            )
+        end
+        UI.minimizeButton:ClearAllPoints()
         UI.minimizeButton:SetPoint(
-            "RIGHT",
-            UI.closeButton,
-            "LEFT",
-            -1,
+            "TOPRIGHT",
+            frame,
+            "TOPRIGHT",
+            -25,
             0
         )
         UI.minimizeButton:SetFrameLevel(510)

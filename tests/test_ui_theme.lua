@@ -433,6 +433,54 @@ testlib.case("ui theme applies an atlas or a visible color fallback", function()
     testlib.equal(missing.color[4], 0.8)
 end)
 
+testlib.case("ui theme applies native button atlases safely", function()
+    local addon, parent = newHarness()
+    local button = newFrame("Button", "AtlasButton", parent, nil, {})
+    button.normalTexture = newRegion("Texture", button, {})
+    button.pushedTexture = newRegion("Texture", button, {})
+    button.disabledTexture = newRegion("Texture", button, {})
+    button.highlightTexture = newRegion("Texture", button, {})
+
+    function button:GetNormalTexture()
+        return self.normalTexture
+    end
+
+    function button:GetPushedTexture()
+        return self.pushedTexture
+    end
+
+    function button:GetDisabledTexture()
+        return self.disabledTexture
+    end
+
+    function button:GetHighlightTexture()
+        return self.highlightTexture
+    end
+
+    local applied = addon.UITheme.ApplyButtonAtlases(button, {
+        normal = "RedButton-MiniCondense",
+        pushed = "RedButton-MiniCondense-pressed",
+        disabled = "RedButton-MiniCondense-disabled",
+        highlight = "RedButton-Highlight",
+    })
+
+    testlib.equal(applied, true)
+    testlib.equal(button.normalTexture.atlas, "RedButton-MiniCondense")
+    testlib.equal(
+        button.pushedTexture.atlas,
+        "RedButton-MiniCondense-pressed"
+    )
+    testlib.equal(
+        button.disabledTexture.atlas,
+        "RedButton-MiniCondense-disabled"
+    )
+    testlib.equal(button.highlightTexture.atlas, "RedButton-Highlight")
+
+    testlib.equal(addon.UITheme.ApplyButtonAtlases({}, {
+        normal = "RedButton-MiniCondense",
+    }), false)
+end)
+
 testlib.case("ui theme creates native side tabs with supplied regions", function()
     local addon, parent, calls = newHarness()
     local tab = addon.UITheme.CreateSideTab("TestTab", parent, {

@@ -1773,8 +1773,24 @@ local function newFrame(frameType, name, parent, template, options)
         self.normalTexture = texture
     end
 
+    function frame:GetNormalTexture()
+        return self.normalTexture
+    end
+
+    function frame:GetPushedTexture()
+        return self.pushedTexture
+    end
+
+    function frame:GetDisabledTexture()
+        return self.disabledTexture
+    end
+
     function frame:SetHighlightTexture(texture)
         self.highlightTexture = texture
+    end
+
+    function frame:GetHighlightTexture()
+        return self.highlightTexture
     end
 
     function frame:Show()
@@ -2012,6 +2028,38 @@ local function newUIHarness(options)
             if not options.portraitMissingClose then
                 frame.CloseButton = newFrame("Button", nil, frame, nil, options)
             end
+        end
+        if template == "UIPanelHideButtonNoScripts"
+            and not options.missingHideButtonTextures
+        then
+            frame.normalTexture = newFrame(
+                "Texture",
+                nil,
+                frame,
+                nil,
+                options
+            )
+            frame.pushedTexture = newFrame(
+                "Texture",
+                nil,
+                frame,
+                nil,
+                options
+            )
+            frame.disabledTexture = newFrame(
+                "Texture",
+                nil,
+                frame,
+                nil,
+                options
+            )
+            frame.highlightTexture = newFrame(
+                "Texture",
+                nil,
+                frame,
+                nil,
+                options
+            )
         end
         if template == "LargeSideTabButtonTemplate" then
             frame.Icon = newFrame("Texture", nil, frame, nil, options)
@@ -2612,9 +2660,28 @@ testlib.case("ui keeps portrait chrome with right tabs and classic center", func
     testlib.equal(frame.CloseButton:IsShown(), true)
     testlib.equal(UI.minimizeButton.parent, frame)
     testlib.equal(UI.minimizeButton.template, "UIPanelHideButtonNoScripts")
-    testlib.equal(UI.minimizeButton.point[1], "RIGHT")
-    testlib.equal(UI.minimizeButton.point[2], frame.CloseButton)
-    testlib.equal(UI.minimizeButton.point[3], "LEFT")
+    testlib.equal(UI.minimizeButton.point[1], "TOPRIGHT")
+    testlib.equal(UI.minimizeButton.point[2], frame)
+    testlib.equal(UI.minimizeButton.point[3], "TOPRIGHT")
+    testlib.equal(UI.minimizeButton.point[4], -25)
+    testlib.equal(UI.minimizeButton.point[5], 0)
+    testlib.equal(
+        UI.minimizeButton.normalTexture.atlas,
+        "RedButton-MiniCondense"
+    )
+    testlib.equal(
+        UI.minimizeButton.pushedTexture.atlas,
+        "RedButton-MiniCondense-pressed"
+    )
+    testlib.equal(
+        UI.minimizeButton.disabledTexture.atlas,
+        "RedButton-MiniCondense-disabled"
+    )
+    testlib.equal(
+        UI.minimizeButton.highlightTexture.atlas,
+        "RedButton-Highlight"
+    )
+    testlib.equal(UI.minimizeFallbackText, nil)
     testlib.truthy(UI.minimizeButton.frameLevel >= 510)
     testlib.equal(
         frame.PortraitContainer.portrait.texture,
@@ -2645,6 +2712,19 @@ testlib.case("ui keeps portrait chrome with right tabs and classic center", func
     testlib.equal(UI.levelPanel.parent, frame)
     testlib.equal(UI.levelPanel.point[4], 22)
     testlib.equal(UI.levelPanel.point[5], -54)
+end)
+
+testlib.case("ui main minimize keeps a visible atlas fallback", function()
+    local harness = newUIHarness({
+        missingHideButtonTextures = true,
+    })
+    local UI = harness.addon.UI
+    UI.Create()
+
+    testlib.truthy(UI.minimizeFallbackText ~= nil)
+    testlib.equal(UI.minimizeFallbackText:GetText(), "-")
+    testlib.equal(UI.minimizeFallbackText.point[1], "CENTER")
+    testlib.equal(UI.minimizeFallbackText.point[2], UI.minimizeButton)
 end)
 
 testlib.case("ui creates a safe close button when portrait chrome omits one", function()

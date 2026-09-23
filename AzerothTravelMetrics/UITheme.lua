@@ -243,6 +243,34 @@ function Theme.SetAtlasOrColor(texture, atlas, red, green, blue, alpha)
     return false
 end
 
+function Theme.ApplyButtonAtlases(button, atlases)
+    local getters = {
+        normal = "GetNormalTexture",
+        pushed = "GetPushedTexture",
+        disabled = "GetDisabledTexture",
+        highlight = "GetHighlightTexture",
+    }
+    local applied = false
+
+    for state, getterName in pairs(getters) do
+        local getter = button and button[getterName]
+        local atlas = atlases and atlases[state]
+        if type(getter) == "function" and atlas then
+            local texture = getter(button)
+            if texture and type(texture.SetAtlas) == "function" then
+                local succeeded, accepted = pcall(
+                    texture.SetAtlas,
+                    texture,
+                    atlas
+                )
+                applied = (succeeded and accepted ~= false) or applied
+            end
+        end
+    end
+
+    return applied
+end
+
 function Theme.CreateInset(parent)
     local inset = parent:CreateTexture(nil, "BACKGROUND")
     inset:SetAllPoints(parent)
