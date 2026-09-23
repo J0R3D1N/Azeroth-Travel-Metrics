@@ -752,7 +752,8 @@ testlib.case("window size controls use Blizzard native template children", funct
         addon.UITheme.CreateWindowSizeControl(
             parent,
             "restore",
-            "Restore"
+            "Restore",
+            20
         )
 
     testlib.equal(
@@ -769,9 +770,11 @@ testlib.case("window size controls use Blizzard native template children", funct
         restoreControl.template,
         "MaximizeMinimizeButtonFrameTemplate"
     )
-    testlib.equal(restoreControl.width, 24)
-    testlib.equal(restoreControl.height, 24)
+    testlib.equal(restoreControl.width, 20)
+    testlib.equal(restoreControl.height, 20)
     testlib.equal(restoreButton, restoreControl.MaximizeButton)
+    testlib.equal(restoreButton.width, 20)
+    testlib.equal(restoreButton.height, 20)
     testlib.equal(restoreControl.MaximizeButton:IsShown(), true)
     testlib.equal(restoreControl.MinimizeButton:IsShown(), false)
 end)

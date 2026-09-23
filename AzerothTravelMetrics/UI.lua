@@ -577,7 +577,8 @@ local function createHUD()
         ATM.UITheme.CreateWindowSizeControl(
             frame,
             "restore",
-            "Restore"
+            "Restore",
+            20
         )
     restoreControl:SetPoint("RIGHT", closeButton, "LEFT", -2, 0)
     raiseAboveParent(restoreControl, frame, 20)

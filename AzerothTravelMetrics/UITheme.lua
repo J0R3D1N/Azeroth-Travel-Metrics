@@ -693,10 +693,11 @@ function Theme.CreateTitleControl(parent, kind, tooltip, size)
     return button
 end
 
-function Theme.CreateWindowSizeControl(parent, mode, tooltip)
+function Theme.CreateWindowSizeControl(parent, mode, tooltip, size)
     if mode ~= "minimize" and mode ~= "restore" then
         error("unsupported window size control: " .. tostring(mode))
     end
+    size = size or 24
 
     local created, control = pcall(
         CreateFrame,
@@ -711,9 +712,9 @@ function Theme.CreateWindowSizeControl(parent, mode, tooltip)
         and control.MinimizeButton
     then
         local setupSucceeded, setupAccepted = pcall(function()
-            control:SetSize(24, 24)
-            control.MaximizeButton:SetSize(24, 24)
-            control.MinimizeButton:SetSize(24, 24)
+            control:SetSize(size, size)
+            control.MaximizeButton:SetSize(size, size)
+            control.MinimizeButton:SetSize(size, size)
             if mode == "minimize" then
                 control:SetMinimizedLook()
             else
@@ -735,6 +736,6 @@ function Theme.CreateWindowSizeControl(parent, mode, tooltip)
         end
     end
 
-    local button = Theme.CreateTitleControl(parent, mode, tooltip, 24)
+    local button = Theme.CreateTitleControl(parent, mode, tooltip, size)
     return button, button
 end
