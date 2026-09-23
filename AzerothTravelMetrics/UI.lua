@@ -217,30 +217,16 @@ local function setPanelVisibility()
     if hasError then
         UI.overviewPanel:Hide()
         UI.levelPanel:Hide()
-        UI.settingsPanel:Hide()
     elseif activeTab == "levels" then
         UI.overviewPanel:Hide()
-        UI.settingsPanel:Hide()
         UI.levelPanel:Show()
-    elseif activeTab == "settings" then
-        UI.overviewPanel:Hide()
-        UI.levelPanel:Hide()
-        UI.settingsPanel:Show()
     else
         UI.levelPanel:Hide()
-        UI.settingsPanel:Hide()
         UI.overviewPanel:Show()
     end
 
-    ATM.UITheme.SetTopTabSelected(
-        UI.overviewTab,
-        activeTab == "overview"
-    )
-    ATM.UITheme.SetTopTabSelected(UI.levelTab, activeTab == "levels")
-    ATM.UITheme.SetTopTabSelected(
-        UI.settingsTab,
-        activeTab == "settings"
-    )
+    ATM.UITheme.SetSideTabSelected(UI.overviewTab, activeTab == "overview")
+    ATM.UITheme.SetSideTabSelected(UI.levelTab, activeTab == "levels")
 end
 
 local function showModelError(reason)
@@ -937,23 +923,38 @@ function UI.Create()
     UI.title:SetTextColor(1, 0.82, 0.32, 1)
     UI.title:SetText("Azeroth Travel Metrics")
 
-    local titleControlParent = nativePortrait and frame or UI.titleRegion
-    UI.minimizeControl, UI.minimizeButton =
-        ATM.UITheme.CreateWindowSizeControl(
-            titleControlParent,
-            "minimize",
-            "Minimize"
-        )
-    UI.minimizeControl:SetPoint(
-        "RIGHT",
-        UI.closeButton,
-        "LEFT",
-        -1,
-        0
-    )
     if nativePortrait then
-        UI.minimizeControl:SetFrameLevel(510)
+        UI.minimizeButton = createSafeButton(
+            frame,
+            "UIPanelHideButtonNoScripts",
+            24,
+            24,
+            nil,
+            "-"
+        )
+        UI.minimizeControl = UI.minimizeButton
+        UI.minimizeButton:SetPoint(
+            "RIGHT",
+            UI.closeButton,
+            "LEFT",
+            -1,
+            0
+        )
+        UI.minimizeButton:SetFrameLevel(510)
     else
+        UI.minimizeControl, UI.minimizeButton =
+            ATM.UITheme.CreateWindowSizeControl(
+                UI.titleRegion,
+                "minimize",
+                "Minimize"
+            )
+        UI.minimizeControl:SetPoint(
+            "RIGHT",
+            UI.closeButton,
+            "LEFT",
+            -1,
+            0
+        )
         raiseAboveParent(UI.minimizeControl, UI.titleRegion, 3)
     end
     UI.minimizeControl:Show()
@@ -962,7 +963,7 @@ function UI.Create()
         UI.Minimize()
     end)
 
-    UI.overviewTab = ATM.UITheme.CreateTopTab(
+    UI.overviewTab = ATM.UITheme.CreateSideTab(
         "AzerothTravelMetricsFrameOverviewTab",
         frame,
         {
@@ -970,14 +971,14 @@ function UI.Create()
             tooltip = "Overview",
         }
     )
-    UI.overviewTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 72, -36)
+    UI.overviewTab:SetPoint("TOPLEFT", frame, "TOPRIGHT", -4, -34)
     UI.overviewTab:Show()
     UI.overviewTab:SetScript("OnClick", function()
         activeTab = "overview"
         setPanelVisibility()
     end)
 
-    UI.levelTab = ATM.UITheme.CreateTopTab(
+    UI.levelTab = ATM.UITheme.CreateSideTab(
         "AzerothTravelMetricsFrameLevelTab",
         frame,
         {
@@ -985,42 +986,24 @@ function UI.Create()
             tooltip = "By Level",
         }
     )
-    UI.levelTab:SetPoint("LEFT", UI.overviewTab, "RIGHT", 6, 0)
+    UI.levelTab:SetPoint("TOP", UI.overviewTab, "BOTTOM", 0, -2)
     UI.levelTab:Show()
     UI.levelTab:SetScript("OnClick", function()
         activeTab = "levels"
         setPanelVisibility()
     end)
 
-    UI.settingsTab = ATM.UITheme.CreateTopTab(
-        "AzerothTravelMetricsFrameSettingsTab",
+    UI.resetButton = createSafeButton(
         frame,
-        {
-            icon = ATM.UITheme.Icons.SETTINGS,
-            tooltip = "Settings",
-        }
+        "UIPanelButtonTemplate",
+        96,
+        22,
+        "Reset Session"
     )
-    UI.settingsTab:SetPoint("LEFT", UI.levelTab, "RIGHT", 6, 0)
-    UI.settingsTab:Show()
-    UI.settingsTab:SetScript("OnClick", function()
-        activeTab = "settings"
-        syncSettingsControls()
-        setPanelVisibility()
+    UI.resetButton:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 18, 12)
+    UI.resetButton:SetScript("OnClick", function()
+        UI.ConfirmResetSession()
     end)
-
-    UI.contentFrame = CreateFrame("Frame", nil, frame)
-    UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -76)
-    UI.contentFrame:SetSize(388, 364)
-    UI.pageArtFrame = CreateFrame("Frame", nil, frame)
-    UI.pageArtFrame:SetPoint(
-        "TOPLEFT",
-        UI.contentFrame,
-        "TOPLEFT",
-        0,
-        34
-    )
-    UI.pageArtFrame:SetSize(388, 398)
-    UI.parchmentPage = ATM.UITheme.CreateParchmentPage(UI.pageArtFrame)
 
     UI.versionLabel = createLabel(
         frame,
@@ -1039,22 +1022,41 @@ function UI.Create()
     UI.versionLabel:SetJustifyV("BOTTOM")
     UI.versionLabel:SetTextColor(0.58, 0.50, 0.38, 1)
 
-    local settingsPanel = CreateFrame("Frame", nil, UI.contentFrame)
+    UI.settingsButton = ATM.UITheme.CreateIconButton(
+        frame,
+        ATM.UITheme.Icons.SETTINGS,
+        "Settings"
+    )
+    UI.settingsButton:SetPoint(
+        "RIGHT",
+        UI.versionLabel,
+        "LEFT",
+        -8,
+        0
+    )
+    raiseAboveParent(UI.settingsButton, frame, 20)
+
+    local settingsPanelSucceeded, settingsPanel = pcall(
+        CreateFrame,
+        "Frame",
+        nil,
+        frame,
+        "InsetFrameTemplate3"
+    )
+    if not settingsPanelSucceeded then
+        settingsPanel = CreateFrame("Frame", nil, frame)
+    end
     UI.settingsPanel = settingsPanel
-    settingsPanel:SetPoint(
-        "TOPLEFT",
-        UI.contentFrame,
-        "TOPLEFT",
-        18,
-        -18
-    )
-    settingsPanel:SetPoint(
-        "BOTTOMRIGHT",
-        UI.contentFrame,
-        "BOTTOMRIGHT",
-        -18,
-        18
-    )
+    settingsPanel:SetSize(205, 128)
+    settingsPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -18, 64)
+    if type(settingsPanel.SetFrameStrata) == "function" then
+        pcall(settingsPanel.SetFrameStrata, settingsPanel, "DIALOG")
+    end
+    if type(settingsPanel.SetFrameLevel) == "function"
+        and type(frame.GetFrameLevel) == "function"
+    then
+        settingsPanel:SetFrameLevel(frame:GetFrameLevel() + 100)
+    end
 
     UI.settingsHeading = createLabel(
         settingsPanel,
@@ -1137,68 +1139,21 @@ function UI.Create()
         UI.Refresh()
     end)
 
-    UI.resetDivider = ATM.UITheme.CreateDivider(settingsPanel)
-    UI.resetDivider:SetPoint(
-        "BOTTOMLEFT",
-        settingsPanel,
-        "BOTTOMLEFT",
-        0,
-        76
-    )
-    UI.resetDivider:SetPoint(
-        "BOTTOMRIGHT",
-        settingsPanel,
-        "BOTTOMRIGHT",
-        0,
-        76
-    )
-
-    UI.resetHeading = createLabel(
-        settingsPanel,
-        "Session",
-        "GameFontNormal"
-    )
-    UI.resetHeading:SetPoint(
-        "BOTTOMLEFT",
-        UI.resetDivider,
-        "TOPLEFT",
-        0,
-        6
-    )
-
-    UI.resetWarning = createLabel(
-        settingsPanel,
-        "Resets only this character's current travel session.",
-        "GameFontDisableSmall"
-    )
-    UI.resetWarning:SetPoint(
-        "BOTTOMLEFT",
-        settingsPanel,
-        "BOTTOMLEFT",
-        0,
-        38
-    )
-
-    UI.resetButton = createSafeButton(
-        settingsPanel,
-        "UIPanelButtonTemplate",
-        156,
-        24,
-        "Reset Current Session"
-    )
-    UI.resetButton:SetPoint(
-        "BOTTOMLEFT",
-        settingsPanel,
-        "BOTTOMLEFT",
-        0,
-        6
-    )
-    UI.resetButton:SetScript("OnClick", function()
-        UI.ConfirmResetSession()
+    UI.settingsButton:SetScript("OnClick", function()
+        if settingsPanel:IsShown() then
+            settingsPanel:Hide()
+        else
+            syncSettingsControls()
+            settingsPanel:Show()
+        end
     end)
 
     syncSettingsControls()
     settingsPanel:Hide()
+
+    UI.contentFrame = CreateFrame("Frame", nil, frame)
+    UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -50)
+    UI.contentFrame:SetSize(388, 350)
 
     UI.errorPanel = CreateFrame("Frame", nil, UI.contentFrame)
     UI.errorPanel:SetPoint(
@@ -1208,7 +1163,8 @@ function UI.Create()
         6,
         -8
     )
-    UI.errorPanel:SetSize(376, 356)
+    UI.errorPanel:SetSize(376, 342)
+    UI.errorInset = ATM.UITheme.CreateInset(UI.errorPanel)
 
     UI.errorText = createLabel(
         UI.errorPanel,
@@ -1221,8 +1177,8 @@ function UI.Create()
     UI.errorText:Hide()
     UI.errorPanel:Hide()
 
-    UI.overviewPanel = CreateFrame("Frame", nil, UI.contentFrame)
-    UI.overviewPanel:SetPoint("TOPLEFT", UI.contentFrame, "TOPLEFT", 6, -18)
+    UI.overviewPanel = CreateFrame("Frame", nil, frame)
+    UI.overviewPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -54)
     UI.overviewPanel:SetSize(376, SUMMARY_CONTENT_HEIGHT)
 
     UI.summarySections = {}
@@ -1313,8 +1269,8 @@ function UI.Create()
     UI.diagnosticsText:Hide()
     diagnosticsScrollFrame:Hide()
 
-    UI.levelPanel = CreateFrame("Frame", nil, UI.contentFrame)
-    UI.levelPanel:SetPoint("TOPLEFT", UI.contentFrame, "TOPLEFT", 6, -18)
+    UI.levelPanel = CreateFrame("Frame", nil, frame)
+    UI.levelPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -54)
     UI.levelPanel:SetSize(LEVEL_PANEL_WIDTH, 310)
     UI.levelHeadingSection = ATM.UITheme.CreateSection(
         UI.levelPanel,
