@@ -103,6 +103,8 @@ local function readCapabilities()
     local onTaxi, taxi = callBoolean(UnitOnTaxi, "player")
     local swimmingValue, swimming = callBoolean(IsSwimming)
     local mountedValue, mounted = callBoolean(IsMounted)
+    local flyingValue, flying = callBoolean(IsFlying)
+    local vehicleValue, vehicle = callBoolean(UnitInVehicle, "player")
     local falling, grounded = callBoolean(IsFalling)
     local groundedValue
     if grounded then
@@ -116,6 +118,8 @@ local function readCapabilities()
         taxi = taxi,
         swimming = swimming,
         mounted = mounted,
+        flying = flying,
+        vehicle = vehicle,
         grounded = grounded,
     }
 
@@ -126,8 +130,10 @@ local function readCapabilities()
     capabilities.swimmingReady = capabilities.taxiReady
         and capabilities.swimming
         and capabilities.mounted
+        and capabilities.vehicle
     capabilities.onFootReady = capabilities.swimmingReady
         and capabilities.grounded
+        and capabilities.flying
 
     return capabilities, {
         position = position,
@@ -136,6 +142,8 @@ local function readCapabilities()
         onTaxi = onTaxi,
         swimming = swimmingValue,
         mounted = mountedValue,
+        flying = flyingValue,
+        vehicle = vehicleValue,
         grounded = groundedValue,
     }
 end
@@ -149,13 +157,13 @@ function Compat.ReadSample()
     local capabilities, values = readCapabilities()
 
     if not capabilities.position then
-        return nil, "positionUnavailable"
+        return nil, "positionUnavailable", capabilities
     end
     if not capabilities.map then
-        return nil, "mapUnavailable"
+        return nil, "mapUnavailable", capabilities
     end
     if not capabilities.time then
-        return nil, "timeUnavailable"
+        return nil, "timeUnavailable", capabilities
     end
 
     return {
@@ -168,6 +176,8 @@ function Compat.ReadSample()
         onTaxi = values.onTaxi,
         swimming = values.swimming,
         mounted = values.mounted,
+        flying = values.flying,
+        vehicle = values.vehicle,
         grounded = values.grounded,
         capabilities = capabilities,
     }

@@ -32,6 +32,12 @@ local function completeGlobals(overrides)
         IsMounted = function()
             return false
         end,
+        IsFlying = function()
+            return false
+        end,
+        UnitInVehicle = function()
+            return false
+        end,
         IsFalling = function()
             return false
         end,
@@ -77,6 +83,8 @@ testlib.case("compat reads a complete normalized sample", function()
     testlib.equal(value.onTaxi, true)
     testlib.equal(value.swimming, false)
     testlib.equal(value.mounted, false)
+    testlib.equal(value.flying, false)
+    testlib.equal(value.vehicle, false)
     testlib.equal(value.grounded, true)
 end)
 
@@ -91,6 +99,12 @@ testlib.case("compat normalizes nil predicate results as false", function()
         IsMounted = function()
             return nil
         end,
+        IsFlying = function()
+            return nil
+        end,
+        UnitInVehicle = function()
+            return nil
+        end,
         IsFalling = function()
             return nil
         end,
@@ -103,10 +117,14 @@ testlib.case("compat normalizes nil predicate results as false", function()
     testlib.equal(value.onTaxi, false)
     testlib.equal(value.swimming, false)
     testlib.equal(value.mounted, false)
+    testlib.equal(value.flying, false)
+    testlib.equal(value.vehicle, false)
     testlib.equal(value.grounded, true)
     testlib.equal(capabilities.taxi, true)
     testlib.equal(capabilities.swimming, true)
     testlib.equal(capabilities.mounted, true)
+    testlib.equal(capabilities.flying, true)
+    testlib.equal(capabilities.vehicle, true)
     testlib.equal(capabilities.grounded, true)
     testlib.equal(capabilities.onFootReady, true)
 end)
@@ -237,6 +255,8 @@ testlib.case("compat leaves unavailable state fields nil and capabilities false"
         { name = "taxi", globalName = "UnitOnTaxi", field = "onTaxi", capability = "taxi" },
         { name = "swimming", globalName = "IsSwimming", field = "swimming", capability = "swimming" },
         { name = "mounted", globalName = "IsMounted", field = "mounted", capability = "mounted" },
+        { name = "flying", globalName = "IsFlying", field = "flying", capability = "flying" },
+        { name = "vehicle", globalName = "UnitInVehicle", field = "vehicle", capability = "vehicle" },
         { name = "grounded", globalName = "IsFalling", field = "grounded", capability = "grounded" },
     }
 
@@ -277,6 +297,8 @@ testlib.case("compat exposes the exact category capability dependency matrix", f
         "taxi",
         "swimming",
         "mounted",
+        "flying",
+        "vehicle",
         "grounded",
         "taxiReady",
         "swimmingReady",
@@ -292,6 +314,8 @@ testlib.case("compat exposes the exact category capability dependency matrix", f
         taxi = { taxiReady = false, swimmingReady = false, onFootReady = false },
         swimming = { taxiReady = true, swimmingReady = false, onFootReady = false },
         mounted = { taxiReady = true, swimmingReady = false, onFootReady = false },
+        flying = { taxiReady = true, swimmingReady = true, onFootReady = false },
+        vehicle = { taxiReady = true, swimmingReady = false, onFootReady = false },
         grounded = { taxiReady = true, swimmingReady = true, onFootReady = false },
     }
     local globalByCapability = {
@@ -301,6 +325,8 @@ testlib.case("compat exposes the exact category capability dependency matrix", f
         taxi = "UnitOnTaxi",
         swimming = "IsSwimming",
         mounted = "IsMounted",
+        flying = "IsFlying",
+        vehicle = "UnitInVehicle",
         grounded = "IsFalling",
     }
 
@@ -322,6 +348,23 @@ testlib.case("compat exposes the exact category capability dependency matrix", f
             capability .. " on-foot dependency was wrong"
         )
     end
+end)
+
+testlib.case("compat returns capabilities with essential sample failures", function()
+    local addon = loadCompat(completeGlobals({
+        C_Map = false,
+    }))
+
+    local value, reason, capabilities = addon.Compat.ReadSample()
+
+    testlib.equal(value, nil)
+    testlib.equal(reason, "mapUnavailable")
+    testlib.equal(type(capabilities), "table")
+    testlib.equal(capabilities.position, true)
+    testlib.equal(capabilities.map, false)
+    testlib.equal(capabilities.flying, true)
+    testlib.equal(capabilities.vehicle, true)
+    testlib.equal(capabilities.onFootReady, false)
 end)
 
 testlib.case("compat returns stable identity and prefers the UnitName realm", function()
