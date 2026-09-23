@@ -446,13 +446,16 @@ function Theme.CreateSection(parent, title, rowCount, options)
     local titleText = frame:CreateFontString(
         nil,
         "ARTWORK",
-        "GameFontNormalSmall"
+        "GameFontNormal"
     )
     titleText:SetPoint("LEFT", header, "LEFT", 8, 0)
     titleText:SetPoint("RIGHT", header, "RIGHT", -8, 0)
     titleText:SetJustifyH("LEFT")
     titleText:SetJustifyV("MIDDLE")
     titleText:SetTextColor(0.26, 0.13, 0.05, 1)
+    if type(titleText.SetShadowOffset) == "function" then
+        titleText:SetShadowOffset(0, 0)
+    end
     if type(titleText.SetWordWrap) == "function" then
         titleText:SetWordWrap(false)
     end
@@ -493,18 +496,24 @@ function Theme.CreateSection(parent, title, rowCount, options)
         local label = rowFrame:CreateFontString(
             nil,
             "ARTWORK",
-            "GameFontNormalSmall"
+            "GameFontNormal"
         )
         label:SetPoint("LEFT", rowFrame, "LEFT", 8, 0)
         label:SetTextColor(0.32, 0.16, 0.06, 1)
+        if type(label.SetShadowOffset) == "function" then
+            label:SetShadowOffset(0, 0)
+        end
 
         local value = rowFrame:CreateFontString(
             nil,
             "ARTWORK",
-            "GameFontHighlightSmall"
+            "GameFontHighlight"
         )
         value:SetPoint("RIGHT", rowFrame, "RIGHT", -8, 0)
         value:SetTextColor(0.12, 0.07, 0.03, 1)
+        if type(value.SetShadowOffset) == "function" then
+            value:SetShadowOffset(0, 0)
+        end
         value:SetJustifyH("RIGHT")
 
         local row = {

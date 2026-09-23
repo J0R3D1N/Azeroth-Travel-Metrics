@@ -870,9 +870,6 @@ function UI.Create()
     if nativePortrait then
         UI.title = frame.TitleContainer
             and frame.TitleContainer.TitleText
-        if frame.CloseButton and type(frame.CloseButton.Hide) == "function" then
-            pcall(frame.CloseButton.Hide, frame.CloseButton)
-        end
         UI.titleIcon = frame.PortraitContainer
             and frame.PortraitContainer.portrait
         if UI.titleIcon then
@@ -896,17 +893,22 @@ function UI.Create()
             UI.titleIconFrame:SetPoint("LEFT", UI.titleRegion, "LEFT", 4, 0)
             raiseAboveParent(UI.titleIconFrame, UI.titleRegion, 2)
     end
-    UI.closeButton = createSafeButton(
+    if nativePortrait and frame.CloseButton then
+        UI.closeButton = frame.CloseButton
+        UI.closeButton:Show()
+    else
+        UI.closeButton = createSafeButton(
             UI.titleRegion,
             "UIPanelCloseButton",
             24,
             24,
             nil,
             "x"
-    )
-    UI.closeButton:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -2, 0)
-    raiseAboveParent(UI.closeButton, UI.titleRegion, 3)
-    UI.closeButton:Show()
+        )
+        UI.closeButton:SetPoint("RIGHT", UI.titleRegion, "RIGHT", -2, 0)
+        raiseAboveParent(UI.closeButton, UI.titleRegion, 3)
+        UI.closeButton:Show()
+    end
     UI.closeButton:SetScript("OnClick", function()
         frame:Hide()
     end)
@@ -929,9 +931,10 @@ function UI.Create()
     UI.title:SetTextColor(1, 0.82, 0.32, 1)
     UI.title:SetText("Azeroth Travel Metrics")
 
+    local titleControlParent = nativePortrait and frame or UI.titleRegion
     UI.minimizeControl, UI.minimizeButton =
         ATM.UITheme.CreateWindowSizeControl(
-            UI.titleRegion,
+            titleControlParent,
             "minimize",
             "Minimize"
         )
@@ -942,7 +945,11 @@ function UI.Create()
         -1,
         0
     )
-    raiseAboveParent(UI.minimizeControl, UI.titleRegion, 3)
+    if nativePortrait then
+        UI.minimizeControl:SetFrameLevel(510)
+    else
+        raiseAboveParent(UI.minimizeControl, UI.titleRegion, 3)
+    end
     UI.minimizeControl:Show()
     UI.minimizeButton:Show()
     UI.minimizeButton:SetScript("OnClick", function()
@@ -998,7 +1005,16 @@ function UI.Create()
     UI.contentFrame = CreateFrame("Frame", nil, frame)
     UI.contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -76)
     UI.contentFrame:SetSize(388, 364)
-    UI.parchmentPage = ATM.UITheme.CreateParchmentPage(UI.contentFrame)
+    UI.pageArtFrame = CreateFrame("Frame", nil, frame)
+    UI.pageArtFrame:SetPoint(
+        "TOPLEFT",
+        UI.contentFrame,
+        "TOPLEFT",
+        0,
+        34
+    )
+    UI.pageArtFrame:SetSize(388, 398)
+    UI.parchmentPage = ATM.UITheme.CreateParchmentPage(UI.pageArtFrame)
 
     UI.versionLabel = createLabel(
         frame,

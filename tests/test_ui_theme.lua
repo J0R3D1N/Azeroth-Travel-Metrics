@@ -85,6 +85,10 @@ local function newRegion(kind, parent, options)
         self.textColor = { red, green, blue, alpha }
     end
 
+    function region:SetShadowOffset(x, y)
+        self.shadowOffset = { x, y }
+    end
+
     function region:SetJustifyH(justification)
         self.justifyH = justification
     end
@@ -521,8 +525,16 @@ testlib.case("ui theme creates character stat sections and assigns values", func
     testlib.equal(section.header.height, 20)
     testlib.equal(section.header.atlas, nil)
     testlib.equal(section.header.color[4], 0)
+    testlib.equal(section.title.fontTemplate, "GameFontNormal")
+    testlib.equal(section.title.shadowOffset[1], 0)
+    testlib.equal(section.title.shadowOffset[2], 0)
+    testlib.equal(section.rows[1].label.fontTemplate, "GameFontNormal")
+    testlib.equal(section.rows[1].label.shadowOffset[1], 0)
+    testlib.equal(section.rows[1].label.shadowOffset[2], 0)
+    testlib.equal(section.rows[1].value.fontTemplate, "GameFontHighlight")
+    testlib.equal(section.rows[1].value.shadowOffset[1], 0)
+    testlib.equal(section.rows[1].value.shadowOffset[2], 0)
     testlib.equal(section.title.text, "Lifetime")
-    testlib.equal(section.title.fontTemplate, "GameFontNormalSmall")
     testlib.equal(#section.title.points, 2)
     testlib.equal(section.title.points[1][1], "LEFT")
     testlib.equal(section.title.points[1][2], section.header)

@@ -2436,7 +2436,7 @@ testlib.case("ui creation is lazy idempotent and preserves the fallback warm she
     }
     for sectionIndex, section in ipairs(harness.addon.UI.summarySections) do
         testlib.equal(section.title:GetText(), expectedTitles[sectionIndex])
-        testlib.equal(section.title.template, "GameFontNormalSmall")
+        testlib.equal(section.title.template, "GameFontNormal")
         testlib.equal(section.title.justifyH, "LEFT")
         testlib.equal(section.title.justifyV, "MIDDLE")
         testlib.equal(section.title.wordWrap, false)
@@ -2602,14 +2602,16 @@ end)
 testlib.case("ui uses portrait chrome top tabs and a parchment page", function()
     local harness = newUIHarness()
     local frame = harness.addon.UI.Create()
+    local UI = harness.addon.UI
 
     testlib.equal(frame.template, "PortraitFrameTemplate")
-    testlib.equal(harness.addon.UI.closeButton.parent, harness.addon.UI.titleRegion)
-    testlib.equal(
-        harness.addon.UI.minimizeControl.parent,
-        harness.addon.UI.titleRegion
-    )
-    testlib.equal(frame.CloseButton:IsShown(), false)
+    testlib.equal(UI.closeButton, frame.CloseButton)
+    testlib.equal(frame.CloseButton:IsShown(), true)
+    testlib.equal(UI.minimizeControl.parent, frame)
+    testlib.equal(UI.minimizeControl.point[1], "RIGHT")
+    testlib.equal(UI.minimizeControl.point[2], frame.CloseButton)
+    testlib.equal(UI.minimizeControl.point[3], "LEFT")
+    testlib.truthy(UI.minimizeControl.frameLevel >= 510)
     testlib.equal(
         frame.PortraitContainer.portrait.texture,
         harness.addon.UITheme.Icons.TITLE
@@ -2639,11 +2641,27 @@ testlib.case("ui uses portrait chrome top tabs and a parchment page", function()
         harness.addon.UITheme.Icons.SETTINGS
     )
     testlib.equal(
-        harness.addon.UI.parchmentPage.atlas,
+        UI.pageArtFrame.parent,
+        frame
+    )
+    testlib.equal(UI.pageArtFrame.point[1], "TOPLEFT")
+    testlib.equal(UI.pageArtFrame.point[2], UI.contentFrame)
+    testlib.equal(UI.pageArtFrame.point[3], "TOPLEFT")
+    testlib.equal(UI.pageArtFrame.point[4], 0)
+    testlib.equal(UI.pageArtFrame.point[5], 34)
+    testlib.equal(UI.pageArtFrame.width, 388)
+    testlib.equal(UI.pageArtFrame.height, 398)
+    testlib.equal(
+        UI.pageArtFrame.point[5] - UI.pageArtFrame.height,
+        -UI.contentFrame.height
+    )
+    testlib.equal(UI.parchmentPage.parent, UI.pageArtFrame)
+    testlib.equal(
+        UI.parchmentPage.atlas,
         harness.addon.UITheme.Atlases.PAGE
     )
-    testlib.equal(harness.addon.UI.contentFrame.height, 364)
-    testlib.equal(harness.addon.UI.overviewPanel.point[5], -18)
+    testlib.equal(UI.contentFrame.height, 364)
+    testlib.equal(UI.overviewPanel.point[5], -18)
     testlib.equal(
         harness.addon.UI.summarySections[1].divider.atlas,
         harness.addon.UITheme.Atlases.DIVIDER
@@ -2660,6 +2678,10 @@ testlib.case("ui creates a safe close button when portrait chrome omits one", fu
     testlib.equal(frame.template, "PortraitFrameTemplate")
     testlib.truthy(harness.addon.UI.closeButton ~= nil)
     testlib.equal(harness.addon.UI.closeButton.template, "UIPanelCloseButton")
+    testlib.equal(
+        harness.addon.UI.closeButton.parent,
+        harness.addon.UI.titleRegion
+    )
 end)
 
 testlib.case("ui unit controls remain mutually exclusive persist and refresh", function()
